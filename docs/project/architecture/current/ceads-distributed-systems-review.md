@@ -6,7 +6,7 @@
 
 **Document Reviewed:** [ceads-design.md](ceads-design.md)
 
-**Last Updated:** January 2025 (reflects consolidated `.ceads/local/` structure)
+**Last Updated:** January 2025 (all Critical and Important recommendations implemented)
 
 * * *
 
@@ -514,37 +514,44 @@ reconcile if needed.
 
 These issues will cause data loss or incorrect behavior in production:
 
-- [ ] **Replace LWW timestamps with HLC** — Clock skew will cause silent data loss when
+- [x] **Replace LWW timestamps with HLC** — Clock skew will cause silent data loss when
   machines have unsynchronized clocks.
   See [Section 2](#2-clock-synchronization-and-lww-a-critical-flaw).
+  **IMPLEMENTED:** HybridTimestamp added to BaseEntity, hlcCompare used in merge algorithm.
 
-- [ ] **Define Bridge consistency guarantees explicitly** — Users and implementers need
+- [x] **Define Bridge consistency guarantees explicitly** — Users and implementers need
   to know what consistency properties the system provides.
   See [Section 4](#4-bridge-layer-consistency-guarantees).
+  **IMPLEMENTED:** Section 5.2.1 added with consistency model and latency expectations.
 
-- [ ] **Add idempotency keys to outbound queue** — Without idempotency, network retries
+- [x] **Add idempotency keys to outbound queue** — Without idempotency, network retries
   will cause duplicate message delivery.
   See [Section 7](#7-offline-first-cache-missing-guarantees).
+  **IMPLEMENTED:** OutboundQueueItem schema with idempotency_key added to Section 5.8.
 
 ### Important (Strong Recommendation)
 
 These issues may cause problems in multi-agent scenarios:
 
-- [ ] **Lease-based claims with Bridge coordination** — Current design has race
+- [x] **Lease-based claims with Bridge coordination** — Current design has race
   conditions where multiple agents may claim the same issue.
   See [Section 3](#3-claim-coordination-race-conditions).
+  **IMPLEMENTED:** Claim field with lease_expires and lease_sequence added to IssueSchema.
 
-- [ ] **Define GitHub field-level sync direction** — Bidirectional sync with GitHub
+- [x] **Define GitHub field-level sync direction** — Bidirectional sync with GitHub
   needs clear conflict resolution rules per field.
   See [Section 5](#5-github-issues-bridge-specific-concerns).
+  **IMPLEMENTED:** GitHubSyncDirection enum and GitHubBridgeConfig added to Section 5.3.
 
-- [ ] **Add retry policy and dead letter queue** — Offline-first messaging needs defined
+- [x] **Add retry policy and dead letter queue** — Offline-first messaging needs defined
   failure handling behavior.
   See [Section 7](#7-offline-first-cache-missing-guarantees).
+  **IMPLEMENTED:** RetryPolicy schema, dead_letter directory, and CLI commands added.
 
-- [ ] **Add explicit bridge sync conflict resolution rules** — Document what happens
+- [x] **Add explicit bridge sync conflict resolution rules** — Document what happens
   when Git and Bridge both have changes.
   See [Section 1](#1-source-of-truth-git-vs-bridge).
+  **IMPLEMENTED:** resolveBridgeConflict function added to Section 5.2.1.
 
 ### Nice to Have (v2 Considerations)
 

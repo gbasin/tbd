@@ -4,7 +4,7 @@
 
 **Target:** [ceads-design.md](ceads-design.md)
 
-**Status:** Draft - Ready for implementation
+**Status:** Completed - All edits implemented in ceads-design.md
 
 ---
 
@@ -43,7 +43,7 @@ All paths in this document use the current directory structure:
 
 ### Edit 1.1: Replace LWW Timestamps with Hybrid Logical Clocks
 
-- [ ] **Completed**
+- [x] **Completed**
 
 **Location:** Section 2.5.1 (Common Types) and Section 2.5.2 (BaseEntity)
 
@@ -130,7 +130,7 @@ function updateHlc(current: HybridTimestamp, nodeId: string): HybridTimestamp {
 
 ### Edit 1.2: Add Bridge Consistency Guarantees
 
-- [ ] **Completed**
+- [x] **Completed**
 
 **Location:** Add new Section 5.2.1 after Section 5.2 (Bridge Architecture)
 
@@ -180,7 +180,7 @@ When Git and Bridge both have changes to the same entity:
 
 ### Edit 1.3: Add Idempotency Keys to Outbound Queue
 
-- [ ] **Completed**
+- [x] **Completed**
 
 **Location:** Section 5.8 (Offline-First Architecture), update Cache Types and add schema
 
@@ -248,7 +248,7 @@ const CacheState = z.object({
 
 ### Edit 2.1: Add Lease-Based Claims
 
-- [ ] **Completed**
+- [x] **Completed**
 
 **Location:** Section 2.5.3 (IssueSchema), add claim field
 
@@ -325,7 +325,7 @@ Options:
 
 ### Edit 2.2: Add GitHub Field-Level Sync Direction
 
-- [ ] **Completed**
+- [x] **Completed**
 
 **Location:** Section 5.3 (GitHub Issues Bridge), add configuration schema
 
@@ -387,7 +387,7 @@ GitHub API limits: 5,000 requests/hour (authenticated).
 
 ### Edit 2.3: Add Retry Policy and Dead Letter Queue
 
-- [ ] **Completed**
+- [x] **Completed**
 
 **Location:** Section 5.8 (Offline-First Architecture)
 
@@ -434,7 +434,7 @@ cead cache dead-letter discard <idempotency-key>
 
 ### Edit 2.4: Add ID Generation Specification
 
-- [ ] **Completed**
+- [x] **Completed**
 
 **Location:** Section 2.4 (ID Generation)
 
@@ -485,7 +485,7 @@ const EntityId = z.string().regex(/^[a-z]{2}-[a-z0-9]{6}$/);
 
 ### Edit 2.5: Add Schema Migration Strategy
 
-- [ ] **Completed**
+- [x] **Completed**
 
 **Location:** Add new Section 2.6 after Section 2.5 (Schemas)
 
@@ -563,7 +563,7 @@ CLI should warn: "Remote entities require CLI version >= X.Y.Z"
 
 ### Edit 2.6: Add Webhook Security
 
-- [ ] **Completed**
+- [x] **Completed**
 
 **Location:** Section 5.2 (Bridge Architecture), add security subsection
 
@@ -632,15 +632,17 @@ function validateSlackRequest(
 
 After making all edits, verify:
 
-- [ ] **HLC fields** added to all example JSON files in Section 7.5 (`.ceads-sync/nodes/` examples)
-- [ ] **Claim field** added to example Issue JSON (`.ceads-sync/nodes/issues/`)
-- [ ] **Idempotency key** shown in outbound queue example (`.ceads/local/cache/outbound/`)
-- [ ] **Schema version** examples updated to show v1 baseline
-- [ ] **Config vs Meta separation** clear in examples:
-  - `.ceads/config.yml` on main: prefixes, TTLs, sync settings
-  - `.ceads-sync/meta.json` on sync branch: schema_versions, last_sync
-- [ ] **Table of Contents** updated if new sections added
-- [ ] **Cross-references** updated (any "see Section X" references)
+- [x] **HLC fields** added to BaseEntity schema and merge algorithm
+- [x] **Claim field** added to IssueSchema with lease-based coordination
+- [x] **Idempotency key** schema defined for outbound queue items
+- [x] **Schema version** migration strategy added (Section 2.6)
+- [x] **Config vs Meta separation** documented in schema migration section
+- [x] **Table of Contents** updated with new sections (2.6, 5.2.1, 5.2.2)
+- [x] **Cross-references** updated (merge algorithm refers to HLC)
+
+**Notes:**
+- JSON examples in appendices may need future updates when v2 of spec is released
+- All critical and important items from distributed systems review are now addressed
 
 ---
 

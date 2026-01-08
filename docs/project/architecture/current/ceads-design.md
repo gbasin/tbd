@@ -35,6 +35,8 @@
 
    - [Schemas](#25-schemas)
 
+   - [Schema Versioning and Migration](#26-schema-versioning-and-migration)
+
 3. [Git Layer](#3-git-layer)
 
    - [Overview](#31-overview)
@@ -78,6 +80,10 @@
    - [Overview](#51-overview)
 
    - [Bridge Architecture](#52-bridge-architecture)
+
+   - [Bridge Consistency Guarantees](#521-bridge-consistency-guarantees)
+
+   - [Bridge Security](#522-bridge-security)
 
    - [GitHub Issues Bridge](#53-github-issues-bridge)
 
@@ -405,11 +411,34 @@ Entity IDs follow a consistent pattern:
 {prefix}-{hash}
 ```
 
-- **Prefix**: 2-3 lowercase letters derived from directory name (`is-`, `ag-`, `lo-`)
+- **Prefix**: 2 lowercase letters matching directory name (`is-`, `ag-`, `lo-`, `ms-`)
 
-- **Hash**: Lowercase alphanumeric, typically 4-8 characters
+- **Hash**: 6 lowercase alphanumeric characters (base36)
 
-Example: `is-a1b2`, `ag-x1y2`, `lo-p3q4`
+Example: `is-a1b2c3`, `ag-x1y2z3`, `lo-p3q4r5`
+
+#### ID Generation Algorithm
+
+```typescript
+import { randomBytes } from 'crypto';
+
+function generateId(prefix: string): string {
+  // 6 bytes = 48 bits of entropy ≈ 281 trillion possibilities
+  const bytes = randomBytes(6);
+  const hash = bytes.toString('base36').toLowerCase().slice(0, 6);
+  return `${prefix}${hash}`;
+}
+```
+
+**Properties:**
+- **Cryptographically random**: No timestamp or content dependency
+- **Collision probability**: ~1 in 2 billion per prefix at 50,000 entities
+- **On collision**: Regenerate ID (detected by file-exists check on write)
+
+**ID validation regex:**
+```typescript
+const EntityId = z.string().regex(/^[a-z]{2}-[a-z0-9]{6}$/);
+```
 
 #### Internal vs External Prefixes
 
@@ -441,6 +470,15 @@ import { z } from 'zod';
 // ISO8601 timestamp
 const Timestamp = z.string().datetime();
 
+// Hybrid Logical Clock for conflict resolution
+// Wall-clock times can drift; HLC provides causal ordering without synchronized clocks
+// See: https://cse.buffalo.edu/tech-reports/2014-04.pdf
+const HybridTimestamp = z.object({
+  wall: z.string().datetime(),  // Wall clock (for display)
+  logical: z.number().int(),     // Lamport-style counter
+  node: z.string(),              // Node identifier for deterministic tiebreak
+});
+
 // Hash-based ID with prefix
 const EntityId = z.string().regex(/^[a-z]+-[a-z0-9]+$/);
 
@@ -460,8 +498,9 @@ const BaseEntity = z.object({
   type: EntityType,           // Discriminator: "is", "ag", "lo", "ms"
   id: EntityId,
   version: Version,
-  created_at: Timestamp,
-  updated_at: Timestamp,
+  created_at: Timestamp,      // Wall clock for display
+  updated_at: Timestamp,      // Wall clock for display
+  hlc: HybridTimestamp,       // For merge conflict resolution (clock-independent)
 });
 ```
 
@@ -495,6 +534,15 @@ const IssueSchema = BaseEntity.extend({
   priority: Priority.default(2),
 
   assignee: z.string().optional(),
+
+  // Lease-based claim for multi-agent coordination
+  claim: z.object({
+    agent_id: EntityId,
+    claimed_at: Timestamp,
+    lease_expires: Timestamp,       // TTL for the claim
+    lease_sequence: z.number(),     // Monotonic counter, prevents ABA problem
+  }).optional(),
+
   labels: z.array(z.string()).default([]),
   dependencies: z.array(Dependency).default([]),
 
@@ -719,18 +767,88 @@ const AtticEntrySchema = z.object({
   timestamp: Timestamp,
   field: z.string().optional(),      // If single field, otherwise full entity
   lost_value: z.unknown(),
-  winner_source: z.enum(['local', 'remote']),
-  loser_source: z.enum(['local', 'remote']),
+  winner_source: z.enum(['local', 'remote', 'bridge']),
+  loser_source: z.enum(['local', 'remote', 'bridge']),
   context: z.object({
     local_version: Version,
     remote_version: Version,
     local_updated_at: Timestamp,
     remote_updated_at: Timestamp,
+    local_hlc: HybridTimestamp.optional(),   // HLC for conflict analysis
+    remote_hlc: HybridTimestamp.optional(),
   }),
 });
 
 type AtticEntry = z.infer<typeof AtticEntrySchema>;
 ```
+
+### 2.6 Schema Versioning and Migration
+
+#### Version Tracking
+
+Schema versions are tracked in `.ceads-sync/meta.json` (on the sync branch):
+
+```json
+{
+  "schema_versions": [
+    { "collection": "issues", "version": 1 },
+    { "collection": "agents", "version": 1 },
+    { "collection": "messages", "version": 1 }
+  ],
+  "created_at": "2025-01-07T08:00:00Z",
+  "last_sync": "2025-01-07T14:30:00Z"
+}
+```
+
+> **Note:** User-editable configuration (prefixes, TTLs) lives in `.ceads/config.yml`
+> on the main branch. Schema versions live in `meta.json` on the sync branch because
+> they describe the synced data and must propagate with it.
+
+#### Compatibility Requirements
+
+**Forward compatibility (required):**
+- Newer CLI versions MUST read older entity versions
+- Unknown fields MUST be preserved on read/write (pass-through)
+- Missing fields MUST use schema defaults
+
+**Backward compatibility (best effort):**
+- Older CLI versions reading newer entities: unknown fields ignored
+- Core fields (`id`, `version`, `type`) never change shape
+- Breaking changes require explicit migration
+
+#### Migration Execution
+
+**Automatic (non-breaking):**
+- New optional fields: added with defaults on write
+- Field renames: handled in code, both names accepted on read
+
+**Manual (breaking):**
+```bash
+# Check if migration needed
+cead doctor --check-schema
+
+# Run migration
+cead migrate --to 2
+
+# What it does:
+# 1. Backs up all entities to .ceads-sync/attic/migrations/
+# 2. Transforms each entity to new schema
+# 3. Updates .ceads-sync/meta.json schema_versions
+# 4. Syncs to propagate changes
+```
+
+#### Cross-Version Sync
+
+When Agent A (schema v2) syncs with Agent B (schema v1):
+
+1. A's entities written in v2 format
+2. B reads v2 entities, unknown fields preserved
+3. B writes entities (preserving unknown v2 fields)
+4. A reads B's changes, sees preserved v2 fields
+5. No data loss; both continue operating
+
+**Warning:** If v2 has breaking changes, B may fail to parse.
+CLI should warn: "Remote entities require CLI version >= X.Y.Z"
 
 * * *
 
@@ -1049,7 +1167,36 @@ const messageMergeRules: MergeRules<Message> = {
 
 ### 3.6 Merge Algorithm
 
-The merge algorithm applies the rules defined above:
+The merge algorithm applies the rules defined above. It uses Hybrid Logical Clocks (HLC)
+for conflict resolution instead of wall-clock timestamps, which ensures deterministic
+ordering even with clock drift between machines.
+
+#### HLC Comparison Function
+
+```typescript
+// Compare Hybrid Logical Clocks for conflict resolution
+// Returns: negative if a < b, positive if a > b, zero if equal
+function hlcCompare(a: HybridTimestamp, b: HybridTimestamp): number {
+  // Compare logical counter first (causal ordering)
+  if (a.logical !== b.logical) return a.logical - b.logical;
+  // Tiebreak by wall clock (best effort)
+  if (a.wall !== b.wall) return a.wall.localeCompare(b.wall);
+  // Final tiebreak by node ID (deterministic)
+  return a.node.localeCompare(b.node);
+}
+
+// Update HLC when modifying an entity
+function updateHlc(current: HybridTimestamp, nodeId: string): HybridTimestamp {
+  const now = new Date().toISOString();
+  return {
+    wall: now,
+    logical: current.logical + 1,
+    node: nodeId,
+  };
+}
+```
+
+#### Merge Function
 
 ```typescript
 function mergeEntities<T extends BaseEntity>(
@@ -1063,6 +1210,11 @@ function mergeEntities<T extends BaseEntity>(
     ...local,
     version: Math.max(local.version, remote.version) + 1,
     updated_at: new Date().toISOString(),
+    hlc: {
+      wall: new Date().toISOString(),
+      logical: Math.max(local.hlc.logical, remote.hlc.logical) + 1,
+      node: local.hlc.node,  // Use local node for merged result
+    },
   };
 
   for (const [field, rule] of Object.entries(rules)) {
@@ -1077,14 +1229,15 @@ function mergeEntities<T extends BaseEntity>(
         break;
 
       case 'lww':
-        merged[field] = local.updated_at >= remote.updated_at
+        // Use HLC for deterministic conflict resolution (not wall-clock time)
+        merged[field] = hlcCompare(local.hlc, remote.hlc) >= 0
           ? localVal
           : remoteVal;
         break;
 
       case 'lww_with_attic':
         if (localVal !== remoteVal) {
-          const localWins = local.updated_at >= remote.updated_at;
+          const localWins = hlcCompare(local.hlc, remote.hlc) >= 0;
           merged[field] = localWins ? localVal : remoteVal;
           atticEntries.push({
             entity_id: local.id,
@@ -1098,6 +1251,8 @@ function mergeEntities<T extends BaseEntity>(
               remote_version: remote.version,
               local_updated_at: local.updated_at,
               remote_updated_at: remote.updated_at,
+              local_hlc: local.hlc,
+              remote_hlc: remote.hlc,
             },
           });
         }
@@ -1571,20 +1726,41 @@ cead agent show <id>
 
 #### Claim
 
-Claim an issue for the current agent:
+Claim an issue for the current agent with lease-based coordination:
 
 ```bash
-cead agent claim <issue-id>
+cead agent claim <issue-id> [options]
+
+Options:
+  --ttl <seconds>         Lease duration (default: 3600 = 1 hour)
+  --force                 Claim even if already claimed (steals claim)
 ```
 
 **Output (success):**
 ```
-Claimed cd-a1b2
+Claimed cd-a1b2 (lease expires in 1 hour)
 ```
 
 **Output (already claimed):**
 ```
-Error: cd-a1b2 already claimed by agent-a3b4 (since 2025-01-07 10:25)
+Error: cd-a1b2 already claimed by agent-a3b4 (since 2025-01-07 10:25, expires 11:25)
+Use --force to steal the claim
+```
+
+#### Renew
+
+Renew the lease on a claimed issue:
+
+```bash
+cead agent renew <issue-id> [options]
+
+Options:
+  --ttl <seconds>         New lease duration (default: 3600)
+```
+
+**Output:**
+```
+Renewed cd-a1b2 (lease expires in 1 hour)
 ```
 
 #### Release
@@ -1594,6 +1770,30 @@ Release a claimed issue:
 ```bash
 cead agent release <issue-id>
 ```
+
+#### Claim Protocol
+
+**Without Bridge (Git-only):**
+1. Read issue, check if `claim` exists and `lease_expires > now`
+2. If claimed by another agent: error (unless --force)
+3. Write issue with new `claim` object, increment `lease_sequence`
+4. Sync to propagate claim
+5. Race condition window: sync latency (seconds to minutes)
+
+**With Bridge (recommended for multi-agent):**
+1. Request claim via Bridge (atomic compare-and-swap)
+2. Bridge validates: no active lease OR force flag
+3. Bridge updates lease, returns `lease_sequence`
+4. Agent must renew before `lease_expires`
+5. Git sync records claim durably
+6. If Bridge unavailable: fall back to Git-only with warning
+
+**Lease expiry behavior:**
+- Expired claims can be stolen by any agent (no --force needed)
+- `cead ready` excludes issues with active (non-expired) claims
+- Stale claims (agent inactive + expired lease) auto-release
+- `lease_sequence` prevents ABA problem (agent A claims, releases, agent B claims,
+  A's old write arrives → B's higher sequence wins)
 
 #### Status
 
@@ -1905,6 +2105,82 @@ const BridgeLink = z.object({
 const bridge = z.record(z.string(), BridgeLink).optional();
 ```
 
+### 5.2.1 Bridge Consistency Guarantees
+
+Bridges provide eventually consistent views of Git state. The following guarantees apply:
+
+#### Consistency Model
+
+| Guarantee | Description |
+|-----------|-------------|
+| **Read-Your-Writes** | After writing via Bridge, same agent's reads reflect that write |
+| **Eventual Consistency** | All agents eventually see the same state |
+| **Monotonic Reads** | Once version N seen, never see version < N (same session) |
+| **Conflict Preservation** | No data ever lost; conflicts preserved in attic |
+
+**Ceads does NOT provide:**
+- Linearizability (global ordering)
+- Serializable transactions
+- Strong consistency
+
+Concurrent writes to the same entity may require conflict resolution via the merge
+algorithm (see [Section 3.6](#36-merge-algorithm)).
+
+#### Latency Expectations
+
+| Mode | Operation | Expected Latency |
+|------|-----------|------------------|
+| File-only | Read/Write | <10ms |
+| Git sync | Pull/Push | 1-30 seconds |
+| Bridge (GitHub) | Propagation | 1-5 seconds (webhook) |
+| Bridge (Native) | Propagation | <100ms |
+| Bridge (Slack) | Message delivery | <1 second |
+
+#### Git vs Bridge Conflict Resolution
+
+When Git and Bridge both have changes to the same entity:
+
+1. Compare Git entity `version` vs Bridge metadata `synced_version`
+2. If Git version > synced_version: **Git wins** (bridge is stale)
+3. If Git version == synced_version AND bridge changed: **Bridge accepted**, bump Git version
+4. If Git version > synced_version AND bridge changed: **CONFLICT**
+   - Git wins (source of truth)
+   - Bridge changes preserved in attic with `source: "bridge"` metadata
+
+```typescript
+// Bridge sync conflict resolution
+function resolveBridgeConflict(
+  gitEntity: BaseEntity,
+  bridgeEntity: BaseEntity & { synced_version: number }
+): { winner: BaseEntity; atticEntry?: AtticEntry } {
+  if (gitEntity.version > bridgeEntity.synced_version) {
+    // Git wins - bridge had stale data
+    if (bridgeEntity.version > bridgeEntity.synced_version) {
+      // Bridge also had changes - preserve in attic
+      return {
+        winner: gitEntity,
+        atticEntry: {
+          entity_id: gitEntity.id,
+          timestamp: new Date().toISOString(),
+          lost_value: bridgeEntity,
+          winner_source: 'local',  // Git is local source of truth
+          loser_source: 'bridge',
+          context: {
+            local_version: gitEntity.version,
+            remote_version: bridgeEntity.version,
+            local_updated_at: gitEntity.updated_at,
+            remote_updated_at: bridgeEntity.updated_at,
+          },
+        },
+      };
+    }
+    return { winner: gitEntity };
+  }
+  // Bridge changes accepted
+  return { winner: bridgeEntity };
+}
+```
+
 #### Configuration in meta.json
 
 ```json
@@ -1926,6 +2202,72 @@ const bridge = z.record(z.string(), BridgeLink).optional();
   }
 }
 ```
+
+### 5.2.2 Bridge Security
+
+All bridge webhooks MUST validate request authenticity to prevent spoofing attacks.
+
+#### Webhook Validation
+
+```typescript
+// GitHub webhook validation
+// See: https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
+function validateGitHubWebhook(
+  payload: string,
+  signature: string,  // X-Hub-Signature-256 header
+  secret: string
+): boolean {
+  const expected = `sha256=${crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex')}`;
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
+
+// Slack request validation
+// See: https://api.slack.com/authentication/verifying-requests-from-slack
+function validateSlackRequest(
+  timestamp: string,  // X-Slack-Request-Timestamp
+  body: string,
+  signature: string,  // X-Slack-Signature
+  secret: string
+): boolean {
+  // Reject if timestamp > 5 minutes old (replay attack)
+  if (Math.abs(Date.now()/1000 - Number(timestamp)) > 300) {
+    return false;
+  }
+  const baseString = `v0:${timestamp}:${body}`;
+  const expected = `v0=${crypto
+    .createHmac('sha256', secret)
+    .update(baseString)
+    .digest('hex')}`;
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
+```
+
+#### Secret Management
+
+- Store secrets in environment variables, never in config files
+- Support secret rotation without downtime
+- Log validation failures (without exposing secrets)
+
+```bash
+# Environment variables for bridge secrets
+export CEADS_GITHUB_WEBHOOK_SECRET="..."
+export CEADS_SLACK_SIGNING_SECRET="..."
+```
+
+#### Rate Limiting for Webhooks
+
+- Limit webhook endpoints: 100 requests/minute per source IP
+- Return 429 when exceeded
+- Log rate limit violations for security monitoring
 
 ### 5.3 GitHub Issues Bridge
 
@@ -1970,6 +2312,57 @@ cead github promote <issue-id> --labels "ceads-sync,priority:high"
 | `priority` | Labels | `priority:0`, `priority:1`, etc. |
 | `assignee` | Labels | `claimed:agent-id` |
 | `labels` | Labels | Prefixed: `ceads:label-name` |
+
+#### Sync Direction Configuration
+
+Each field can have a sync direction policy to control conflict resolution:
+
+```typescript
+const GitHubSyncDirection = z.enum([
+  'ceads_wins',    // Ceads overwrites GitHub
+  'github_wins',   // GitHub overwrites Ceads
+  'lww',           // Last-write-wins by HLC timestamp
+  'union',         // Merge both (for arrays)
+  'readonly',      // Ceads reads from GitHub, never writes
+]);
+
+const GitHubBridgeConfig = z.object({
+  enabled: z.boolean(),
+  repo: z.string(),                    // "owner/repo"
+  auto_promote: z.boolean().default(false),
+
+  field_sync: z.object({
+    title: GitHubSyncDirection.default('lww'),
+    description: GitHubSyncDirection.default('ceads_wins'),
+    status: GitHubSyncDirection.default('lww'),
+    priority: GitHubSyncDirection.default('ceads_wins'),
+    labels: GitHubSyncDirection.default('union'),
+    assignee: GitHubSyncDirection.default('lww'),
+    comments: z.literal('union'),      // Always merge, never overwrite
+  }).default({}),
+
+  rate_limit: z.object({
+    requests_per_hour: z.number().default(4000),  // Leave buffer below 5000
+    burst_size: z.number().default(100),
+  }).default({}),
+});
+```
+
+**Default sync directions:**
+- `title`, `status`, `assignee`: LWW (collaborative editing)
+- `description`, `priority`: Ceads wins (agent is authority)
+- `labels`: Union (both sources contribute)
+- `comments`: Always merged, never deleted
+
+#### Rate Limiting
+
+GitHub API limits: 5,000 requests/hour (authenticated).
+
+**Implementation:**
+- Track request count in `.ceads/local/cache/state.json`
+- Exponential backoff on 429 responses
+- Batch operations where possible (GraphQL)
+- Log warning at 80% of limit
 
 #### Claiming via Labels
 
@@ -2334,10 +2727,12 @@ The cache layer provides offline-first semantics with automatic sync on reconnec
 .ceads/                              # On main branch (gitignored except config)
 ├── cache/                           # Local cache (never synced to git)
 │   ├── outbound/                    # Queue: items waiting to send to bridge
-│   │   ├── ms-a1b2.json            # Queued message
-│   │   └── ms-c3d4.json
+│   │   ├── {uuid}.json             # Pending item with idempotency_key
+│   │   └── {uuid}.delivered        # Confirmed, awaiting cleanup
 │   ├── inbound/                     # Buffer: recent items from bridge
 │   │   └── ms-f14c.json            # Received message (TTL-based cleanup)
+│   ├── dead_letter/                 # Failed after max_attempts
+│   │   └── {uuid}.json             # Preserved for manual recovery
 │   └── state.json                   # Connection state, retry counts
 ├── local/                           # Private workspace (gitignored)
 └── config.yml                       # Project config (tracked)
@@ -2353,9 +2748,10 @@ The cache layer provides offline-first semantics with automatic sync on reconnec
 
 | Type | Directory | Behavior | Synced |
 | --- | --- | --- | --- |
-| **Outbound Queue** | `cache/outbound/` | FIFO, deleted after bridge confirms | Never |
+| **Outbound Queue** | `cache/outbound/` | FIFO with idempotency, deleted after bridge confirms | Never |
 | **Inbound Buffer** | `cache/inbound/` | TTL-based cleanup, recent messages | Never |
-| **State** | `cache/state.json` | Connection metadata, retry counts | Never |
+| **Dead Letter** | `cache/dead_letter/` | Items that exceeded max_attempts, preserved indefinitely | Never |
+| **State** | `cache/state.json` | Connection metadata, retry policy | Never |
 
 #### Offline Workflow
 
@@ -2380,15 +2776,62 @@ Without daemon:
   3. Manual sync when ready
 ```
 
+#### Outbound Queue Schema
+
+Each outbound item includes an idempotency key to prevent duplicate delivery on retries:
+
+```typescript
+// Outbound queue item with idempotency
+const OutboundQueueItem = z.object({
+  idempotency_key: z.string().uuid(),      // Unique per send attempt
+  entity_type: z.enum(['message', 'claim', 'release', 'update']),
+  payload: z.unknown(),                     // Entity or operation data
+  created_at: Timestamp,
+  attempts: z.number().default(0),
+  last_attempt_at: Timestamp.optional(),
+  last_error: z.string().optional(),
+  max_attempts: z.number().default(10),
+});
+```
+
+**Idempotency guarantees:**
+- Each queue item has a unique `idempotency_key` (UUID)
+- Bridge endpoints must accept idempotency keys and dedupe
+- On retry, same idempotency key is used
+- Prevents duplicate messages/operations on network failures
+
+#### Retry Policy Schema
+
+```typescript
+// Retry policy configuration
+const RetryPolicy = z.object({
+  max_attempts: z.number().default(10),
+  initial_backoff_ms: z.number().default(1000),
+  max_backoff_ms: z.number().default(300000),  // 5 minutes
+  backoff_multiplier: z.number().default(2),
+});
+```
+
+**Backoff calculation:**
+```
+Attempt 1: immediate
+Attempt 2: 1 second delay
+Attempt 3: 2 seconds
+Attempt 4: 4 seconds
+...
+Attempt N: min(initial * 2^(N-1), max_backoff)
+```
+
 #### State Schema
 
 ```typescript
 const CacheState = z.object({
   last_bridge_sync: Timestamp.optional(),
   connection_status: z.enum(['connected', 'disconnected', 'connecting']),
-  retry_count: z.number().default(0),
+  retry_policy: RetryPolicy.default({}),
   last_error: z.string().optional(),
   outbound_count: z.number().default(0),
+  dead_letter_count: z.number().default(0),  // Items that exceeded max_attempts
 });
 ```
 
@@ -2418,6 +2861,35 @@ const CacheState = z.object({
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+#### Retry and Dead Letter Handling
+
+**After max_attempts exceeded:**
+1. Move item from `.ceads/local/cache/outbound/` to `.ceads/local/cache/dead_letter/`
+2. Increment `dead_letter_count` in `.ceads/local/cache/state.json`
+3. Log error with full context (idempotency_key, attempts, last_error)
+4. Item preserved indefinitely until manual intervention
+
+**Dead letter recovery CLI:**
+```bash
+# List dead letter items
+cead cache dead-letter list
+
+# Retry a dead letter item
+cead cache dead-letter retry <idempotency-key>
+
+# Discard a dead letter item
+cead cache dead-letter discard <idempotency-key>
+```
+
+**FIFO Ordering guarantees:**
+- Outbound queue is FIFO within entity type
+- If item N fails, items N+1... are blocked for same entity
+- Different entities can proceed independently
+- This prevents out-of-order delivery for single entity
+
+Example: If messages to issue `is-a1b2` are [msg1, msg2, msg3] and msg1 fails,
+msg2 and msg3 wait. But messages to `is-c3d4` continue independently.
 
 #### Git vs Cache
 
