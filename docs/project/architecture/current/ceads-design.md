@@ -445,6 +445,8 @@ Ceads uses two directories with a clear separation of concerns:
 │
 └── local/                  # Everything below is gitignored
     ├── state.json          # Per-node sync state (last_sync, node_id)
+    ├── worktrees/          # Hidden git worktree for sync operations
+    │   └── ceads-sync/     # Checkout of ceads-sync branch
     ├── nodes/              # Private workspace (never synced)
     │   └── lo-l1m2.json
     ├── cache/              # Bridge cache
@@ -474,7 +476,7 @@ Ceads uses two directories with a clear separation of concerns:
 ├── attic/                     # Archive
 │   ├── conflicts/             # Merge conflict losers
 │   │   └── is-a1b2/
-│   │       └── 2025-01-07T10-30-00Z_description.json
+│   │       └── 20250107T103000Z_description_theirs.json
 │   └── orphans/               # Integrity violations
 └── meta.json                  # Shared metadata (schema_versions, created_at)
 ```
@@ -587,6 +589,29 @@ function generateId(prefix: string): string {
 }
 ```
 
+**Recommended Alternative: nanoid**
+
+The [nanoid](https://github.com/ai/nanoid) library provides a battle-tested implementation
+with the same properties:
+
+```typescript
+import { customAlphabet } from 'nanoid';
+
+const BASE36_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz';
+const nanoid36 = customAlphabet(BASE36_ALPHABET, 10);
+
+function generateId(prefix: string): string {
+  return `${prefix}${nanoid36()}`;
+}
+```
+
+Benefits of nanoid:
+- Well-tested and widely used
+- Handles secure random generation correctly across environments
+- Available for multiple languages (JS, Python, Go, Rust, etc.)
+
+Either implementation is acceptable; nanoid is recommended for production use.
+
 **Properties:**
 
 - **Cryptographically random**: Uses `crypto.randomBytes()`, no timestamp dependency
@@ -646,8 +671,18 @@ const EntityId = z.string().regex(/^[a-z]+-[a-z0-9]+$/);
 const Version = z.number().int().nonnegative();
 
 // Entity type discriminator - matches directory prefix
-const EntityType = z.enum(['is', 'ag', 'lo', 'ms']);
+// Using regex pattern (not enum) for extensibility - new entity types
+// can be added without changing this definition
+const EntityType = z.string().regex(/^[a-z]{2}$/);
+
+// Built-in types: 'is' (issues), 'ag' (agents), 'ms' (messages), 'lo' (local)
+// Extension types follow same pattern: 'cl' (claims), 'wf' (workflows), etc.
 ```
+
+> **Note on extensibility**: `EntityType` uses a regex pattern (`/^[a-z]{2}$/`) rather
+> than a closed enum. This allows adding new entity types by convention—create a new
+> directory and schema without modifying core type definitions. The type must match
+> the ID prefix and directory name.
 
 #### 2.5.2 BaseEntity
 
@@ -655,7 +690,7 @@ All entities share common fields:
 
 ```typescript
 const BaseEntity = z.object({
-  type: EntityType,           // Discriminator: "is", "ag", "lo", "ms"
+  type: EntityType,           // 2-letter type code matching ID prefix
   id: EntityId,
   version: Version,
   created_at: Timestamp,
@@ -831,6 +866,10 @@ Messages are standalone entities used for comments on issues and replies to othe
 messages. Each message has a subject and body (both required), similar to email.
 Messages reference their parent via `in_reply_to`.
 
+**Messages are immutable after creation.** This eliminates merge conflicts for message
+content entirely—no merge logic needed. "Edits" are represented as new messages with
+`supersedes` pointing to the original.
+
 ```typescript
 const MessageSchema = BaseEntity.extend({
   type: z.literal('ms'),                          // Entity type discriminator
@@ -840,12 +879,21 @@ const MessageSchema = BaseEntity.extend({
 
   author: z.string(),                             // Who wrote the message
   in_reply_to: EntityId,                          // Parent: issue ID or message ID
+
+  // For "editing" messages (immutable edit pattern)
+  supersedes: EntityId.optional(),                // If set, this message replaces another
 });
 
 type Message = z.infer<typeof MessageSchema>;
 ```
 
 **Design notes:**
+
+- **Immutable content**: Once created, `subject`, `body`, `author`, and `in_reply_to`
+  never change. This means messages never conflict during merge—huge simplification.
+
+- **Edit pattern**: To "edit" a message, create a new message with `supersedes` pointing
+  to the original. UIs show the latest version; history preserved via chain.
 
 - **Subject required**: Encourages descriptive headers, improves UI/list views
 
@@ -857,7 +905,7 @@ type Message = z.infer<typeof MessageSchema>;
 
 - **Time-ordered**: Messages sort by `created_at`—no explicit sequence needed
 
-- **No status/priority**: Messages don’t have workflow states like issues
+- **No status/priority**: Messages don't have workflow states like issues
 
 - **No explicit threading features**: Threading emerges from `in_reply_to` chains, but
   v1 displays comments as a flat time-sorted list
@@ -982,26 +1030,49 @@ type LocalState = z.infer<typeof LocalStateSchema>;
 
 #### 2.5.10 AtticEntrySchema
 
-Preserved conflict losers:
+Preserved conflict data for recovery and debugging:
 
 ```typescript
+const AtticEntryKind = z.enum([
+  'field_conflict',      // Both sides changed same field differently
+  'parse_error',         // One side had unparsable JSON
+  'invariant_violation', // ID/type mismatch or other invariant failure
+]);
+
 const AtticEntrySchema = z.object({
+  kind: AtticEntryKind,
   entity_id: EntityId,
+  path: z.string(),                    // Repo-relative path
+  field: z.string().optional(),        // Field name if single field conflict
   timestamp: Timestamp,
-  field: z.string().optional(),      // If single field, otherwise full entity
-  lost_value: z.unknown(),
-  winner_source: z.enum(['local', 'remote']),
-  loser_source: z.enum(['local', 'remote']),
+
+  // 3-way merge context (enables better recovery)
+  base_value: z.unknown().optional(),  // Value in common ancestor (null if new)
+  ours_value: z.unknown().optional(),  // Local value before merge
+  theirs_value: z.unknown().optional(), // Remote value before merge
+
+  // Resolution
+  chosen_source: z.enum(['ours', 'theirs', 'merged']),
+  chosen_value: z.unknown(),
+
   context: z.object({
-    local_version: Version,
-    remote_version: Version,
-    local_updated_at: Timestamp,
-    remote_updated_at: Timestamp,
+    base_updated_at: Timestamp.optional(),
+    ours_updated_at: Timestamp,
+    theirs_updated_at: Timestamp,
+    ours_version: Version,
+    theirs_version: Version,
+    merge_reason: z.string().optional(), // Why this winner was chosen
   }),
 });
 
 type AtticEntry = z.infer<typeof AtticEntrySchema>;
 ```
+
+> **Why base/ours/theirs?** Storing all three values enables:
+> - Understanding what actually happened (was base modified by both?)
+> - Manual recovery (user can see all versions and pick the right one)
+> - Debugging merge algorithm issues
+> - Future upgrade to 3-way merge if needed
 
 ### 2.6 Schema Versioning and Migration
 
@@ -1394,11 +1465,12 @@ outcome. Merge rules are defined per entity type and applied during conflict res
 
 | Strategy | Behavior | Used For |
 | --- | --- | --- |
-| `immutable` | Error if different | `type` field |
+| `immutable` | Error if different | `type` field, message content |
 | `lww` | Last-write-wins by `updated_at` + ID tiebreaker | Scalars (title, status, priority) |
 | `lww_with_attic` | LWW, but preserve loser in attic | Long text (description), ordered arrays (sequence) |
-| `union` | Combine both arrays, dedupe | Arrays of primitives (labels) |
-| `merge_by_id` | Merge arrays by item ID | Arrays of objects (comments, dependencies) |
+| `union` | Combine both arrays, dedupe (add-only) | Arrays of primitives (labels) - v1 default |
+| `set_3way` | 3-way set merge (supports removals) | Arrays when base available (future) |
+| `merge_by_id` | Merge arrays by item ID | Arrays of objects (dependencies) |
 | `max_plus_one` | `max(local, remote) + 1` | `version` field |
 | `recalculate` | Fresh timestamp | `updated_at` field |
 
@@ -1408,13 +1480,16 @@ outcome. Merge rules are defined per entity type and applied during conflict res
 >
 > This is acceptable for labels (typically additive), but means:
 > - To truly remove a label, all copies must remove it before any sync
+> - Or, use `set_3way` when base is available (see `mergeSet3Way` in Section 3.6)
 > - Or, use LWW for the entire labels array (loses additions, but removals work)
-> - For true convergent set removal, you'd need OR-Set CRDTs or tombstones (not in v1)
 >
-> **Design choice**: We accept union's add-only behavior for labels because:
+> **Design choice**: We use `union` (add-only) for labels in v1 because:
 > 1. Labels are typically additive (adding context is common, removal is rare)
 > 2. False additions are less harmful than false removals
-> 3. Full CRDT implementation adds significant complexity
+> 3. Simple to implement and reason about
+>
+> **Future enhancement**: When using a Git merge driver (which provides base), upgrade
+> to `set_3way` for correct removal handling. The algorithm is already documented.
 
 #### Issue Merge Rules
 
@@ -1453,15 +1528,24 @@ const agentMergeRules: MergeRules<Agent> = {
 
 #### Message Merge Rules
 
+Messages are **fully immutable**—all content fields use the `immutable` strategy.
+This eliminates merge conflicts for messages entirely.
+
 ```typescript
 const messageMergeRules: MergeRules<Message> = {
   type: { strategy: 'immutable' },
-  subject: { strategy: 'lww' },
-  body: { strategy: 'lww_with_attic' },
+  subject: { strategy: 'immutable' },     // Content is immutable
+  body: { strategy: 'immutable' },        // Content is immutable
   author: { strategy: 'immutable' },      // Author cannot change
   in_reply_to: { strategy: 'immutable' }, // Parent cannot change
+  supersedes: { strategy: 'immutable' },  // Edit reference cannot change
 };
 ```
+
+> **Why immutable messages?** If two copies of the same message somehow diverge
+> (extremely rare—would require corrupted file or manual edit), the merge will fail
+> with an invariant error. This is intentional: messages should never conflict.
+> The only valid operation is creating new messages.
 
 ### 3.6 Merge Algorithm
 
@@ -1572,7 +1656,59 @@ function mergeArraysById<T>(
 
   return [...merged.values()];
 }
+
+/**
+ * 3-way set merge that correctly handles additions AND removals.
+ *
+ * Unlike simple union (which is add-only), this algorithm uses the base
+ * (common ancestor) to determine intent:
+ * - Item in base but removed in ours/theirs → removal wins
+ * - Item not in base but added in ours/theirs → addition wins
+ * - Both sides agree → take that value
+ *
+ * This can be used when base is available (e.g., from Git merge driver
+ * or when explicitly passing the previous synced version).
+ */
+function mergeSet3Way(
+  base: string[] | null,
+  ours: string[],
+  theirs: string[]
+): string[] {
+  const B = new Set(base ?? []);
+  const O = new Set(ours ?? []);
+  const T = new Set(theirs ?? []);
+
+  const universe = new Set<string>([...B, ...O, ...T]);
+  const result: string[] = [];
+
+  for (const item of universe) {
+    const inBase = B.has(item);
+    const inOurs = O.has(item);
+    const inTheirs = T.has(item);
+
+    // 3-way boolean merge for set membership:
+    // - If ours == theirs: take ours (they agree)
+    // - Else if ours == base: only theirs changed, take theirs
+    // - Else if theirs == base: only ours changed, take ours
+    // - Else: true conflict (both changed differently) - keep item (safer)
+    const present =
+      (inOurs === inTheirs) ? inOurs :
+      (inOurs === inBase) ? inTheirs :
+      (inTheirs === inBase) ? inOurs :
+      true; // Both changed differently: safer to keep
+
+    if (present) result.push(item);
+  }
+
+  result.sort(); // Canonical ordering for set-like fields
+  return result;
+}
 ```
+
+> **When to use 3-way set merge**: The `mergeSet3Way` function requires base (common
+> ancestor) information. This is available when using a Git merge driver, or can be
+> obtained by tracking the last-synced version. For v1 without a merge driver, the
+> simpler `union` strategy is used (add-only). Upgrade to 3-way when base is available.
 
 ### 3.7 Attic Structure
 
@@ -1585,21 +1721,30 @@ It lives on the sync branch in `.ceads-sync/attic/`.
 .ceads-sync/attic/
 ├── conflicts/                 # Merge conflict losers
 │   ├── is-a1b2/
-│   │   ├── 2025-01-07T10-30-00Z_description.json
-│   │   └── 2025-01-07T11-45-00Z_full.json
+│   │   ├── 20250107T103000Z_description_theirs.json
+│   │   └── 20250107T114500Z_full_ours.json
 │   └── is-f14c/
-│       └── 2025-01-08T09-15-00Z_status.json
+│       └── 20250108T091500Z_status_theirs.json
 └── orphans/                   # Integrity violations
     └── ms-x1y2.json           # Message pointing to deleted issue
 ```
 
 #### Conflicts Directory
 
-Stores data lost during merge conflicts:
+Stores conflict data for recovery and auditing:
 
-- Directory per entity (using internal prefix): `conflicts/{entity-id}/`
+- Directory per entity: `conflicts/{entity-id}/`
 
-- Filename: `{timestamp}_{field}.json` or `{timestamp}_full.json`
+- Filename format (Windows-safe, no colons):
+  ```
+  {yyyymmddTHHMMSSZ}_{field}_{chosen_source}.json
+  ```
+
+- Examples:
+  ```
+  20250107T103000Z_description_theirs.json
+  20250107T114500Z_full_ours.json
+  ```
 
 #### Orphans Directory
 
@@ -1615,21 +1760,30 @@ Orphans are detected during sync or integrity checks and moved here rather than 
 
 #### Attic Entry Content
 
-Each attic file contains the `AtticEntrySchema` (defined in File Layer 2.5.7):
+Each attic file contains the `AtticEntrySchema` (defined in File Layer 2.5.10):
 
 ```json
 {
-  "entity_id": "is-a1b2",
-  "timestamp": "2025-01-07T10:30:00Z",
+  "kind": "field_conflict",
+  "entity_id": "is-a1b2c3d4e5",
+  "path": ".ceads-sync/nodes/issues/is-a1b2c3d4e5.json",
   "field": "description",
-  "lost_value": "Original description that was overwritten",
-  "winner_source": "remote",
-  "loser_source": "local",
+  "timestamp": "2025-01-07T10:30:00Z",
+
+  "base_value": "Original description from common ancestor",
+  "ours_value": "Our edited description",
+  "theirs_value": "Their edited description",
+
+  "chosen_source": "theirs",
+  "chosen_value": "Their edited description",
+
   "context": {
-    "local_version": 3,
-    "remote_version": 3,
-    "local_updated_at": "2025-01-07T10:25:00Z",
-    "remote_updated_at": "2025-01-07T10:28:00Z"
+    "base_updated_at": "2025-01-07T10:00:00Z",
+    "ours_updated_at": "2025-01-07T10:25:00Z",
+    "theirs_updated_at": "2025-01-07T10:28:00Z",
+    "ours_version": 3,
+    "theirs_version": 3,
+    "merge_reason": "theirs had later updated_at timestamp"
   }
 }
 ```
@@ -3630,7 +3784,7 @@ attached to issues. Acceptable—the unified model is simpler and more extensibl
 
 ### 7.2 Open Questions
 
-#### Question 1: Git Operations Method
+#### Question 1: Git Operations Method (RESOLVED)
 
 How to update sync branch without checking it out?
 
@@ -3640,22 +3794,51 @@ How to update sync branch without checking it out?
 
    - Pro: No disk I/O for checkout
 
-   - Con: Complex, error-prone
+   - Con: Complex, error-prone, hard to debug
 
-2. **Sparse checkout to temp directory**
+2. **Hidden worktree** (`git worktree add .ceads/local/worktrees/ceads-sync`)
 
-   - Pro: Standard git operations
+   - Pro: Standard git porcelain (pull, commit, push)
 
-   - Con: Extra disk I/O
+   - Pro: Enables native Git 3-way merge with merge driver
+
+   - Pro: Easier to debug (normal git commands work)
+
+   - Con: Extra disk space (~size of `.ceads-sync/` directory)
 
 3. **Shallow clone of sync branch**
 
    - Pro: Isolated from main repo
 
-   - Con: Separate clone to manage
+   - Con: Separate clone to manage, more complex setup
 
-**Likely**: Option 2 for simplicity.
-Performance acceptable for typical sync frequency.
+**Resolution: Hidden worktree (Option 2)**
+
+The hidden worktree approach provides the best balance of simplicity and capability:
+
+```bash
+# During cead init:
+git worktree add .ceads/local/worktrees/ceads-sync --detach
+cd .ceads/local/worktrees/ceads-sync
+git switch --orphan ceads-sync  # or checkout if branch exists
+# ... create initial structure ...
+git add . && git commit -m "ceads init"
+git push -u origin ceads-sync
+
+# During cead sync:
+cd .ceads/local/worktrees/ceads-sync
+git fetch origin ceads-sync
+git merge origin/ceads-sync  # 3-way merge with merge driver if configured
+git add .ceads-sync/
+git commit -m "ceads sync: $(date -Iseconds)"
+git push origin ceads-sync
+```
+
+**Benefits:**
+- Uses standard git porcelain (easier to understand and debug)
+- Enables Git's native 3-way merge (can use custom merge driver)
+- Worktree is gitignored, never pollutes user's workspace
+- If worktree is missing/corrupted, can be recreated from remote
 
 #### Question 2: Message Retention
 
@@ -3787,7 +3970,7 @@ This allows references in commit messages to be traced to new IDs.
 ├── attic/                     # Archive
 │   ├── conflicts/             # Merge conflict losers
 │   │   └── is-a1b2/
-│   │       └── 2025-01-07T10-30-00Z_description.json
+│   │       └── 20250107T103000Z_description_theirs.json
 │   └── orphans/               # Integrity violations
 └── meta.json                  # Shared metadata (schema versions)
 ```
