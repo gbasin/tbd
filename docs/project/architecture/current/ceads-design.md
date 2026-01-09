@@ -478,7 +478,9 @@ Ceads uses two directories with a clear separation of concerns:
 │   │   └── is-a1b2/
 │   │       └── 20250107T103000Z_description_theirs.json
 │   └── orphans/               # Integrity violations
-├── short_ids.json             # Short ID → Internal ID mapping
+├── short_ids/                 # Short ID → Internal ID mappings
+│   ├── a1b.json               # {"internal_id": "is-a1b2c3d4e5"}
+│   └── x7k.json               # {"internal_id": "is-x7y8z9a0b1"}
 └── meta.json                  # Shared metadata (schema_versions, created_at)
 ```
 
@@ -750,65 +752,102 @@ function collisionProbability(n: number, length: number): number {
 
 ##### Short ID Mapping Storage
 
-The mapping from short IDs to internal IDs is stored in the synced directory:
+Short ID mappings are stored as **one file per short ID**, following the same pattern
+as entity storage:
 
 ```
-.ceads-sync/short_ids.json
+.ceads-sync/short_ids/
+├── a1b.json     # {"internal_id": "is-a1b2c3d4e5"}
+├── x7k.json     # {"internal_id": "is-x7y8z9a0b1"}
+└── m3p9.json    # {"internal_id": "is-m3n4o5p6q7"}
 ```
 
-```json
-{
-  "a1b": "is-a1b2c3d4e5",
-  "x7k": "is-x7y8z9a0b1",
-  "m3p9": "is-m3n4o5p6q7"
-}
+**File schema:**
+```typescript
+const ShortIdMapping = z.object({
+  internal_id: EntityId,
+});
 ```
 
 **Properties:**
-- **Append-only**: New mappings are added; existing mappings never change
-- **Stable**: Once `a1b → is-a1b2c3d4e5` is assigned, it persists forever
-- **Prefix-agnostic**: Only stores the hash portion, not the project prefix
-- **Synced**: Part of `.ceads-sync/` so all collaborators share the same mappings
+- **One file per short ID**: Filename is the short ID (e.g., `a1b.json`)
+- **No merge conflicts**: Different short IDs = different files
+- **Last-write-wins**: Natural Git behavior on file conflicts
+- **Self-describing**: Filename IS the short ID
+- **Consistent**: Same storage pattern as entities
 
 ##### Resolution Flow
 
 **Display (internal → external):**
 ```typescript
-function toExternalId(internalId: string, mapping: Map<string, string>, prefix: string): string {
-  // Reverse lookup: find short ID for this internal ID
-  for (const [shortId, fullId] of mapping) {
-    if (fullId === internalId) {
+function toExternalId(internalId: string, shortIdsDir: string, prefix: string): string {
+  // Scan short_ids/ for file containing this internal ID
+  const files = glob(`${shortIdsDir}/*.json`);
+  for (const file of files) {
+    const mapping = JSON.parse(readFile(file));
+    if (mapping.internal_id === internalId) {
+      const shortId = basename(file, '.json');
       return `${prefix}-${shortId}`;
     }
   }
-  // Fallback: show internal ID (shouldn't happen normally)
+  // No mapping exists - should trigger short ID creation
   return internalId;
 }
 ```
 
 **Parse (external → internal):**
 ```typescript
-function resolveExternalId(externalId: string, mapping: Map<string, string>, prefix: string): string | null {
-  // "proj-a1b" → "a1b" → lookup → "is-a1b2c3d4e5"
+function resolveExternalId(externalId: string, shortIdsDir: string, prefix: string): string | null {
+  // "proj-a1b" → "a1b" → read a1b.json → "is-a1b2c3d4e5"
   const parts = externalId.split('-');
   if (parts[0] !== prefix) return null;
 
-  const shortId = parts.slice(1).join('-');  // Handle edge case of "-" in short ID
-  return mapping.get(shortId) ?? null;
+  const shortId = parts.slice(1).join('-');
+  const filePath = `${shortIdsDir}/${shortId}.json`;
+
+  if (!fileExists(filePath)) return null;
+
+  const mapping = JSON.parse(readFile(filePath));
+  return mapping.internal_id;
+}
+```
+
+**Ensure short ID exists (on create or after collision):**
+```typescript
+function ensureShortId(internalId: string, shortIdsDir: string): string {
+  // Check if any short ID already maps to this internal ID
+  const files = glob(`${shortIdsDir}/*.json`);
+  for (const file of files) {
+    const mapping = JSON.parse(readFile(file));
+    if (mapping.internal_id === internalId) {
+      return basename(file, '.json');  // Already has short ID
+    }
+  }
+
+  // No mapping exists (new issue or lost collision) - generate new short ID
+  const existingShortIds = new Set(files.map(f => basename(f, '.json')));
+  const shortId = createShortId(existingShortIds);
+
+  writeFile(`${shortIdsDir}/${shortId}.json`, JSON.stringify({ internal_id: internalId }));
+  return shortId;
 }
 ```
 
 ##### Distributed Collision Handling
 
-When two clients simultaneously create issues and generate the same random short ID:
+When two clients simultaneously generate the same random short ID:
 
-1. Both add entries to `short_ids.json`
-2. Git merge conflict occurs on the file
-3. Resolution: **both mappings are kept** (different internal IDs, different short IDs)
-4. The "losing" client's short ID is regenerated on next sync
+1. Client A creates `a1b.json` → `{"internal_id": "is-xxx"}`
+2. Client B creates `a1b.json` → `{"internal_id": "is-yyy"}`
+3. Git merge: **last-write-wins** on the file (one internal ID wins)
+4. Losing client syncs, runs `ensureShortId("is-xxx")`, finds no mapping
+5. Losing client generates new short ID (e.g., `b2c.json`)
 
-This is rare due to birthday paradox math—with 10% collision threshold, the
-probability of two concurrent creates hitting the same short ID is very low.
+**No attic needed** for short IDs—the current state is always authoritative.
+If an internal ID loses its short ID mapping, it simply regenerates one.
+
+**Orphan cleanup** (optional): Short ID files pointing to non-existent entities
+can be deleted during garbage collection. Not critical since they're tiny.
 
 ##### Internal Prefixes
 
@@ -1402,7 +1441,7 @@ local/
 ```
 .ceads-sync/nodes/          # All node types (issues, agents, messages)
 .ceads-sync/attic/          # Conflict and orphan archive
-.ceads-sync/short_ids.json  # Short ID → Internal ID mapping
+.ceads-sync/short_ids/      # Short ID → Internal ID mappings (one file per)
 .ceads-sync/meta.json       # Shared metadata (schema versions)
 ```
 
@@ -1536,7 +1575,7 @@ git fetch origin ceads-sync
 
 # 3. Create a tree with updated files
 git read-tree ceads-sync
-git add .ceads-sync/nodes/ .ceads-sync/attic/ .ceads-sync/short_ids.json .ceads-sync/meta.json
+git add .ceads-sync/nodes/ .ceads-sync/attic/ .ceads-sync/short_ids/ .ceads-sync/meta.json
 git write-tree
 
 # 4. Create commit on sync branch
@@ -2102,7 +2141,7 @@ To complete setup, commit the config files:
 ├── attic/
 │   ├── conflicts/  # Empty
 │   └── orphans/    # Empty
-├── short_ids.json  # Empty: {}
+├── short_ids/      # Empty directory
 └── meta.json       # Initial metadata
 ```
 
@@ -4148,7 +4187,9 @@ This allows references in commit messages to be traced to new IDs.
 │   │   └── is-a1b2/
 │   │       └── 20250107T103000Z_description_theirs.json
 │   └── orphans/               # Integrity violations
-├── short_ids.json             # Short ID → Internal ID mapping
+├── short_ids/                 # Short ID → Internal ID mappings
+│   ├── a1b.json
+│   └── x7k.json
 └── meta.json                  # Shared metadata (schema versions)
 ```
 
