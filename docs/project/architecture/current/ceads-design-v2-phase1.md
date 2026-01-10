@@ -1544,11 +1544,19 @@ workflows where:
 
 #### 5.1.1 Import Command
 
+The import command supports two modes: **explicit file** and **repository auto-detect**.
+
 ```bash
+# Mode 1: Explicit file (e.g., from `bd export`)
 cead import <file> [options]
+
+# Mode 2: Auto-detect from Beads repository
+cead import --from-beads [path] [options]
 
 Options:
   --format beads          Import format (default: beads)
+  --from-beads [path]     Auto-detect from .beads/ directory (default: current dir)
+  --branch <name>         Specific branch to import from (default: both main + sync)
   --dry-run               Show what would be imported without making changes
   --no-sync               Don't sync after import
   --verbose               Show detailed import progress
@@ -1556,7 +1564,7 @@ Options:
 
 **Examples:**
 ```bash
-# Initial import
+# Explicit file import (recommended for controlled migration)
 bd export > beads-export.jsonl
 cead import beads-export.jsonl
 
@@ -1566,9 +1574,180 @@ cead import beads-export.jsonl  # Updates existing, adds new, no duplicates
 
 # Preview changes before importing
 cead import beads-export.jsonl --dry-run
+
+# Auto-detect from repository (imports from both main and sync branch)
+cead import --from-beads
+
+# Auto-detect from specific path
+cead import --from-beads /path/to/repo
+
+# Import only from main branch
+cead import --from-beads --branch main
+
+# Import only from sync branch
+cead import --from-beads --branch beads-sync
 ```
 
-#### 5.1.2 ID Mapping
+#### 5.1.2 Multi-Source Import (--from-beads)
+
+When using `--from-beads`, Ceads reads directly from the Beads repository structure
+instead of an exported file. This is useful when you want to import without running
+`bd export` first, or when you need to capture changes from both main and sync branches.
+
+**Beads Repository Structure:**
+
+Beads stores issues in two potential locations that may contain different data:
+
+```
+.beads/
+├── issues.jsonl          # JSONL on current branch (may be main or feature branch)
+├── beads.db              # SQLite cache (gitignored, not imported)
+└── config.yaml           # Contains sync.branch setting
+
+# If sync.branch is configured (e.g., "beads-sync"):
+# The sync branch also has .beads/issues.jsonl
+```
+
+**Why both branches matter:**
+
+1. **Sync branch** (`beads-sync`): Where daemon commits changes automatically
+2. **Main branch**: Where sync branch is periodically merged
+
+These can diverge when:
+- Daemon has committed to sync branch but not yet pushed/merged to main
+- Agent work happened on sync branch after last merge to main
+- Different machines have committed to different branches
+
+**Auto-Detection Algorithm:**
+
+```
+DETECT_BEADS_SOURCES(path):
+  1. Find .beads/ directory at path (or current directory)
+  2. Read .beads/config.yaml to get sync.branch setting
+  3. Collect JSONL sources:
+
+     sources = []
+
+     # Check current branch / working directory
+     if exists(.beads/issues.jsonl):
+       sources.append({
+         branch: "working-copy",
+         path: .beads/issues.jsonl
+       })
+
+     # Check main branch (via git show)
+     main_branch = detect_default_branch()  # main or master
+     if git_file_exists(main_branch, ".beads/issues.jsonl"):
+       sources.append({
+         branch: main_branch,
+         content: git_show(main_branch + ":.beads/issues.jsonl")
+       })
+
+     # Check sync branch if configured
+     if sync_branch = config.yaml["sync.branch"]:
+       if git_file_exists(sync_branch, ".beads/issues.jsonl"):
+         sources.append({
+           branch: sync_branch,
+           content: git_show(sync_branch + ":.beads/issues.jsonl")
+         })
+
+  4. Return sources (may be 1-3 depending on configuration)
+```
+
+**Reading from Git Branches Without Checkout:**
+
+```bash
+# Read JSONL from a specific branch without checking it out
+git show beads-sync:.beads/issues.jsonl
+
+# Check if file exists on branch
+git cat-file -e beads-sync:.beads/issues.jsonl 2>/dev/null && echo "exists"
+```
+
+#### 5.1.3 Multi-Source Merge Algorithm
+
+When importing from multiple sources (e.g., main + sync branch), issues are merged
+using **Last-Write-Wins (LWW)** based on `updated_at` timestamp, matching Beads' own
+merge behavior.
+
+```
+MERGE_JSONL_SOURCES(sources):
+  merged = {}  # beads_id -> issue
+
+  for source in sources:
+    for line in source.content:
+      issue = parse_json(line)
+      beads_id = issue.id
+
+      if beads_id not in merged:
+        # First occurrence
+        merged[beads_id] = issue
+        merged[beads_id]._source = source.branch
+      else:
+        existing = merged[beads_id]
+        # LWW: newer updated_at wins
+        if issue.updated_at > existing.updated_at:
+          merged[beads_id] = issue
+          merged[beads_id]._source = source.branch
+        # If timestamps equal, prefer sync branch over main
+        # (sync branch has the "true" latest state)
+        elif issue.updated_at == existing.updated_at:
+          if source.branch == sync_branch:
+            merged[beads_id] = issue
+            merged[beads_id]._source = source.branch
+
+  return merged.values()
+```
+
+**Priority Order (when timestamps are equal):**
+1. Sync branch (most authoritative for Beads data)
+2. Working copy (uncommitted changes)
+3. Main branch (last merged state)
+
+**Example Scenario:**
+
+```
+Main branch .beads/issues.jsonl:
+  bd-a1b2: title="Fix bug", updated_at="2025-01-10T10:00:00Z"
+  bd-c3d4: title="Add feature", updated_at="2025-01-09T08:00:00Z"
+
+Sync branch .beads/issues.jsonl:
+  bd-a1b2: title="Fix bug (WIP)", updated_at="2025-01-10T14:00:00Z"  # Newer!
+  bd-c3d4: title="Add feature", updated_at="2025-01-09T08:00:00Z"    # Same
+  bd-e5f6: title="New task", updated_at="2025-01-10T12:00:00Z"       # New!
+
+Merged result:
+  bd-a1b2: title="Fix bug (WIP)" (from sync, newer)
+  bd-c3d4: title="Add feature" (from sync, same timestamp, sync preferred)
+  bd-e5f6: title="New task" (from sync, only exists there)
+```
+
+**Import Output with Multi-Source:**
+
+```bash
+$ cead import --from-beads --verbose
+
+Detecting Beads sources...
+  ✓ Working copy: .beads/issues.jsonl (23 issues)
+  ✓ Main branch: main:.beads/issues.jsonl (21 issues)
+  ✓ Sync branch: beads-sync:.beads/issues.jsonl (25 issues)
+
+Merging 3 sources...
+  Merged: 27 unique issues
+  Conflicts resolved: 4 (LWW by updated_at)
+    bd-a1b2: sync > main (14:00 > 10:00)
+    bd-x7y8: working > sync (16:00 > 15:00)
+    ...
+
+Importing merged issues...
+  New issues:      5
+  Updated:         3
+  Unchanged:       19
+
+Import complete.
+```
+
+#### 5.1.4 ID Mapping
 
 The key to idempotent import is **stable ID mapping**. The same Beads issue must always
 map to the same Ceads issue, even across multiple imports on different machines.
@@ -1613,7 +1792,7 @@ This file:
 - Enables instant lookup of existing mappings
 - Is authoritative (extensions field is for reference/debugging)
 
-#### 5.1.3 Import Algorithm
+#### 5.1.5 Import Algorithm
 
 ```
 IMPORT_BEADS(jsonl_file):
@@ -1650,7 +1829,7 @@ IMPORT_BEADS(jsonl_file):
   5. Sync (unless --no-sync)
 ```
 
-#### 5.1.4 Merge Behavior on Re-Import
+#### 5.1.6 Merge Behavior on Re-Import
 
 When re-importing an issue that already exists in Ceads:
 
@@ -1679,7 +1858,7 @@ Result: is-x1y2 has both changes:
   - Priority 1 (from Ceads, more recent updated_at wins)
 ```
 
-#### 5.1.5 Handling Deletions and Tombstones
+#### 5.1.7 Handling Deletions and Tombstones
 
 Beads uses `tombstone` status for soft-deleted issues. On import:
 
@@ -1694,7 +1873,7 @@ cead import beads.jsonl --include-tombstones  # Import tombstones as closed
 cead import beads.jsonl --skip-tombstones     # Skip tombstones (default)
 ```
 
-#### 5.1.6 Dependency ID Translation
+#### 5.1.8 Dependency ID Translation
 
 Beads dependencies reference Beads IDs. On import, these must be translated:
 
@@ -1708,7 +1887,7 @@ Ceads: { "type": "blocks", "target": "is-d4e5f6" }  # Looked up from mapping
 2. Second pass: translate dependency target IDs
 3. If target not in mapping: log warning, skip dependency (orphan reference)
 
-#### 5.1.7 Import Output
+#### 5.1.9 Import Output
 
 ```bash
 $ cead import beads-export.jsonl
@@ -1746,7 +1925,7 @@ Would import from beads-export.jsonl:
     bd-p1q2 (is-g7h8) - Ceads newer by 1 day
 ```
 
-#### 5.1.8 Migration Workflow
+#### 5.1.10 Migration Workflow
 
 **Initial migration (one-time):**
 
