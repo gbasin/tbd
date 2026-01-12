@@ -859,6 +859,42 @@ ls .ceads/.worktree/.ceads-sync/issues/
 **Invariant:** The hidden worktree at `.ceads/.worktree/` always reflects the current
 state of the `ceads-sync` branch after sync operations.
 
+#### Worktree Initialization Decision Tree
+
+When any `cead` command runs, it must ensure the worktree is initialized. The logic
+depends on the repository state:
+
+```
+START: Any cead command
+    │
+    ├─ Does .ceads/ directory exist?
+    │   ├─ NO → Run `cead init` first (error: "Not a ceads repository")
+    │   └─ YES ↓
+    │
+    ├─ Does .ceads/.worktree/ exist and contain valid checkout?
+    │   ├─ YES → Worktree ready, proceed with command
+    │   └─ NO ↓
+    │
+    ├─ Does ceads-sync branch exist (local or remote)?
+    │   ├─ YES (local) → git worktree add .ceads/.worktree ceads-sync --detach
+    │   ├─ YES (remote only) → git fetch origin ceads-sync
+    │   │                      git worktree add .ceads/.worktree origin/ceads-sync --detach
+    │   └─ NO → This is a fresh ceads init, create orphan worktree:
+    │           git worktree add .ceads/.worktree --orphan ceads-sync
+    │           (Initialize .ceads-sync/ structure in worktree)
+    │
+    └─ Worktree ready, proceed with command
+```
+
+**Scenarios:**
+
+| Repository State | Worktree Action |
+|------------------|-----------------|
+| Fresh `cead init` | Create orphan worktree with empty .ceads-sync/ |
+| Clone of existing ceads repo | Fetch remote, create worktree from origin/ceads-sync |
+| Existing local worktree corrupted | `cead doctor --fix` removes and recreates |
+| Worktree exists but stale | `cead sync` updates to latest commit |
+
 ### 2.3 Entity Collection Pattern
 
 Phase 1 has **one core entity type**: Issues
@@ -960,13 +996,24 @@ const Timestamp = z.string().datetime();
 // Issue ID
 const IssueId = z.string().regex(/^is-[a-f0-9]{4,6}$/);
 
-// Edit counter for merge ordering and debugging (not true optimistic concurrency -
-// conflicts are detected by content hash, not version comparison)
+// Edit counter - incremented on every local change
+// IMPORTANT: Version is NOT used for conflict detection (content hash is used instead).
+// Version is informational only, used for:
+// - Debugging: track how many times an entity was edited
+// - Merge result ordering: max(local, remote) + 1
+// - Display: show edit count to users
 const Version = z.number().int().nonnegative();
 
 // Entity type discriminator
 const EntityType = z.literal('is');
 ```
+
+> **Version Field Clarification:** The `version` field is **purely informational**. It is
+> incremented on every local change but is NOT used to detect conflicts. Conflict
+> detection uses **content hash comparison** (see §3.4). This avoids the classic
+> distributed systems problem where version numbers can diverge when two nodes edit
+> independently. The version is useful for debugging ("how many times was this edited?")
+> and is set to `max(local, remote) + 1` after merges.
 
 #### 2.5.2 BaseEntity
 
@@ -1007,8 +1054,11 @@ const IssueStatus = z.enum(['open', 'in_progress', 'blocked', 'deferred', 'close
 const IssueKind = z.enum(['bug', 'feature', 'task', 'epic', 'chore']);
 const Priority = z.number().int().min(0).max(4);
 
+// Dependency types - using enum for extensibility (Phase 2 will add 'related', 'discovered-from')
+const DependencyType = z.enum(['blocks']);  // Phase 1: only "blocks" supported
+
 const Dependency = z.object({
-  type: z.literal('blocks'),  // Phase 1: only "blocks" supported
+  type: DependencyType,
   target: IssueId,
 });
 
@@ -1622,6 +1672,11 @@ Options:
   --no-sync                 Don't sync after create
 ```
 
+> **Note on `--type` flag:** The CLI flag `--type` (or `-t`) sets the issue's `kind`
+> field, NOT the `type` field. The `type` field is the entity discriminator (always `is`
+> for issues) and is set automatically. This naming choice maintains Beads CLI
+> compatibility where `--type` was used for issue classification.
+
 **Examples:**
 ```bash
 cead create "Fix authentication bug" -t bug -p 1
@@ -1642,6 +1697,7 @@ cead list [options]
 
 Options:
   --status <status>         Filter: open, in_progress, blocked, deferred, closed
+  --all                     Include closed issues (default: excludes closed)
   --type <type>             Filter: bug, feature, task, epic
   --priority <0-4>          Filter by priority
   --assignee <name>         Filter by assignee
@@ -1655,9 +1711,15 @@ Options:
   --json                    Output as JSON
 ```
 
+> **Default filtering:** By default, `cead list` excludes closed issues to focus on
+> active work. Use `--all` to include closed issues, or `--status closed` to show only
+> closed issues.
+
 **Examples:**
 ```bash
-cead list
+cead list                             # Active issues only (excludes closed)
+cead list --all                       # All issues including closed
+cead list --status closed             # Only closed issues
 cead list --status open --priority 1
 cead list --assignee agent-1 --json
 cead list --deferred
@@ -2039,6 +2101,19 @@ If the worktree is stale (last fetch was more than 5 minutes ago), search will
 automatically pull before searching to ensure results are current.
 This can be disabled with `--no-refresh`.
 
+> **Why 5 minutes?** The default staleness threshold of 5 minutes balances freshness vs
+> performance. During active work, agents typically sync more frequently than this, so
+> the auto-refresh rarely triggers. For long-running sessions where remote changes may
+> accumulate, the refresh ensures search results include recent work from other agents.
+> The threshold is configurable via `settings.search_staleness_minutes` in config.yaml.
+
+**Configuration:**
+```yaml
+# .ceads/config.yaml
+settings:
+  search_staleness_minutes: 5  # Default: 5, set to 0 to always refresh, -1 to never
+```
+
 ```bash
 # Search without refreshing (faster but potentially stale)
 cead search "pattern" --no-refresh
@@ -2195,6 +2270,27 @@ Example: `CEAD_ACTOR=claude-agent-1 cead create "Fix bug"`
 
 The attic preserves data lost in merge conflicts.
 These commands enable inspection and recovery.
+
+**Entry ID Format:**
+
+Attic entries are identified by a composite ID derived from the entity, timestamp, and
+field:
+
+```
+{entity-id}/{timestamp}_{field}
+
+Examples:
+  is-a1b2c3/2025-01-07T10-30-00Z_description
+  is-f14c3d/2025-01-08T09-00-00Z_title
+  is-a1b2c3/2025-01-07T11-45-00Z_full    # Full entity conflict (rare)
+```
+
+- **entity-id**: The issue ID (e.g., `is-a1b2c3`)
+- **timestamp**: ISO8601 timestamp with colons replaced by hyphens (filesystem-safe)
+- **field**: The field name that was overwritten, or `full` for complete entity conflicts
+
+This format ensures unique, sortable entry IDs that can be easily parsed and allow
+filtering by entity or time range.
 
 ```bash
 # List attic entries
