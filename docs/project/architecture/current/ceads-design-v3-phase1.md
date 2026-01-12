@@ -19,15 +19,17 @@
 
     - [1.1 What is Ceads?](#11-what-is-ceads)
 
-    - [1.2 Why Replace Beads?](#12-why-replace-beads)
+    - [1.2 When to Use Ceads vs Beads](#12-when-to-use-ceads-vs-beads)
 
-    - [1.3 Design Goals](#13-design-goals)
+    - [1.3 Why Replace Beads?](#13-why-replace-beads-architecture-comparison)
 
-    - [1.4 Design Principles](#14-design-principles)
+    - [1.4 Design Goals](#14-design-goals)
 
-    - [1.5 Non-Goals for Phase 1](#15-non-goals-for-phase-1)
+    - [1.5 Design Principles](#15-design-principles)
 
-    - [1.6 Layer Overview](#16-layer-overview)
+    - [1.6 Non-Goals for Phase 1](#16-non-goals-for-phase-1)
+
+    - [1.7 Layer Overview](#17-layer-overview)
 
   - [2. File Layer](#2-file-layer)
 
@@ -318,6 +320,8 @@
 
     - [A.8 Migration Compatibility](#a8-migration-compatibility)
 
+  - [Appendix B: Beads Commands NOT Included](#appendix-b-beads-commands-not-included-in-phase-1)
+
   - [8. Open Questions](#8-open-questions)
 
     - [8.1 Git Operations](#81-git-operations)
@@ -364,7 +368,54 @@ Ceads is pronounced “seeds” and follows Beads in the spirit of C following B
 - **Cross-environment**: Works on local machines, CI, cloud sandboxes, network
   filesystems
 
-### 1.2 Why Replace Beads?
+### 1.2 When to Use Ceads vs Beads
+
+Ceads and Beads serve different use cases. This section clarifies when each is appropriate.
+
+**Use Ceads when:**
+
+| Scenario | Why Ceads |
+|----------|-----------|
+| Single agent, simple ticket tracking | Simpler, no daemon, fewer failure modes |
+| Multi-agent with async handoffs | Git sync is sufficient, advisory claims work |
+| Cloud sandbox / restricted environment | No daemon required, works with isolated git |
+| Network filesystem (NFS/SMB) | No SQLite, no file locking issues |
+| Need to debug sync issues | Markdown files are inspectable, no hidden state |
+| Protected main branch | Sync branch architecture keeps main clean |
+
+**Use Beads when:**
+
+| Scenario | Why Beads |
+|----------|-----------|
+| Multi-agent requiring real-time coordination | Agent Mail, daemon-based sync, atomic claims |
+| Complex workflow orchestration | Molecules, wisps, formulas, bonding |
+| Need ephemeral work tracking | Wisps (never synced, squash to digest) |
+| High-performance queries on 10K+ issues | SQLite with indexes is faster than file scan |
+| Need automatic "memory decay" | AI-powered compaction of old issues |
+| Need interactive edit mode | `bd edit` opens in $EDITOR |
+
+**Key Differences Summary:**
+
+| Aspect | Ceads V3 Phase 1 | Beads |
+|--------|------------------|-------|
+| Architecture | 2 locations (files + sync branch) | 4 locations (SQLite, JSONL, sync, main) |
+| Daemon | Not required | Required for real-time sync |
+| Storage | Markdown + YAML files | SQLite + JSONL |
+| Coordination | Advisory claims, polling | Atomic claims, real-time |
+| Workflow templates | Not supported | Molecules, wisps, protos |
+| Agent messaging | Not supported | Agent Mail |
+| Debugging | Inspect files directly | Requires SQLite queries |
+
+**Ceads V3 Phase 1 is NOT:**
+
+- A real-time coordination system for multiple agents working simultaneously
+- A replacement for Beads' advanced orchestration features (molecules, wisps, formulas)
+- A replacement for Agent Mail or other real-time messaging layers
+- A workflow automation engine with templates
+
+For advanced coordination needs, continue using Beads or wait for Ceads Phase 2+.
+
+### 1.3 Why Replace Beads? (Architecture Comparison)
 
 Beads proved that git-backed issue tracking works well for AI agents and humans, but its
 architecture accumulated complexity:
@@ -1995,6 +2046,41 @@ cead search "pattern" --no-refresh
 
 ### 4.9 Maintenance Commands
 
+#### Info
+
+```bash
+cead info [options]
+
+Options:
+  --json                    JSON output
+```
+
+**Output:**
+```
+Ceads Version: 3.0.0
+Sync Branch: ceads-sync
+Remote: origin
+Display Prefix: bd
+Worktree: .ceads/.worktree/ (healthy)
+Last Sync: 2025-01-10T10:00:00Z
+Issue Count: 127
+```
+
+**Output (--json):**
+```json
+{
+  "ceads_version": "3.0.0",
+  "sync_branch": "ceads-sync",
+  "remote": "origin",
+  "display_prefix": "bd",
+  "worktree_path": ".ceads/.worktree/",
+  "worktree_healthy": true,
+  "last_sync": "2025-01-10T10:00:00Z",
+  "last_synced_commit": "abc123def456",
+  "issue_count": 127
+}
+```
+
 #### Stats
 
 ```bash
@@ -2686,6 +2772,7 @@ cead sync
 | `bd sync` | `cead sync` | ✅ Full | Different mechanism, same UX |
 | `bd stats` | `cead stats` | ✅ Full | Same statistics |
 | `bd doctor` | `cead doctor` | ✅ Full | Different checks |
+| `bd info` | `cead info` | ✅ Full | System status |
 | `bd config` | `cead config` | ✅ Full | YAML not SQLite |
 | `bd compact` | `cead compact` | 🔄 Phase 2 | Deferred |
 | `bd prime` | *(none)* | ❌ Not planned | Beads-specific feature |
@@ -3490,6 +3577,7 @@ This is sufficient for the `ready` command algorithm.
 | Beads Command | Ceads Command | Status | Notes |
 | --- | --- | --- | --- |
 | `bd init` | `cead init` | ✅ Full | Identical |
+| `bd info` | `cead info` | ✅ Full | System status |
 | `bd doctor` | `cead doctor` | ✅ Full | Health checks |
 | `bd doctor --fix` | `cead doctor --fix` | ✅ Full | Auto-fix |
 | `bd stats` | `cead stats` | ✅ Full | Issue statistics |
@@ -3691,6 +3779,141 @@ cead config display.id_prefix bd
 agents to migrate from Beads for basic issue tracking workflows.
 The simpler architecture (no SQLite, no daemon, file-per-entity) addresses the key pain
 points identified in the Beads experience.
+
+* * *
+
+## Appendix B: Beads Commands NOT Included in Phase 1
+
+This appendix provides a comprehensive list of Beads commands and features that are
+explicitly **not** included in Ceads V3 Phase 1.
+
+### B.1 Daemon Commands
+
+These commands are not applicable since Ceads has no daemon:
+
+| Beads Command | Why Not Included |
+|---------------|------------------|
+| `bd daemon start` | No daemon architecture |
+| `bd daemon stop` | No daemon architecture |
+| `bd daemon status` | No daemon architecture |
+| `bd daemons list` | No daemon architecture |
+| `bd daemons health` | No daemon architecture |
+| `bd daemons killall` | No daemon architecture |
+| `bd daemons logs` | No daemon architecture |
+| `bd daemons restart` | No daemon architecture |
+
+### B.2 Molecule/Workflow Commands
+
+Workflow orchestration features are deferred to Phase 2+:
+
+| Beads Command | Why Not Included |
+|---------------|------------------|
+| `bd mol pour` | Template instantiation - Phase 2+ |
+| `bd mol wisp` | Ephemeral work tracking - Phase 2+ |
+| `bd mol bond` | Workflow composition - Phase 2+ |
+| `bd mol squash` | Compress to digest - Phase 2+ |
+| `bd mol burn` | Discard wisp - Phase 2+ |
+| `bd mol wisp list` | Wisp management - Phase 2+ |
+| `bd mol wisp gc` | Garbage collection - Phase 2+ |
+| `bd mol distill` | Extract template - Phase 2+ |
+| `bd mol show` | Template inspection - Phase 2+ |
+| `bd formula list` | Template listing - Phase 2+ |
+
+### B.3 Agent Coordination Commands
+
+Real-time agent coordination is deferred:
+
+| Beads Command | Why Not Included |
+|---------------|------------------|
+| `bd agent register` | Agent registry - Phase 2+ |
+| `bd agent heartbeat` | Presence tracking - Phase 2+ |
+| `bd agent claim` | Atomic claims - Phase 2+ |
+| Agent Mail | Real-time messaging - Phase 2+ |
+
+### B.4 Advanced Data Operations
+
+| Beads Command | Why Not Included |
+|---------------|------------------|
+| `bd compact` | Memory decay - Phase 2 |
+| `bd compact --auto` | AI-powered compaction - Phase 2 |
+| `bd admin cleanup` | Bulk deletion - Phase 2 |
+| `bd duplicates` | Duplicate detection - not planned |
+| `bd merge` | Merge duplicates - not planned |
+| `bd rename-prefix` | ID prefix rename - low priority |
+
+### B.5 Comment Commands
+
+Comments are a separate entity type in Phase 2:
+
+| Beads Command | Why Not Included |
+|---------------|------------------|
+| `bd comment add` | Comments entity - Phase 2+ |
+| `bd comment list` | Comments entity - Phase 2+ |
+| `bd comments show` | Comments entity - Phase 2+ |
+
+### B.6 Editor Integration Commands
+
+| Beads Command | Why Not Included |
+|---------------|------------------|
+| `bd setup claude` | Editor hooks - not planned |
+| `bd setup cursor` | Editor rules - not planned |
+| `bd setup aider` | Editor config - not planned |
+| `bd setup factory` | AGENTS.md - not planned |
+| `bd edit` | Interactive edit (human only) - not planned |
+
+### B.7 Additional Dependency Types
+
+Phase 1 only supports `blocks`:
+
+| Beads Type | Why Not Included |
+|------------|------------------|
+| `related` | Soft linking - Phase 2 |
+| `discovered-from` | Provenance tracking - Phase 2 |
+| `waits-for` | Fanout gates - Phase 2+ |
+| `conditional-blocks` | Error handling - Phase 2+ |
+
+### B.8 State Label Commands
+
+| Beads Command | Why Not Included |
+|---------------|------------------|
+| `bd state` | Label-as-cache pattern - not planned |
+| `bd set-state` | Label-as-cache pattern - not planned |
+
+### B.9 Other Commands
+
+| Beads Command | Why Not Included |
+|---------------|------------------|
+| `bd prime` | Beads-specific priming - not applicable |
+| `bd audit` | Audit trail command - use git log |
+| `bd activity` | Activity feed - not planned |
+| `bd context` | Context management - not planned |
+| `bd migrate` | SQLite migration - not applicable |
+| `bd export` | Files are the format - Phase 2 (JSONL export) |
+| `bd cook` | Internal command - not applicable |
+
+### B.10 Global Flags Not Supported
+
+| Beads Flag | Why Not Included |
+|------------|------------------|
+| `--no-daemon` | No daemon to disable |
+| `--no-auto-flush` | No auto-flush mechanism |
+| `--no-auto-import` | Different sync model |
+| `--sandbox` | Ceads is always "sandbox safe" |
+| `--allow-stale` | Different staleness model |
+
+### B.11 Issue Types/Statuses Not Supported
+
+| Beads Value | Why Not Included |
+|-------------|------------------|
+| `issue_type: message` | Messages are Phase 2+ |
+| `issue_type: agent` | Agent registry is Phase 2+ |
+| `issue_type: role` | Advanced orchestration |
+| `issue_type: convoy` | Advanced orchestration |
+| `issue_type: molecule` | Workflow templates |
+| `issue_type: gate` | Async gates |
+| `issue_type: merge-request` | External integration |
+| `status: pinned` | Convert to label on import |
+| `status: hooked` | Convert to label on import |
 
 * * *
 
