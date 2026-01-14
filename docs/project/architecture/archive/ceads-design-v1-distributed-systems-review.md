@@ -6,7 +6,8 @@
 
 **Document Reviewed:** [ceads-design.md](ceads-design.md)
 
-**Last Updated:** January 2025 (recommendations reviewed; complex items deferred to Optional Enhancements appendix)
+**Last Updated:** January 2025 (recommendations reviewed; complex items deferred to
+Optional Enhancements appendix)
 
 * * *
 
@@ -14,7 +15,7 @@
 
 The Ceads design makes a clear and correct choice: **Git is the source of truth**. This
 is the right foundation.
-However, several areas need deeper specification, particularly around the Bridge Layer's
+However, several areas need deeper specification, particularly around the Bridge Layer’s
 consistency model, clock synchronization, and claim coordination semantics.
 
 This review identifies issues ranging from critical (will cause data loss) to
@@ -62,8 +63,7 @@ This separation ensures synced data never causes merge conflicts on working bran
 
 1. [Source of Truth: Git vs Bridge](#1-source-of-truth-git-vs-bridge)
 
-2. [Clock Synchronization and LWW: A Critical
-   Flaw](#2-clock-synchronization-and-lww-a-critical-flaw)
+2. [Clock Synchronization and LWW: A Critical Flaw](#2-clock-synchronization-and-lww-a-critical-flaw)
 
 3. [Claim Coordination: Race Conditions](#3-claim-coordination-race-conditions)
 
@@ -75,18 +75,15 @@ This separation ensures synced data never causes merge conflicts on working bran
 
 7. [Offline-First Cache: Missing Guarantees](#7-offline-first-cache-missing-guarantees)
 
-8. [Sequence Array Merge: Open Question
-   Analysis](#8-sequence-array-merge-open-question-analysis)
+8. [Sequence Array Merge: Open Question Analysis](#8-sequence-array-merge-open-question-analysis)
 
 9. [Summary of Recommendations](#9-summary-of-recommendations)
 
-10. [Alternative Architecture: Event
-    Sourcing](#10-alternative-architecture-event-sourcing)
+10. [Alternative Architecture: Event Sourcing](#10-alternative-architecture-event-sourcing)
 
 11. [Additional Issues (Second Pass Review)](#11-additional-issues-second-pass-review)
 
-12. [Operational Plan: Critical and Important
-    Edits](#12-operational-plan-critical-and-important-edits)
+12. [Operational Plan: Critical and Important Edits](#12-operational-plan-critical-and-important-edits)
 
 * * *
 
@@ -513,14 +510,18 @@ reconcile if needed.
 ### v1 Design Decision: Simplicity First
 
 After review, these recommendations are **deferred to Optional Enhancements** (see
-[Appendix 7.7](ceads-design.md#77-optional-enhancements) in the design doc). The v1
-design prioritizes simplicity, with these enhancements available if specific problems
-arise in practice.
+[Appendix 7.7](ceads-design.md#77-optional-enhancements) in the design doc).
+The v1 design prioritizes simplicity, with these enhancements available if specific
+problems arise in practice.
 
 **Rationale:**
+
 - Simple `version + updated_at` LWW works for most use cases (NTP keeps clocks synced)
+
 - The attic preserves all conflict losers, so no data is ever lost
+
 - Advisory claims are sufficient when racing is rare
+
 - Bridge Layer details can be designed when Bridge Layer is built
 
 ### Deferred to Optional Enhancements
@@ -552,8 +553,8 @@ arise in practice.
 - [x] **Schema migration strategy** — Forward/backward compatibility, version tracking.
   Added as Section 2.6.
 
-- [x] **ID generation specification** — Crypto-random, collision handling. Expanded in
-  Section 2.4.
+- [x] **ID generation specification** — Crypto-random, collision handling.
+  Expanded in Section 2.4.
 
 ### Nice to Have (v2 Considerations)
 
@@ -656,7 +657,7 @@ The design provides a solid foundation to build on.
 The following issues were identified in a second review pass:
 
 | Issue | Severity | Summary |
-|-------|----------|---------|
+| --- | --- | --- |
 | **11.1** ID Generation | Important | Hash collision risk; need crypto-random + 6 chars |
 | **11.2** Partial Sync Failures | Important | No rollback/recovery strategy |
 | **11.3** Multi-Entity Atomicity | Important | Operations spanning files can leave inconsistent state |
@@ -665,7 +666,7 @@ The following issues were identified in a second review pass:
 | **11.6** Outbound Queue Crash Safety | Medium | Duplicate delivery risk (solved by idempotency) |
 | **11.7** Reference Integrity During Sync | Medium | Soft references may be temporarily broken |
 
----
+* * *
 
 ## 12. Operational Edit Plan
 
@@ -677,27 +678,41 @@ separate document for easier tracking:
 ### Summary of Edits
 
 **Phase 1 (Critical):**
+
 - Edit 1.1: Replace LWW with Hybrid Logical Clocks
+
 - Edit 1.2: Add Bridge Consistency Guarantees
+
 - Edit 1.3: Add Idempotency Keys + Retry Policy
 
 **Phase 2 (Important):**
+
 - Edit 2.1: Add Lease-Based Claims
+
 - Edit 2.2: Add GitHub Field-Level Sync Direction
+
 - Edit 2.3: Add Retry Policy + Dead Letter Queue
+
 - Edit 2.4: Add ID Generation Specification
+
 - Edit 2.5: Add Schema Migration Strategy
+
 - Edit 2.6: Add Webhook Security
 
 **Phase 3:** Verification checklist for updating examples
 
----
+* * *
 
 ## References
 
 - [Hybrid Logical Clocks (Kulkarni et al.)](https://cse.buffalo.edu/tech-reports/2014-04.pdf)
+
 - [CRDTs: Conflict-free Replicated Data Types](https://crdt.tech/)
+
 - [Erta: Building Consistent Transactions with Inconsistent Replication](https://www.usenix.org/conference/osdi16/technical-sessions/presentation/li)
+
 - [GitHub Webhook Security](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries)
+
 - [Slack Request Verification](https://api.slack.com/authentication/verifying-requests-from-slack)
+
 - Design doc references in Appendix 7.6

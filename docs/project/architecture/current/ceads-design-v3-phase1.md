@@ -10,8 +10,7 @@
 
 ## Table of Contents
 
-- [Ceads Design V3 Phase 1: Beads
-  Replacement](#ceads-design-v3-phase-1-beads-replacement)
+- [Ceads Design V3 Phase 1: Beads Replacement](#ceads-design-v3-phase-1-beads-replacement)
 
   - [Table of Contents](#table-of-contents)
 
@@ -21,7 +20,8 @@
 
     - [1.2 When to Use Ceads vs Beads](#12-when-to-use-ceads-vs-beads)
 
-    - [1.3 Why Replace Beads?](#13-why-replace-beads-architecture-comparison)
+    - [1.3 Why Replace Beads?
+      (Architecture Comparison)](#13-why-replace-beads-architecture-comparison)
 
     - [1.4 Design Goals](#14-design-goals)
 
@@ -47,7 +47,7 @@
 
       - [On `ceads-sync` Branch](#on-ceads-sync-branch)
 
-    - [2.6 Hidden Worktree Model](#26-hidden-worktree-model)
+    - [2.3 Hidden Worktree Model](#23-hidden-worktree-model)
 
       - [Worktree Setup](#worktree-setup)
 
@@ -57,31 +57,33 @@
 
       - [Worktree Lifecycle](#worktree-lifecycle)
 
-    - [2.3 Entity Collection Pattern](#23-entity-collection-pattern)
+      - [Worktree Initialization Decision Tree](#worktree-initialization-decision-tree)
+
+    - [2.4 Entity Collection Pattern](#24-entity-collection-pattern)
 
       - [Directory Layout](#directory-layout)
 
       - [Adding New Entity Types (Future)](#adding-new-entity-types-future)
 
-    - [2.4 ID Generation](#24-id-generation)
+    - [2.5 ID Generation](#25-id-generation)
 
       - [ID Generation Algorithm](#id-generation-algorithm)
 
-    - [2.5 Schemas](#25-schemas)
+    - [2.6 Schemas](#26-schemas)
 
-      - [2.5.1 Common Types](#251-common-types)
+      - [2.6.1 Common Types](#261-common-types)
 
-      - [2.5.2 BaseEntity](#252-baseentity)
+      - [2.6.2 BaseEntity](#262-baseentity)
 
-      - [2.5.3 IssueSchema](#253-issueschema)
+      - [2.6.3 IssueSchema](#263-issueschema)
 
-      - [2.5.4 ConfigSchema](#254-configschema)
+      - [2.6.4 ConfigSchema](#264-configschema)
 
-      - [2.5.5 MetaSchema](#255-metaschema)
+      - [2.6.5 MetaSchema](#265-metaschema)
 
-      - [2.5.6 LocalStateSchema](#256-localstateschema)
+      - [2.6.6 LocalStateSchema](#266-localstateschema)
 
-      - [2.5.7 AtticEntrySchema](#257-atticentryschema)
+      - [2.6.7 AtticEntrySchema](#267-atticentryschema)
 
   - [3. Git Layer](#3-git-layer)
 
@@ -159,6 +161,8 @@
 
     - [4.9 Maintenance Commands](#49-maintenance-commands)
 
+      - [Info](#info)
+
       - [Stats](#stats)
 
       - [Doctor](#doctor)
@@ -179,8 +183,7 @@
 
       - [5.1.1 Import Command](#511-import-command)
 
-      - [5.1.2 Multi-Source Import
-        (--from-beads)](#512-multi-source-import---from-beads)
+      - [5.1.2 Multi-Source Import (--from-beads)](#512-multi-source-import---from-beads)
 
       - [5.1.3 Multi-Source Merge Algorithm](#513-multi-source-merge-algorithm)
 
@@ -190,8 +193,7 @@
 
       - [5.1.6 Merge Behavior on Re-Import](#516-merge-behavior-on-re-import)
 
-      - [5.1.7 Handling Deletions and
-        Tombstones](#517-handling-deletions-and-tombstones)
+      - [5.1.7 Handling Deletions and Tombstones](#517-handling-deletions-and-tombstones)
 
       - [5.1.8 Dependency ID Translation](#518-dependency-id-translation)
 
@@ -235,24 +237,19 @@
 
       - [Decision 2: No daemon in Phase 1](#decision-2-no-daemon-in-phase-1)
 
-      - [Decision 3: Sync branch instead of
-        main](#decision-3-sync-branch-instead-of-main)
+      - [Decision 3: Sync branch instead of main](#decision-3-sync-branch-instead-of-main)
 
-      - [Decision 4: Display ID prefix for Beads
-        compat](#decision-4-display-id-prefix-for-beads-compat)
+      - [Decision 4: Display ID prefix for Beads compat](#decision-4-display-id-prefix-for-beads-compat)
 
-      - [Decision 5: Only “blocks” dependencies in Phase
-        1](#decision-5-only-blocks-dependencies-in-phase-1)
+      - [Decision 5: Only “blocks” dependencies in Phase 1](#decision-5-only-blocks-dependencies-in-phase-1)
 
       - [Decision 6: Markdown + YAML storage](#decision-6-markdown--yaml-storage)
 
-      - [Decision 7: Hidden worktree for sync
-        branch](#decision-7-hidden-worktree-for-sync-branch)
+      - [Decision 7: Hidden worktree for sync branch](#decision-7-hidden-worktree-for-sync-branch)
 
     - [7.2 Future Enhancements (Phase 2+)](#72-future-enhancements-phase-2)
 
-      - [Additional Dependency Types (High
-        Priority)](#additional-dependency-types-high-priority)
+      - [Additional Dependency Types (High Priority)](#additional-dependency-types-high-priority)
 
       - [Agent Registry](#agent-registry)
 
@@ -268,8 +265,7 @@
 
     - [7.3 File Structure Reference](#73-file-structure-reference)
 
-  - [Appendix A: Beads to Ceads Feature
-    Mapping](#appendix-a-beads-to-ceads-feature-mapping)
+  - [Appendix A: Beads to Ceads Feature Mapping](#appendix-a-beads-to-ceads-feature-mapping)
 
     - [A.1 Executive Summary](#a1-executive-summary)
 
@@ -279,13 +275,11 @@
 
       - [A.2.2 Label Commands (Full Parity)](#a22-label-commands-full-parity)
 
-      - [A.2.3 Dependency Commands (Partial - blocks
-        only)](#a23-dependency-commands-partial---blocks-only)
+      - [A.2.3 Dependency Commands (Partial - blocks only)](#a23-dependency-commands-partial---blocks-only)
 
       - [A.2.4 Sync Commands (Full Parity)](#a24-sync-commands-full-parity)
 
-      - [A.2.5 Maintenance Commands (Full
-        Parity)](#a25-maintenance-commands-full-parity)
+      - [A.2.5 Maintenance Commands (Full Parity)](#a25-maintenance-commands-full-parity)
 
       - [A.2.6 Global Options (Full Parity)](#a26-global-options-full-parity)
 
@@ -309,8 +303,7 @@
 
       - [A.5.1 Basic Agent Loop (Full Parity)](#a51-basic-agent-loop-full-parity)
 
-      - [A.5.2 Creating Linked Work (Partial
-        Parity)](#a52-creating-linked-work-partial-parity)
+      - [A.5.2 Creating Linked Work (Partial Parity)](#a52-creating-linked-work-partial-parity)
 
       - [A.5.3 Migration Workflow](#a53-migration-workflow)
 
@@ -320,7 +313,29 @@
 
     - [A.8 Migration Compatibility](#a8-migration-compatibility)
 
-  - [Appendix B: Beads Commands NOT Included](#appendix-b-beads-commands-not-included-in-phase-1)
+  - [Appendix B: Beads Commands NOT Included in Phase 1](#appendix-b-beads-commands-not-included-in-phase-1)
+
+    - [B.1 Daemon Commands](#b1-daemon-commands)
+
+    - [B.2 Molecule/Workflow Commands](#b2-moleculeworkflow-commands)
+
+    - [B.3 Agent Coordination Commands](#b3-agent-coordination-commands)
+
+    - [B.4 Advanced Data Operations](#b4-advanced-data-operations)
+
+    - [B.5 Comment Commands](#b5-comment-commands)
+
+    - [B.6 Editor Integration Commands](#b6-editor-integration-commands)
+
+    - [B.7 Additional Dependency Types](#b7-additional-dependency-types)
+
+    - [B.8 State Label Commands](#b8-state-label-commands)
+
+    - [B.9 Other Commands](#b9-other-commands)
+
+    - [B.10 Global Flags Not Supported](#b10-global-flags-not-supported)
+
+    - [B.11 Issue Types/Statuses Not Supported](#b11-issue-typesstatuses-not-supported)
 
   - [8. Open Questions](#8-open-questions)
 
@@ -370,12 +385,13 @@ Ceads is pronounced “seeds” and follows Beads in the spirit of C following B
 
 ### 1.2 When to Use Ceads vs Beads
 
-Ceads and Beads serve different use cases. This section clarifies when each is appropriate.
+Ceads and Beads serve different use cases.
+This section clarifies when each is appropriate.
 
 **Use Ceads when:**
 
 | Scenario | Why Ceads |
-|----------|-----------|
+| --- | --- |
 | Single agent, simple ticket tracking | Simpler, no daemon, fewer failure modes |
 | Multi-agent with async handoffs | Git sync is sufficient, advisory claims work |
 | Cloud sandbox / restricted environment | No daemon required, works with isolated git |
@@ -386,7 +402,7 @@ Ceads and Beads serve different use cases. This section clarifies when each is a
 **Use Beads when:**
 
 | Scenario | Why Beads |
-|----------|-----------|
+| --- | --- |
 | Multi-agent requiring real-time coordination | Agent Mail, daemon-based sync, atomic claims |
 | Complex workflow orchestration | Molecules, wisps, formulas, bonding |
 | Need ephemeral work tracking | Wisps (never synced, squash to digest) |
@@ -397,7 +413,7 @@ Ceads and Beads serve different use cases. This section clarifies when each is a
 **Key Differences Summary:**
 
 | Aspect | Ceads V3 Phase 1 | Beads |
-|--------|------------------|-------|
+| --- | --- | --- |
 | Architecture | 2 locations (files + sync branch) | 4 locations (SQLite, JSONL, sync, main) |
 | Daemon | Not required | Required for real-time sync |
 | Storage | Markdown + YAML files | SQLite + JSONL |
@@ -409,8 +425,11 @@ Ceads and Beads serve different use cases. This section clarifies when each is a
 **Ceads V3 Phase 1 is NOT:**
 
 - A real-time coordination system for multiple agents working simultaneously
-- A replacement for Beads' advanced orchestration features (molecules, wisps, formulas)
+
+- A replacement for Beads’ advanced orchestration features (molecules, wisps, formulas)
+
 - A replacement for Agent Mail or other real-time messaging layers
+
 - A workflow automation engine with templates
 
 For advanced coordination needs, continue using Beads or wait for Ceads Phase 2+.
@@ -473,7 +492,7 @@ Ceads builds on lessons from the git-native issue tracking ecosystem:
 The common thread: **simplicity, no background services, git for distribution**. Ceads
 combines these proven patterns with multi-environment sync and conflict resolution.
 
-### 1.3 Design Goals
+### 1.4 Design Goals
 
 1. **Beads CLI compatibility**: Existing workflows and scripts work with minimal changes
    for the most common beads commands
@@ -492,7 +511,7 @@ combines these proven patterns with multi-environment sync and conflict resoluti
 7. **Easy migration**: `cead import <beads-export.jsonl>` or `cead import --from-beads`
    converts existing Beads databases
 
-### 1.4 Design Principles
+### 1.5 Design Principles
 
 1. **Simplicity first**: Prefer boring, well-understood approaches over clever
    optimization
@@ -507,7 +526,7 @@ combines these proven patterns with multi-environment sync and conflict resoluti
 
 6. **Progressive enhancement**: Core works standalone, bridges/UI are optional layers
 
-### 1.5 Non-Goals for Phase 1
+### 1.6 Non-Goals for Phase 1
 
 These are explicitly **deferred** to Phase 2 or later:
 
@@ -532,7 +551,7 @@ These are explicitly **deferred** to Phase 2 or later:
 **Rationale**: Ship a small, reliable core first.
 Add complexity only when proven necessary.
 
-### 1.6 Layer Overview
+### 1.7 Layer Overview
 
 Ceads V3 Phase 1 has three layers:
 
@@ -553,7 +572,7 @@ Ceads V3 Phase 1 has three layers:
 ┌──────────────────────────────┼───────────────────────────────────┐
 │                        File Layer                                │
 │                        Format specification                      │
-│   .ceads/config.yaml │ .ceads-sync/*.md │ Zod schemas              │
+│   .ceads/config.yml │ .ceads-sync/*.md │ Zod schemas              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -745,11 +764,11 @@ Ceads uses three directory locations:
 
 ```
 .ceads/
-├── config.yaml             # Project configuration (tracked)
+├── config.yml             # Project configuration (tracked)
 ├── .gitignore              # Ignores cache/ and .worktree/ (tracked)
 │
 ├── cache/                  # Gitignored - local state
-│   ├── state.yaml          # Per-node sync state (last_sync, node_id)
+│   ├── state.yml          # Per-node sync state (last_sync, node_id)
 │   ├── index.json          # Optional query index (rebuildable)
 │   └── sync.lock           # Sync coordination file
 │
@@ -774,8 +793,8 @@ Ceads uses three directory locations:
 │       └── is-a1b2c3/
 │           └── 2025-01-07T10-30-00Z_description.md
 ├── mappings/               # Import ID mappings
-│   └── beads.yaml          # Beads ID → Ceads ID mapping
-└── meta.yaml               # Metadata (schema version)
+│   └── beads.yml          # Beads ID → Ceads ID mapping
+└── meta.yml               # Metadata (schema version)
 ```
 
 **Why this structure?**
@@ -790,7 +809,7 @@ Ceads uses three directory locations:
 
 - **Hidden worktree enables fast search** via ripgrep/grep
 
-### 2.6 Hidden Worktree Model
+### 2.3 Hidden Worktree Model
 
 Ceads maintains a **hidden git worktree** at `.ceads/.worktree/` that checks out the
 `ceads-sync` branch.
@@ -861,8 +880,8 @@ state of the `ceads-sync` branch after sync operations.
 
 #### Worktree Initialization Decision Tree
 
-When any `cead` command runs, it must ensure the worktree is initialized. The logic
-depends on the repository state:
+When any `cead` command runs, it must ensure the worktree is initialized.
+The logic depends on the repository state:
 
 ```
 START: Any cead command
@@ -889,13 +908,13 @@ START: Any cead command
 **Scenarios:**
 
 | Repository State | Worktree Action |
-|------------------|-----------------|
+| --- | --- |
 | Fresh `cead init` | Create orphan worktree with empty .ceads-sync/ |
 | Clone of existing ceads repo | Fetch remote, create worktree from origin/ceads-sync |
 | Existing local worktree corrupted | `cead doctor --fix` removes and recreates |
 | Worktree exists but stale | `cead sync` updates to latest commit |
 
-### 2.3 Entity Collection Pattern
+### 2.4 Entity Collection Pattern
 
 Phase 1 has **one core entity type**: Issues
 
@@ -923,7 +942,7 @@ To add a new entity type:
 
 No sync algorithm changes needed—sync operates on files, not schemas.
 
-### 2.4 ID Generation
+### 2.5 ID Generation
 
 Entity IDs follow this pattern:
 
@@ -980,12 +999,12 @@ Beads compatibility.
 When a user types `bd-a1b2c3`, it is resolved to internal `is-a1b2c3`. When displaying,
 the internal ID is shown with the configured prefix.
 
-### 2.5 Schemas
+### 2.6 Schemas
 
 Schemas are defined in Zod (TypeScript).
 Other languages should produce equivalent YAML/Markdown output.
 
-#### 2.5.1 Common Types
+#### 2.6.1 Common Types
 
 ```typescript
 import { z } from 'zod';
@@ -993,8 +1012,8 @@ import { z } from 'zod';
 // ISO8601 timestamp
 const Timestamp = z.string().datetime();
 
-// Issue ID
-const IssueId = z.string().regex(/^is-[a-f0-9]{4,6}$/);
+// Issue ID (stored IDs always have exactly 6 hex chars)
+const IssueId = z.string().regex(/^is-[a-f0-9]{6}$/);
 
 // Edit counter - incremented on every local change
 // IMPORTANT: Version is NOT used for conflict detection (content hash is used instead).
@@ -1008,14 +1027,14 @@ const Version = z.number().int().nonnegative();
 const EntityType = z.literal('is');
 ```
 
-> **Version Field Clarification:** The `version` field is **purely informational**. It is
-> incremented on every local change but is NOT used to detect conflicts. Conflict
-> detection uses **content hash comparison** (see §3.4). This avoids the classic
-> distributed systems problem where version numbers can diverge when two nodes edit
-> independently. The version is useful for debugging ("how many times was this edited?")
-> and is set to `max(local, remote) + 1` after merges.
+> **Version Field Clarification:** The `version` field is **purely informational**. It
+> is incremented on every local change but is NOT used to detect conflicts.
+> Conflict detection uses **content hash comparison** (see §3.4). This avoids the
+> classic distributed systems problem where version numbers can diverge when two nodes
+> edit independently. The version is useful for debugging ("how many times was this
+> edited?") and is set to `max(local, remote) + 1` after merges.
 
-#### 2.5.2 BaseEntity
+#### 2.6.2 BaseEntity
 
 All entities share common fields:
 
@@ -1047,7 +1066,7 @@ const BaseEntity = z.object({
 >     custom_field: value
 > ```
 
-#### 2.5.3 IssueSchema
+#### 2.6.3 IssueSchema
 
 ```typescript
 const IssueStatus = z.enum(['open', 'in_progress', 'blocked', 'deferred', 'closed']);
@@ -1129,12 +1148,12 @@ In Ceads, we handle deletion differently:
 
 - No `tombstone` status needed
 
-#### 2.5.4 ConfigSchema
+#### 2.6.4 ConfigSchema
 
-Project configuration stored in `.ceads/config.yaml`:
+Project configuration stored in `.ceads/config.yml`:
 
 ```yaml
-# .ceads/config.yaml
+# .ceads/config.yml
 ceads_version: "3.0.0"
 
 sync:
@@ -1168,9 +1187,9 @@ const ConfigSchema = z.object({
 });
 ```
 
-#### 2.5.5 MetaSchema
+#### 2.6.5 MetaSchema
 
-Shared metadata stored in `.ceads-sync/meta.yaml` on the sync branch:
+Shared metadata stored in `.ceads-sync/meta.yml` on the sync branch:
 
 ```typescript
 const MetaSchema = z.object({
@@ -1179,14 +1198,14 @@ const MetaSchema = z.object({
 });
 ```
 
-> **Note**: `last_sync` is intentionally NOT stored in `meta.yaml`. Syncing this file
+> **Note**: `last_sync` is intentionally NOT stored in `meta.yml`. Syncing this file
 > would create a conflict hotspot—every node updates it on every sync, causing constant
 > merge conflicts. Instead, sync timestamps are tracked locally in
-> `.ceads/cache/state.yaml` (gitignored).
+> `.ceads/cache/state.yml` (gitignored).
 
-#### 2.5.6 LocalStateSchema
+#### 2.6.6 LocalStateSchema
 
-Per-node state stored in `.ceads/cache/state.yaml` (gitignored, never synced).
+Per-node state stored in `.ceads/cache/state.yml` (gitignored, never synced).
 Each machine maintains its own local state:
 
 ```typescript
@@ -1208,15 +1227,15 @@ const LocalStateSchema = z.object({
 `ceads-sync` that was last successfully synced.
 This enables:
 
-- `cead sync --status` to compute pending changes via `git diff --name-status
-  <baseline>..origin/ceads-sync`
+- `cead sync --status` to compute pending changes via
+  `git diff --name-status <baseline>..origin/ceads-sync`
 
 - Incremental sync operations without full scans
 
 - Clear definition of “local changes” (modified since baseline) and “remote changes”
   (commits after baseline on remote)
 
-#### 2.5.7 AtticEntrySchema
+#### 2.6.7 AtticEntrySchema
 
 Preserved conflict losers:
 
@@ -1276,7 +1295,7 @@ main branch:                    ceads-sync branch:
 ├── src/                        └── .ceads-sync/
 ├── tests/                          ├── issues/
 ├── README.md                       ├── attic/
-├── .ceads/                         └── meta.yaml
+├── .ceads/                         └── meta.yml
 │   ├── config.yml (tracked)
 │   ├── .gitignore (tracked)
 │   └── cache/     (gitignored)
@@ -1313,7 +1332,7 @@ cache/
 ```
 .ceads-sync/issues/     # Issue entities
 .ceads-sync/attic/      # Conflict archive
-.ceads-sync/meta.yaml   # Metadata
+.ceads-sync/meta.yml   # Metadata
 ```
 
 ### 3.3 Sync Operations
@@ -1568,8 +1587,8 @@ The attic preserves data lost in conflicts:
 .ceads-sync/attic/
 └── conflicts/
     └── is-a1b2/
-        ├── 2025-01-07T10-30-00Z_description.yaml
-        └── 2025-01-07T11-45-00Z_full.yaml
+        ├── 2025-01-07T10-30-00Z_description.yml
+        └── 2025-01-07T11-45-00Z_full.yml
 ```
 
 **Attic entry format:**
@@ -1672,10 +1691,11 @@ Options:
   --no-sync                 Don't sync after create
 ```
 
-> **Note on `--type` flag:** The CLI flag `--type` (or `-t`) sets the issue's `kind`
-> field, NOT the `type` field. The `type` field is the entity discriminator (always `is`
-> for issues) and is set automatically. This naming choice maintains Beads CLI
-> compatibility where `--type` was used for issue classification.
+> **Note on `--type` flag:** The CLI flag `--type` (or `-t`) sets the issue’s `kind`
+> field, NOT the `type` field.
+> The `type` field is the entity discriminator (always `is` for issues) and is set
+> automatically. This naming choice maintains Beads CLI compatibility where `--type` was
+> used for issue classification.
 
 **Examples:**
 ```bash
@@ -2103,13 +2123,14 @@ This can be disabled with `--no-refresh`.
 
 > **Why 5 minutes?** The default staleness threshold of 5 minutes balances freshness vs
 > performance. During active work, agents typically sync more frequently than this, so
-> the auto-refresh rarely triggers. For long-running sessions where remote changes may
-> accumulate, the refresh ensures search results include recent work from other agents.
-> The threshold is configurable via `settings.search_staleness_minutes` in config.yaml.
+> the auto-refresh rarely triggers.
+> For long-running sessions where remote changes may accumulate, the refresh ensures
+> search results include recent work from other agents.
+> The threshold is configurable via `settings.search_staleness_minutes` in config.yml.
 
 **Configuration:**
 ```yaml
-# .ceads/config.yaml
+# .ceads/config.yml
 settings:
   search_staleness_minutes: 5  # Default: 5, set to 0 to always refresh, -1 to never
 ```
@@ -2286,8 +2307,11 @@ Examples:
 ```
 
 - **entity-id**: The issue ID (e.g., `is-a1b2c3`)
+
 - **timestamp**: ISO8601 timestamp with colons replaced by hyphens (filesystem-safe)
-- **field**: The field name that was overwritten, or `full` for complete entity conflicts
+
+- **field**: The field name that was overwritten, or `full` for complete entity
+  conflicts
 
 This format ensures unique, sortable entry IDs that can be easily parsed and allow
 filtering by entity or time range.
@@ -2456,7 +2480,7 @@ Beads stores issues in two potential locations that may contain different data:
 .beads/
 ├── issues.jsonl          # JSONL on current branch (may be main or feature branch)
 ├── beads.db              # SQLite cache (gitignored, not imported)
-└── config.yaml           # Contains sync.branch setting
+└── config.yml           # Contains sync.branch setting
 
 # If sync.branch is configured (e.g., "beads-sync"):
 # The sync branch also has .beads/issues.jsonl
@@ -2641,7 +2665,7 @@ Each imported issue stores its original Beads ID in the `extensions` field:
 To enable O(1) lookups on large issue sets, import also maintains a mapping file:
 
 ```
-.ceads-sync/mappings/beads.json
+.ceads-sync/mappings/beads.yml
 ```
 
 ```json
@@ -2661,14 +2685,14 @@ This file:
 - Is authoritative (extensions field is for reference/debugging)
 
 **Mapping recovery:** If the mapping file is corrupted or lost, it can be reconstructed
-by scanning all issues and reading `extensions.beads.original_id`. Run: `cead doctor
---fix` to rebuild mappings from extensions data.
+by scanning all issues and reading `extensions.beads.original_id`. Run:
+`cead doctor --fix` to rebuild mappings from extensions data.
 
 #### 5.1.5 Import Algorithm
 
 ```
 IMPORT_BEADS(jsonl_file):
-  1. Load existing mapping from .ceads-sync/mappings/beads.json
+  1. Load existing mapping from .ceads-sync/mappings/beads.yml
      (create empty {} if not exists)
 
   2. For each line in jsonl_file:
@@ -3111,9 +3135,9 @@ fi
 
 - Incremental update: <100ms for typical sync (10-50 changed files)
 
-**Incremental operations:** Common operations like `cead list`, `cead ready`, and `cead
-sync --status` use the index and diff-based updates to meet performance targets even at
-scale.
+**Incremental operations:** Common operations like `cead list`, `cead ready`, and
+`cead sync --status` use the index and diff-based updates to meet performance targets
+even at scale.
 
 #### File I/O Optimization
 
@@ -3554,8 +3578,8 @@ repo/
         ├── attic/                  # Conflict archive
         │   └── conflicts/
         │       └── is-a1b2/
-        │           └── 2025-01-07T10-30-00Z_description.yaml
-        └── meta.yaml               # Metadata
+        │           └── 2025-01-07T10-30-00Z_description.yml
+        └── meta.yml               # Metadata
 ```
 
 **File counts (example with 1,000 issues):**
@@ -3765,7 +3789,7 @@ This is sufficient for the `ready` command algorithm.
 | Sync format | JSONL | Markdown + YAML (same as primary) |
 | File structure | Single `issues.jsonl` | File per entity |
 | Location | `.beads/` on main | `.ceads-sync/` on sync branch |
-| Config | SQLite + various | `.ceads/config.yaml` on main |
+| Config | SQLite + various | `.ceads/config.yml` on main |
 
 #### A.4.2 Sync
 
@@ -3888,7 +3912,7 @@ explicitly **not** included in Ceads V3 Phase 1.
 These commands are not applicable since Ceads has no daemon:
 
 | Beads Command | Why Not Included |
-|---------------|------------------|
+| --- | --- |
 | `bd daemon start` | No daemon architecture |
 | `bd daemon stop` | No daemon architecture |
 | `bd daemon status` | No daemon architecture |
@@ -3903,7 +3927,7 @@ These commands are not applicable since Ceads has no daemon:
 Workflow orchestration features are deferred to Phase 2+:
 
 | Beads Command | Why Not Included |
-|---------------|------------------|
+| --- | --- |
 | `bd mol pour` | Template instantiation - Phase 2+ |
 | `bd mol wisp` | Ephemeral work tracking - Phase 2+ |
 | `bd mol bond` | Workflow composition - Phase 2+ |
@@ -3920,7 +3944,7 @@ Workflow orchestration features are deferred to Phase 2+:
 Real-time agent coordination is deferred:
 
 | Beads Command | Why Not Included |
-|---------------|------------------|
+| --- | --- |
 | `bd agent register` | Agent registry - Phase 2+ |
 | `bd agent heartbeat` | Presence tracking - Phase 2+ |
 | `bd agent claim` | Atomic claims - Phase 2+ |
@@ -3929,7 +3953,7 @@ Real-time agent coordination is deferred:
 ### B.4 Advanced Data Operations
 
 | Beads Command | Why Not Included |
-|---------------|------------------|
+| --- | --- |
 | `bd compact` | Memory decay - Phase 2 |
 | `bd compact --auto` | AI-powered compaction - Phase 2 |
 | `bd admin cleanup` | Bulk deletion - Phase 2 |
@@ -3942,7 +3966,7 @@ Real-time agent coordination is deferred:
 Comments are a separate entity type in Phase 2:
 
 | Beads Command | Why Not Included |
-|---------------|------------------|
+| --- | --- |
 | `bd comment add` | Comments entity - Phase 2+ |
 | `bd comment list` | Comments entity - Phase 2+ |
 | `bd comments show` | Comments entity - Phase 2+ |
@@ -3950,7 +3974,7 @@ Comments are a separate entity type in Phase 2:
 ### B.6 Editor Integration Commands
 
 | Beads Command | Why Not Included |
-|---------------|------------------|
+| --- | --- |
 | `bd setup claude` | Editor hooks - not planned |
 | `bd setup cursor` | Editor rules - not planned |
 | `bd setup aider` | Editor config - not planned |
@@ -3962,7 +3986,7 @@ Comments are a separate entity type in Phase 2:
 Phase 1 only supports `blocks`:
 
 | Beads Type | Why Not Included |
-|------------|------------------|
+| --- | --- |
 | `related` | Soft linking - Phase 2 |
 | `discovered-from` | Provenance tracking - Phase 2 |
 | `waits-for` | Fanout gates - Phase 2+ |
@@ -3971,14 +3995,14 @@ Phase 1 only supports `blocks`:
 ### B.8 State Label Commands
 
 | Beads Command | Why Not Included |
-|---------------|------------------|
+| --- | --- |
 | `bd state` | Label-as-cache pattern - not planned |
 | `bd set-state` | Label-as-cache pattern - not planned |
 
 ### B.9 Other Commands
 
 | Beads Command | Why Not Included |
-|---------------|------------------|
+| --- | --- |
 | `bd prime` | Beads-specific priming - not applicable |
 | `bd audit` | Audit trail command - use git log |
 | `bd activity` | Activity feed - not planned |
@@ -3990,7 +4014,7 @@ Phase 1 only supports `blocks`:
 ### B.10 Global Flags Not Supported
 
 | Beads Flag | Why Not Included |
-|------------|------------------|
+| --- | --- |
 | `--no-daemon` | No daemon to disable |
 | `--no-auto-flush` | No auto-flush mechanism |
 | `--no-auto-import` | Different sync model |
@@ -4000,7 +4024,7 @@ Phase 1 only supports `blocks`:
 ### B.11 Issue Types/Statuses Not Supported
 
 | Beads Value | Why Not Included |
-|-------------|------------------|
+| --- | --- |
 | `issue_type: message` | Messages are Phase 2+ |
 | `issue_type: agent` | Agent registry is Phase 2+ |
 | `issue_type: role` | Advanced orchestration |
@@ -4054,7 +4078,7 @@ The attic preserves losers, but UX may suffer if the “wrong” version consist
 
 **V2-016: Single mapping file as potential conflict hotspot**
 
-`.ceads-sync/mappings/beads.json` could see conflicts if multiple nodes import
+`.ceads-sync/mappings/beads.yml` could see conflicts if multiple nodes import
 concurrently (though this is rare).
 
 **Options:**
