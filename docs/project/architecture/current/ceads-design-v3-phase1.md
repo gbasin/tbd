@@ -351,6 +351,8 @@
 
     - [8.6 Issue Storage Location](#86-issue-storage-location)
 
+    - [8.7 External Issue Tracker Linking](#87-external-issue-tracker-linking)
+
 * * *
 
 ## 1. Introduction
@@ -4165,6 +4167,59 @@ branch.
 **Recommendation:** Defer to Phase 2. The gitignored working copy approach (Option 4)
 seems promising as it preserves the single-source-of-truth model while adding
 convenience.
+
+### 8.7 External Issue Tracker Linking
+
+**Linking ceads issues to GitHub issues (and other providers)**
+
+A common workflow need is linking ceads issues to external issue trackers like GitHub
+Issues, Jira, Linear, etc. This would enable bidirectional sync of status and comments.
+
+**ID Convention Approach:**
+
+If all issue systems use clean, identifiable prefixes with unique patterns, linking could
+be convention-based:
+
+- Ceads: `is-a1b2c3` or `bd-a1b2c3` (configurable display prefix)
+- GitHub: `github#456` or `gh#456`
+- Jira: `PROJ-123`
+- Linear: `LIN-abc`
+
+These patterns are recognizable via regex, allowing automatic detection and linking when
+referenced in descriptions, comments, or commit messages.
+
+**Metadata Model:**
+
+Issues could have a `linked` field (or use `extensions`) to store external references:
+
+```yaml
+linked:
+  - provider: github
+    repo: owner/repo
+    issue: 456
+    synced_at: 2025-01-10T10:00:00Z
+  - provider: jira
+    project: PROJ
+    key: PROJ-123
+```
+
+**Sync Behaviors:**
+
+- Closing a ceads issue could automatically close the linked GitHub issue (or vice versa)
+- Comments could sync bidirectionally
+- Status changes could propagate
+- Labels/tags could map between systems
+
+**Implementation Considerations:**
+
+- Provider plugins/adapters for different external systems
+- Conflict resolution when both sides change
+- Rate limiting and API authentication
+- Webhook-driven vs polling sync
+- Which system is authoritative for which fields
+
+**Recommendation:** Design the `linked` metadata structure in Phase 1 (even if unused),
+implement GitHub bridge in Phase 2 with plugin architecture for other providers.
 
 * * *
 
