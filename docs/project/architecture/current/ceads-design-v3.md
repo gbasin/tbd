@@ -1678,9 +1678,10 @@ To complete setup, commit the config files:
 #### Create
 
 ```bash
-cead create <title> [options]
+cead create [<title>] [options]
 
 Options:
+  --from-file <path>        Create from YAML+Markdown file (all fields)
   -t, --type <type>         Issue type: bug, feature, task, epic, chore (default: task)
   -p, --priority <0-4>      Priority (0=critical, 4=lowest, default: 2)
   -d, --description <text>  Description
@@ -1693,7 +1694,7 @@ Options:
   --no-sync                 Don't sync after create
 ```
 
-> **Note on `--type` flag:** The CLI flag `--type` (or `-t`) sets the issue’s `kind`
+> **Note on `--type` flag:** The CLI flag `--type` (or `-t`) sets the issue's `kind`
 > field, NOT the `type` field.
 > The `type` field is the entity discriminator (always `is` for issues) and is set
 > automatically. This naming choice maintains Beads CLI compatibility where `--type` was
@@ -1705,7 +1706,18 @@ cead create "Fix authentication bug" -t bug -p 1
 cead create "Add OAuth" -t feature -l backend -l security
 cead create "Write tests" --parent bd-a1b2
 cead create "API docs" -f design.md
+
+# Create from full YAML+Markdown file
+cead create --from-file new-issue.md
 ```
+
+**`--from-file` behavior:**
+
+- Reads the YAML frontmatter + Markdown body from file
+- Validates against IssueSchema
+- Ignores `id` field in file (generates new ID)
+- Ignores `version`, `created_at`, `updated_at` (set automatically)
+- Title is required in the file's frontmatter (or use `<title>` argument to override)
 
 **Output:**
 ```
@@ -1775,32 +1787,66 @@ bd-c3d4   3    blocked      Write API tests
 #### Show
 
 ```bash
-cead show <id>
+cead show <id> [options]
+
+Options:
+  --json                    Output as JSON instead of YAML+Markdown
 ```
 
 **Output:**
+
+The `show` command outputs the issue in the exact storage format (YAML frontmatter +
+Markdown body). This format is both human-readable and machine-parseable, enabling
+round-trip editing workflows.
+
+```markdown
+---
+type: is
+id: is-a1b2c3
+version: 3
+kind: bug
+title: Fix authentication timeout
+status: in_progress
+priority: 1
+assignee: agent-1
+labels:
+  - backend
+  - security
+dependencies:
+  - target: is-f14c3d
+    type: blocks
+parent_id: null
+created_at: 2025-01-07T10:00:00Z
+updated_at: 2025-01-07T14:30:00Z
+created_by: alice
+closed_at: null
+close_reason: null
+due_date: null
+deferred_until: null
+extensions: {}
+---
+
+Users are getting logged out after 5 minutes of inactivity.
+
+## Notes
+
+Working on session token expiry. Found issue in refresh logic.
 ```
-bd-a1b2: Fix authentication bug
 
-Status: in_progress | Priority: 1 | Type: bug
-Assignee: agent-1
-Labels: backend, security
-Created: 2025-01-07 10:00:00 by claude
-Updated: 2025-01-07 14:30:00
+Output is colorized when stdout is a TTY (see `--color` global option in §4.10).
 
-Description:
-  Users are getting logged out after 5 minutes...
+**Round-trip editing workflow:**
 
-Notes:
-  Working on session token expiry. Found issue in refresh logic.
-
-Dependencies:
-  blocks bd-f14c: Update session handling
+```bash
+# Export, edit, re-import
+cead show bd-a1b2 > issue.md
+# ... edit issue.md ...
+cead update bd-a1b2 --from-file issue.md
 ```
 
-> **Note:** The `notes` field is displayed separately from `description`. Notes are
-> intended for agent/developer working notes, while description is the issue’s canonical
-> description.
+> **Note:** The `notes` field appears as a `## Notes` section in the Markdown body,
+> separated from the main description. Notes are intended for agent/developer working
+> notes, while the description is the issue's canonical description.
 
 #### Update
 
@@ -1808,6 +1854,7 @@ Dependencies:
 cead update <id> [options]
 
 Options:
+  --from-file <path>        Update all fields from YAML+Markdown file
   --status <status>         Set status
   --type <type>             Set type
   --priority <0-4>          Set priority
@@ -1828,7 +1875,21 @@ Options:
 cead update bd-a1b2 --status in_progress
 cead update bd-a1b2 --add-label urgent --priority 0
 cead update bd-a1b2 --defer 2025-02-01
+
+# Round-trip editing: export, modify, re-import
+cead show bd-a1b2 > issue.md
+# ... edit issue.md ...
+cead update bd-a1b2 --from-file issue.md
 ```
+
+**`--from-file` behavior:**
+
+- Reads the YAML frontmatter + Markdown body from file
+- Validates against IssueSchema
+- Updates all mutable fields (immutable fields `id`, `type`, `created_at`, `created_by`
+  are preserved from existing issue)
+- Automatically increments `version` and sets `updated_at`
+- Reports clear validation errors if schema is invalid
 
 #### Close
 
@@ -2268,8 +2329,19 @@ Available on all commands:
 --dir <path>                Custom .ceads directory path (preferred)
 --no-sync                   Disable auto-sync (per command)
 --json                      JSON output
+--color <when>              Colorize output: auto, always, never (default: auto)
 --actor <name>              Override actor name
 ```
+
+**Color Output:**
+
+The `--color` option controls ANSI color output consistently across all commands:
+
+- `auto` (default): Enable colors when stdout is a TTY, disable when piped/redirected
+- `always`: Force colors (useful for `less -R` or capturing colored output)
+- `never`: Disable colors entirely
+
+This follows the same convention as `git`, `ls`, `grep`, and other Unix tools.
 
 **Actor Resolution Order:**
 
