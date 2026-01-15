@@ -364,6 +364,97 @@ This plan is tracked using beads. The master epic is **tbd-100**.
 - Manual validation complete (all commands verified)
 - Remaining: CI setup, npm publish
 
+**Bead Tracking Summary:**
+
+| Status         | Count | Beads                                                                                                                                                                                                                       |
+| -------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ✅ Done        | 84    | tbd-101→tbd-111, tbd-200→tbd-209, tbd-300→tbd-309, tbd-400→tbd-409, tbd-500→tbd-504, tbd-600→tbd-607, tbd-700→tbd-708, tbd-800→tbd-804, tbd-900→tbd-904, tbd-1000→tbd-1004, tbd-1100→tbd-1105, tbd-1201, tbd-1202, tbd-1205 |
+| 🔄 In Progress | 1     | tbd-100 (master epic)                                                                                                                                                                                                       |
+| 🔲 Open        | 10    | tbd-1200, tbd-1203, tbd-1204, tbd-1206, tbd-1300→tbd-1306                                                                                                                                                                   |
+
+**Remaining Tasks (Phase 12 + Validation):**
+
+| Bead ID  | Task                            | Status | Notes                                   |
+| -------- | ------------------------------- | ------ | --------------------------------------- |
+| tbd-1200 | Phase 12 Epic                   | Open   | Epic - depends on tasks below           |
+| tbd-1203 | Performance optimization        | Open   | Needs benchmarking against 5K issues    |
+| tbd-1204 | Cross-platform testing          | Open   | CI workflow not yet active              |
+| tbd-1206 | Release preparation             | Open   | CI setup, npm publish pending           |
+| tbd-1300 | Stage 5 Validation Epic         | Open   | Epic - depends on tasks below           |
+| tbd-1301 | Verify all golden tests pass    | Open   | ✅ Tests pass - needs formal check      |
+| tbd-1302 | Verify unit test coverage > 80% | Open   | Coverage report needed                  |
+| tbd-1303 | Verify performance targets      | Open   | Benchmark not run yet                   |
+| tbd-1304 | Verify cross-platform CI passes | Open   | CI not set up yet                       |
+| tbd-1305 | Manual testing of full workflow | Open   | ✅ Done informally - needs formal check |
+| tbd-1306 | Security review                 | Open   | Not started                             |
+
+**Coverage Strategy:**
+
+The test suite has two coverage domains:
+
+| Domain                   | Coverage Tool | Current Status            | Notes                           |
+| ------------------------ | ------------- | ------------------------- | ------------------------------- |
+| Core library (`src/lib`) | vitest + v8   | 96.45%                    | Unit tests directly import code |
+| File layer (`src/file`)  | vitest + v8   | 36.57% (excl. git.ts)     | config, hash, parser tested     |
+| CLI commands             | Golden tests  | Functional (not measured) | Subprocess execution            |
+| Git operations           | Golden tests  | Functional (not measured) | Integration tested              |
+
+**Coverage Improvement Path:**
+
+The CLI commands show 0% in vitest coverage because they're tested via subprocess execution in golden tests, which vitest's v8 provider cannot measure. Options to improve measured coverage:
+
+1. **Migrate to tryscript**: Use `tryscript run --coverage --merge-lcov` to collect subprocess coverage and merge with vitest unit test coverage
+2. **Add unit tests for command handlers**: Extract testable logic from commands into separate functions
+3. **Accept current state**: Document that golden tests provide functional coverage even if not measured
+
+Current approach: Core library has high unit test coverage; CLI commands have functional coverage via golden tests. This provides good regression detection while keeping tests fast.
+
+**Beads Import Validation Plan:**
+
+To validate the beads import process is production-ready, perform the following end-to-end validation:
+
+1. **ID Preservation Requirements:**
+   - Public issue IDs from beads (e.g., `tbd-100`, `tbd-101`) MUST be preserved exactly
+   - The display format should match the original beads prefix
+   - Internal IDs (ULIDs) can differ but public IDs must be identical
+
+2. **Validation Process:**
+
+   ```bash
+   # Step 1: Import from beads
+   tbd import --from-beads
+
+   # Step 2: Verify import with check command
+   tbd import --check  # Validates sync with beads data
+
+   # Step 3: List and verify issue counts match
+   tbd list --all | wc -l  # Should match bd list --all count
+   ```
+
+3. **Repeatability Test:**
+   - Fully remove tbd setup: `rm -rf .tbd/`
+   - Re-initialize and import: `tbd init && tbd import --from-beads`
+   - Verify all issues restored with correct IDs and data
+   - Repeat until process is clean and seamless
+
+4. **Field Validation Checklist:**
+   - [ ] Title preserved exactly
+   - [ ] Description/notes preserved
+   - [ ] Status mapped correctly (open→open, done→closed, etc.)
+   - [ ] Priority preserved
+   - [ ] Labels preserved
+   - [ ] Dependencies preserved with ID translation
+   - [ ] Timestamps preserved (created_at, updated_at)
+   - [ ] Public IDs match original beads IDs
+
+5. **Import Check Command (TODO: implement `--check` flag):**
+   - Compare issue counts: tbd vs beads
+   - Compare public IDs: all must exist in both
+   - Compare field values: title, status, priority, labels
+   - Report any mismatches or missing issues
+
+This validation should be performed on this repository's `tbd-*` issues as the test case.
+
 ### Phase 1: Core Schemas & Serialization
 
 **Epic:** tbd-101
