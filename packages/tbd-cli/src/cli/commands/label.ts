@@ -7,37 +7,141 @@
 import { Command } from 'commander';
 
 import { BaseCommand } from '../lib/baseCommand.js';
+import { readIssue, writeIssue, listIssues } from '../../file/storage.js';
+import { normalizeIssueId } from '../../lib/ids.js';
+
+// Base directory for issues
+const ISSUES_BASE_DIR = '.tbd-sync';
 
 // Add label
 class LabelAddHandler extends BaseCommand {
   async run(id: string, labels: string[]): Promise<void> {
-    if (this.checkDryRun('Would add labels', { id, labels })) {
+    const normalizedId = normalizeIssueId(id);
+
+    // Load existing issue
+    let issue;
+    try {
+      issue = await readIssue(ISSUES_BASE_DIR, normalizedId);
+    } catch {
+      this.output.error(`Issue not found: ${id}`);
       return;
     }
-    // TODO: Implement label add
-    this.output.success(`Added labels to ${id}: ${labels.join(', ')}`);
+
+    if (this.checkDryRun('Would add labels', { id: normalizedId, labels })) {
+      return;
+    }
+
+    // Add labels (avoiding duplicates)
+    const labelsSet = new Set(issue.labels);
+    let added = 0;
+    for (const label of labels) {
+      if (!labelsSet.has(label)) {
+        labelsSet.add(label);
+        added++;
+      }
+    }
+
+    if (added === 0) {
+      this.output.info('All labels already present');
+      return;
+    }
+
+    issue.labels = [...labelsSet];
+    issue.version += 1;
+    issue.updated_at = new Date().toISOString();
+
+    await this.execute(async () => {
+      await writeIssue(ISSUES_BASE_DIR, issue);
+    }, 'Failed to update issue');
+
+    const displayId = `bd-${issue.id.slice(3)}`;
+    this.output.data({ id: displayId, addedLabels: labels }, () => {
+      this.output.success(`Added labels to ${displayId}: ${labels.join(', ')}`);
+    });
   }
 }
 
 // Remove label
 class LabelRemoveHandler extends BaseCommand {
   async run(id: string, labels: string[]): Promise<void> {
-    if (this.checkDryRun('Would remove labels', { id, labels })) {
+    const normalizedId = normalizeIssueId(id);
+
+    // Load existing issue
+    let issue;
+    try {
+      issue = await readIssue(ISSUES_BASE_DIR, normalizedId);
+    } catch {
+      this.output.error(`Issue not found: ${id}`);
       return;
     }
-    // TODO: Implement label remove
-    this.output.success(`Removed labels from ${id}: ${labels.join(', ')}`);
+
+    if (this.checkDryRun('Would remove labels', { id: normalizedId, labels })) {
+      return;
+    }
+
+    // Remove labels
+    const removeSet = new Set(labels);
+    const originalCount = issue.labels.length;
+    issue.labels = issue.labels.filter((l) => !removeSet.has(l));
+    const removed = originalCount - issue.labels.length;
+
+    if (removed === 0) {
+      this.output.info('No matching labels found');
+      return;
+    }
+
+    issue.version += 1;
+    issue.updated_at = new Date().toISOString();
+
+    await this.execute(async () => {
+      await writeIssue(ISSUES_BASE_DIR, issue);
+    }, 'Failed to update issue');
+
+    const displayId = `bd-${issue.id.slice(3)}`;
+    this.output.data({ id: displayId, removedLabels: labels }, () => {
+      this.output.success(`Removed labels from ${displayId}: ${labels.join(', ')}`);
+    });
   }
 }
 
 // List labels
 class LabelListHandler extends BaseCommand {
   async run(): Promise<void> {
-    // TODO: Implement label list - enumerate all labels in use
-    const mockLabels = ['backend', 'frontend', 'security', 'docs'];
-    this.output.data(mockLabels, () => {
-      for (const label of mockLabels) {
-        console.log(label);
+    // Load all issues and collect unique labels
+    let issues;
+    try {
+      issues = await listIssues(ISSUES_BASE_DIR);
+    } catch {
+      this.output.error('No issue store found. Run `tbd init` first.');
+      return;
+    }
+
+    // Collect labels with counts
+    const labelCounts = new Map<string, number>();
+    for (const issue of issues) {
+      for (const label of issue.labels) {
+        labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
+      }
+    }
+
+    // Sort by count (descending), then alphabetically
+    const sortedLabels = [...labelCounts.entries()].sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      return a[0].localeCompare(b[0]);
+    });
+
+    const output = sortedLabels.map(([label, count]) => ({ label, count }));
+
+    this.output.data(output, () => {
+      if (output.length === 0) {
+        this.output.info('No labels in use');
+        return;
+      }
+
+      const colors = this.output.getColors();
+      console.log(`${colors.dim('LABEL'.padEnd(24))}${colors.dim('COUNT')}`);
+      for (const { label, count } of output) {
+        console.log(`${colors.label(label.padEnd(24))}${count}`);
       }
     });
   }
