@@ -10,6 +10,7 @@ import { randomBytes } from 'node:crypto';
 
 import { writeIssue, readIssue } from '../src/file/storage.js';
 import type { Issue } from '../src/lib/types.js';
+import { TEST_ULIDS, testId } from './test-helpers.js';
 
 describe('close command logic', () => {
   let testDir: string;
@@ -27,9 +28,10 @@ describe('close command logic', () => {
   });
 
   it('closes an open issue', async () => {
+    const issueId = testId(TEST_ULIDS.CLOSE_1);
     const issue: Issue = {
       type: 'is',
-      id: 'is-c10501',
+      id: issueId,
       version: 1,
       kind: 'task',
       title: 'Issue to close',
@@ -44,7 +46,7 @@ describe('close command logic', () => {
     await writeIssue(issuesDir, issue);
 
     // Simulate close logic
-    const loaded = await readIssue(issuesDir, 'is-c10501');
+    const loaded = await readIssue(issuesDir, issueId);
     expect(loaded.status).toBe('open');
 
     loaded.status = 'closed';
@@ -55,7 +57,7 @@ describe('close command logic', () => {
 
     await writeIssue(issuesDir, loaded);
 
-    const result = await readIssue(issuesDir, 'is-c10501');
+    const result = await readIssue(issuesDir, issueId);
     expect(result.status).toBe('closed');
     expect(result.closed_at).toBe('2025-01-15T10:00:00Z');
     expect(result.close_reason).toBe('completed');
@@ -63,9 +65,10 @@ describe('close command logic', () => {
   });
 
   it('closes issue without reason', async () => {
+    const issueId = testId(TEST_ULIDS.CLOSE_2);
     const issue: Issue = {
       type: 'is',
-      id: 'is-c10502',
+      id: issueId,
       version: 1,
       kind: 'bug',
       title: 'Bug to fix',
@@ -79,7 +82,7 @@ describe('close command logic', () => {
 
     await writeIssue(issuesDir, issue);
 
-    const loaded = await readIssue(issuesDir, 'is-c10502');
+    const loaded = await readIssue(issuesDir, issueId);
     loaded.status = 'closed';
     loaded.closed_at = '2025-01-15T10:00:00Z';
     loaded.close_reason = null;
@@ -87,15 +90,16 @@ describe('close command logic', () => {
 
     await writeIssue(issuesDir, loaded);
 
-    const result = await readIssue(issuesDir, 'is-c10502');
+    const result = await readIssue(issuesDir, issueId);
     expect(result.status).toBe('closed');
     expect(result.close_reason).toBeNull();
   });
 
   it('validates closing already closed issue', async () => {
+    const issueId = testId(TEST_ULIDS.CLOSE_3);
     const issue: Issue = {
       type: 'is',
-      id: 'is-c10503',
+      id: issueId,
       version: 2,
       kind: 'task',
       title: 'Already closed',
@@ -110,7 +114,7 @@ describe('close command logic', () => {
 
     await writeIssue(issuesDir, issue);
 
-    const loaded = await readIssue(issuesDir, 'is-c10503');
+    const loaded = await readIssue(issuesDir, issueId);
     expect(loaded.status).toBe('closed');
     // In real command, this would trigger an error
   });
@@ -132,9 +136,10 @@ describe('reopen command logic', () => {
   });
 
   it('reopens a closed issue', async () => {
+    const issueId = testId(TEST_ULIDS.WORKFLOW_1);
     const issue: Issue = {
       type: 'is',
-      id: 'is-a00001',
+      id: issueId,
       version: 2,
       kind: 'task',
       title: 'Closed issue',
@@ -151,7 +156,7 @@ describe('reopen command logic', () => {
     await writeIssue(issuesDir, issue);
 
     // Simulate reopen logic
-    const loaded = await readIssue(issuesDir, 'is-a00001');
+    const loaded = await readIssue(issuesDir, issueId);
     expect(loaded.status).toBe('closed');
 
     loaded.status = 'open';
@@ -162,7 +167,7 @@ describe('reopen command logic', () => {
 
     await writeIssue(issuesDir, loaded);
 
-    const result = await readIssue(issuesDir, 'is-a00001');
+    const result = await readIssue(issuesDir, issueId);
     expect(result.status).toBe('open');
     expect(result.closed_at).toBeNull();
     expect(result.close_reason).toBeNull();
@@ -170,9 +175,10 @@ describe('reopen command logic', () => {
   });
 
   it('reopens with reason appended to notes', async () => {
+    const issueId = testId(TEST_ULIDS.WORKFLOW_2);
     const issue: Issue = {
       type: 'is',
-      id: 'is-a00002',
+      id: issueId,
       version: 2,
       kind: 'bug',
       title: 'Bug that returned',
@@ -189,7 +195,7 @@ describe('reopen command logic', () => {
 
     await writeIssue(issuesDir, issue);
 
-    const loaded = await readIssue(issuesDir, 'is-a00002');
+    const loaded = await readIssue(issuesDir, issueId);
     loaded.status = 'open';
     loaded.closed_at = null;
     loaded.close_reason = null;
@@ -199,16 +205,17 @@ describe('reopen command logic', () => {
 
     await writeIssue(issuesDir, loaded);
 
-    const result = await readIssue(issuesDir, 'is-a00002');
+    const result = await readIssue(issuesDir, issueId);
     expect(result.status).toBe('open');
     expect(result.notes).toContain('Original notes.');
     expect(result.notes).toContain('Reopened: Bug reoccurred in production');
   });
 
   it('validates reopening non-closed issue', async () => {
+    const issueId = testId(TEST_ULIDS.WORKFLOW_3);
     const issue: Issue = {
       type: 'is',
-      id: 'is-a00003',
+      id: issueId,
       version: 1,
       kind: 'task',
       title: 'Open issue',
@@ -222,15 +229,16 @@ describe('reopen command logic', () => {
 
     await writeIssue(issuesDir, issue);
 
-    const loaded = await readIssue(issuesDir, 'is-a00003');
+    const loaded = await readIssue(issuesDir, issueId);
     expect(loaded.status).toBe('open');
     // In real command, attempting to reopen would trigger an error
   });
 
   it('reopens from blocked status correctly', async () => {
+    const issueId = testId(TEST_ULIDS.WORKFLOW_4);
     const issue: Issue = {
       type: 'is',
-      id: 'is-a00004',
+      id: issueId,
       version: 2,
       kind: 'feature',
       title: 'Blocked then closed',
@@ -246,7 +254,7 @@ describe('reopen command logic', () => {
 
     await writeIssue(issuesDir, issue);
 
-    const loaded = await readIssue(issuesDir, 'is-a00004');
+    const loaded = await readIssue(issuesDir, issueId);
     loaded.status = 'open';
     loaded.closed_at = null;
     loaded.close_reason = null;
@@ -254,7 +262,7 @@ describe('reopen command logic', () => {
 
     await writeIssue(issuesDir, loaded);
 
-    const result = await readIssue(issuesDir, 'is-a00004');
+    const result = await readIssue(issuesDir, issueId);
     expect(result.status).toBe('open');
   });
 });
@@ -275,9 +283,10 @@ describe('close/reopen file format', () => {
   });
 
   it('preserves closed_at and close_reason in file', async () => {
+    const issueId = testId(TEST_ULIDS.CLOSE_4);
     const issue: Issue = {
       type: 'is',
-      id: 'is-f00a07',
+      id: issueId,
       version: 2,
       kind: 'task',
       title: 'Format test',
@@ -293,7 +302,7 @@ describe('close/reopen file format', () => {
 
     await writeIssue(issuesDir, issue);
 
-    const filePath = join(testDir, issuesDir, 'issues', 'is-f00a07.md');
+    const filePath = join(testDir, issuesDir, 'issues', `${issueId}.md`);
     const content = await readFile(filePath, 'utf-8');
 
     expect(content).toContain('status: closed');

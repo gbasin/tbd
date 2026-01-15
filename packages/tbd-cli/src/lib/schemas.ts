@@ -17,16 +17,23 @@ import { z } from 'zod';
 export const Timestamp = z.string().datetime();
 
 /**
- * Issue ID: prefix + 6 hex characters.
- * Stored IDs always have exactly 6 hex chars.
+ * Issue ID: prefix + 26 lowercase alphanumeric characters (ULID format).
+ * Format: is-{ulid} where ulid is 26 chars (a-z, 0-9).
+ * Example: is-01hx5zzkbkactav9wevgemmvrz
  */
-export const IssueId = z.string().regex(/^is-[a-f0-9]{6}$/);
+export const IssueId = z.string().regex(/^is-[0-9a-z]{26}$/);
 
 /**
- * Issue ID input: accepts 4-6 chars for CLI convenience.
- * Also accepts bd- prefix for Beads compatibility.
+ * Short ID: 4-5 base36 characters used for external/display IDs.
+ * Example: a7k2, b3m9
  */
-export const IssueIdInput = z.string().regex(/^(is-|bd-)?[a-f0-9]{4,6}$/);
+export const ShortId = z.string().regex(/^[0-9a-z]{4,5}$/);
+
+/**
+ * External Issue ID input: accepts {prefix}-{short} or just {short}.
+ * Examples: bd-a7k2, a7k2
+ */
+export const ExternalIssueIdInput = z.string().regex(/^([a-z]+-)?[0-9a-z]{4,5}$/);
 
 /**
  * Edit counter - incremented on every local change.

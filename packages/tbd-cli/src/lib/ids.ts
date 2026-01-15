@@ -2,31 +2,39 @@
  * ID generation and validation utilities.
  *
  * The system uses dual IDs for usability:
- * - Internal ID: is-[6 hex chars] - stored in files, globally unique
- * - Short ID: [4 base36 chars] - human-friendly for CLI display/input
+ * - Internal ID: is-{ulid} - ULID-based (26 lowercase chars), stored in files
+ * - External ID: {prefix}-{short} - 4-5 base36 chars for CLI display/input
  *
- * For Beads compatibility, bd- prefix is accepted on input and converted to is-.
+ * For Beads compatibility, bd- prefix is accepted on input for external IDs.
  *
- * See: tbd-design-v3.md §4.2 Dual ID System
+ * See: tbd-design-v3.md §2.5 ID Generation
  */
 
+import { ulid } from 'ulid';
 import { randomBytes } from 'node:crypto';
 
 /**
- * Generate a unique internal ID.
- * Format: is-[6 hex chars] (24 bits of entropy)
+ * Generate a unique internal ID using ULID.
+ * Format: is-{ulid} (26 lowercase alphanumeric chars)
+ * Example: is-01hx5zzkbkactav9wevgemmvrz
+ *
+ * ULID provides:
+ * - Time-ordered sorting (48-bit timestamp)
+ * - 80-bit randomness (no collisions)
+ * - Lexicographic sort = chronological order
  */
 export function generateInternalId(): string {
-  const bytes = randomBytes(3); // 3 bytes = 24 bits = 6 hex chars
-  return `is-${bytes.toString('hex')}`;
+  return `is-${ulid().toLowerCase()}`;
 }
 
 /**
- * Generate a short ID for display.
- * Format: [4 base36 chars] (about 21 bits of entropy)
+ * Generate a short ID for external display.
+ * Format: 4 base36 characters (a-z, 0-9)
+ * Example: a7k2
+ *
+ * This provides ~1.7 million possibilities, sufficient for most projects.
  */
 export function generateShortId(): string {
-  // Generate 4 random base36 characters
   const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
   let result = '';
   const bytes = randomBytes(4);
@@ -37,33 +45,95 @@ export function generateShortId(): string {
 }
 
 /**
- * Validate an issue ID matches the canonical format.
+ * Validate an internal issue ID matches the ULID format.
+ * Format: is-{26 lowercase alphanumeric chars}
  */
 export function validateIssueId(id: string): boolean {
-  return /^is-[a-f0-9]{6}$/.test(id);
+  return /^is-[0-9a-z]{26}$/.test(id);
 }
 
 /**
- * Normalize an issue ID to canonical format.
+ * Validate a short/external ID format.
+ * Format: 4-5 base36 characters
+ */
+export function validateShortId(id: string): boolean {
+  return /^[0-9a-z]{4,5}$/.test(id);
+}
+
+/**
+ * Check if an input looks like an internal ID (ULID-based).
+ */
+export function isInternalId(input: string): boolean {
+  const lower = input.toLowerCase();
+  // Check if it starts with is- and has 26+ chars after
+  if (lower.startsWith('is-') && lower.length === 29) {
+    return /^is-[0-9a-z]{26}$/.test(lower);
+  }
+  return false;
+}
+
+/**
+ * Check if an input looks like a short/external ID.
+ */
+export function isShortId(input: string): boolean {
+  const lower = input.toLowerCase();
+  // Strip prefix if present
+  const stripped = lower.replace(/^[a-z]+-/, '');
+  return /^[0-9a-z]{4,5}$/.test(stripped);
+}
+
+/**
+ * Normalize an internal issue ID.
+ *
+ * This function expects a full internal ID (is-{ulid}).
+ * If given a short ID, it won't be able to resolve it without
+ * access to the ID mapping.
  *
  * Handles:
- * - Missing prefix (adds is-)
- * - bd- prefix (converts to is-)
  * - Uppercase (converts to lowercase)
- * - Short IDs (pads with zeros)
+ * - Ensures is- prefix
  */
 export function normalizeIssueId(input: string): string {
-  let id = input.toLowerCase();
+  const lower = input.toLowerCase();
 
-  // Remove prefix if present
-  if (id.startsWith('is-') || id.startsWith('bd-')) {
-    id = id.slice(3);
+  // If already a valid internal ID, return as-is
+  if (validateIssueId(lower)) {
+    return lower;
   }
 
-  // Pad to 6 characters if needed
-  if (id.length < 6) {
-    id = id.padStart(6, '0');
+  // If it starts with is- but wrong length, might be corrupted
+  if (lower.startsWith('is-')) {
+    return lower; // Return as-is, let validation fail later
   }
 
-  return `is-${id}`;
+  // If it starts with bd- (Beads compat), convert prefix
+  if (lower.startsWith('bd-')) {
+    const rest = lower.slice(3);
+    if (rest.length === 26) {
+      return `is-${rest}`;
+    }
+    // Short ID - can't resolve without mapping
+    return lower;
+  }
+
+  // Bare ID without prefix
+  if (lower.length === 26 && /^[0-9a-z]{26}$/.test(lower)) {
+    return `is-${lower}`;
+  }
+
+  // Can't normalize - return as-is
+  return lower;
+}
+
+/**
+ * Format an internal ID for display with the configured prefix.
+ * Note: This requires access to the short ID mapping.
+ * For now, returns the internal ID with bd- prefix for compatibility.
+ */
+export function formatDisplayId(internalId: string, prefix = 'bd'): string {
+  // Extract the ULID portion
+  const ulidPart = internalId.replace(/^is-/, '');
+  // For display, we'd normally use the short ID mapping
+  // For now, truncate to show a readable portion
+  return `${prefix}-${ulidPart.slice(0, 6)}`;
 }

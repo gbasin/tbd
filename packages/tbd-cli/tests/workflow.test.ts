@@ -10,6 +10,7 @@ import { randomBytes } from 'node:crypto';
 
 import { writeIssue, listIssues } from '../src/file/storage.js';
 import type { Issue } from '../src/lib/types.js';
+import { TEST_ULIDS, testId } from './test-helpers.js';
 
 describe('ready command logic', () => {
   let testDir: string;
@@ -27,10 +28,14 @@ describe('ready command logic', () => {
   });
 
   it('identifies ready issues (open, unassigned, unblocked)', async () => {
+    const readyId = testId(TEST_ULIDS.READY_1);
+    const assignedId = testId(TEST_ULIDS.READY_2);
+    const inProgressId = testId(TEST_ULIDS.READY_3);
+
     // Ready issue - should be included
     const readyIssue: Issue = {
       type: 'is',
-      id: 'is-aaa001',
+      id: readyId,
       version: 1,
       kind: 'task',
       title: 'Ready task',
@@ -45,7 +50,7 @@ describe('ready command logic', () => {
     // Assigned issue - should be excluded
     const assignedIssue: Issue = {
       type: 'is',
-      id: 'is-aaa002',
+      id: assignedId,
       version: 1,
       kind: 'task',
       title: 'Assigned task',
@@ -61,7 +66,7 @@ describe('ready command logic', () => {
     // In progress issue - should be excluded
     const inProgressIssue: Issue = {
       type: 'is',
-      id: 'is-aaa003',
+      id: inProgressId,
       version: 1,
       kind: 'bug',
       title: 'In progress bug',
@@ -105,29 +110,32 @@ describe('ready command logic', () => {
     });
 
     expect(readyIssues).toHaveLength(1);
-    expect(readyIssues[0]!.id).toBe('is-aaa001');
+    expect(readyIssues[0]!.id).toBe(readyId);
   });
 
   it('excludes issues with unresolved blockers', async () => {
+    const blockerId = testId(TEST_ULIDS.BLOCKED_1);
+    const blockedId = testId(TEST_ULIDS.BLOCKED_2);
+
     // Blocker issue (not closed) - has "blocks" dependency pointing to blocked issue
     const blockerIssue: Issue = {
       type: 'is',
-      id: 'is-bbb001',
+      id: blockerId,
       version: 1,
       kind: 'task',
       title: 'Blocking task',
       status: 'in_progress',
       priority: 1,
       labels: [],
-      dependencies: [{ type: 'blocks', target: 'is-bbb002' }],
+      dependencies: [{ type: 'blocks', target: blockedId }],
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-01T00:00:00Z',
     };
 
-    // Blocked issue - should be excluded because is-bbb001 blocks it
+    // Blocked issue - should be excluded because blockerId blocks it
     const blockedIssue: Issue = {
       type: 'is',
-      id: 'is-bbb002',
+      id: blockedId,
       version: 1,
       kind: 'task',
       title: 'Blocked task',
@@ -162,8 +170,8 @@ describe('ready command logic', () => {
       if (issue.assignee) return false;
       // Check if any other issue blocks this one
       const blockers = blockedByMap.get(issue.id) ?? [];
-      const hasUnresolvedBlocker = blockers.some((blockerId) => {
-        const blocker = issueMap.get(blockerId);
+      const hasUnresolvedBlocker = blockers.some((blockerIdInner) => {
+        const blocker = issueMap.get(blockerIdInner);
         return blocker && blocker.status !== 'closed';
       });
       return !hasUnresolvedBlocker;
@@ -189,9 +197,10 @@ describe('blocked command logic', () => {
   });
 
   it('identifies explicitly blocked issues', async () => {
+    const blockedId = testId(TEST_ULIDS.BLOCKED_3);
     const blockedIssue: Issue = {
       type: 'is',
-      id: 'is-ccc001',
+      id: blockedId,
       version: 1,
       kind: 'task',
       title: 'Explicitly blocked',
@@ -213,25 +222,28 @@ describe('blocked command logic', () => {
   });
 
   it('identifies issues with unresolved dependencies', async () => {
+    const blockerId = testId(TEST_ULIDS.WORKFLOW_1);
+    const dependentId = testId(TEST_ULIDS.WORKFLOW_2);
+
     // Blocker issue with "blocks" pointing to dependent
     const blockerIssue: Issue = {
       type: 'is',
-      id: 'is-ddd001',
+      id: blockerId,
       version: 1,
       kind: 'feature',
       title: 'Prerequisite feature',
       status: 'open',
       priority: 1,
       labels: [],
-      dependencies: [{ type: 'blocks', target: 'is-ddd002' }],
+      dependencies: [{ type: 'blocks', target: dependentId }],
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-01T00:00:00Z',
     };
 
-    // Dependent issue - is blocked by ddd001
+    // Dependent issue - is blocked by blockerId
     const dependentIssue: Issue = {
       type: 'is',
-      id: 'is-ddd002',
+      id: dependentId,
       version: 1,
       kind: 'task',
       title: 'Dependent task',
@@ -264,14 +276,14 @@ describe('blocked command logic', () => {
     // Find issues that are blocked
     const blockedByDeps = issues.filter((issue) => {
       const blockers = blockedByMap.get(issue.id) ?? [];
-      return blockers.some((blockerId) => {
-        const blocker = issueMap.get(blockerId);
+      return blockers.some((blockerIdInner) => {
+        const blocker = issueMap.get(blockerIdInner);
         return blocker && blocker.status !== 'closed';
       });
     });
 
     expect(blockedByDeps).toHaveLength(1);
-    expect(blockedByDeps[0]!.id).toBe('is-ddd002');
+    expect(blockedByDeps[0]!.id).toBe(dependentId);
   });
 });
 
@@ -291,13 +303,16 @@ describe('stale command logic', () => {
   });
 
   it('identifies stale issues based on days threshold', async () => {
+    const staleId = testId(TEST_ULIDS.STALE_1);
+    const recentId = testId(TEST_ULIDS.STALE_2);
+
     const now = new Date();
     const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
     const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
 
     const staleIssue: Issue = {
       type: 'is',
-      id: 'is-eee001',
+      id: staleId,
       version: 1,
       kind: 'task',
       title: 'Old task',
@@ -311,7 +326,7 @@ describe('stale command logic', () => {
 
     const recentIssue: Issue = {
       type: 'is',
-      id: 'is-eee002',
+      id: recentId,
       version: 1,
       kind: 'task',
       title: 'Recent task',
@@ -337,15 +352,18 @@ describe('stale command logic', () => {
     });
 
     expect(staleIssues).toHaveLength(1);
-    expect(staleIssues[0]!.id).toBe('is-eee001');
+    expect(staleIssues[0]!.id).toBe(staleId);
   });
 
   it('filters by status', async () => {
+    const staleOpenId = testId(TEST_ULIDS.STALE_3);
+    const staleClosedId = testId(TEST_ULIDS.STALE_4);
+
     const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
 
     const staleOpenIssue: Issue = {
       type: 'is',
-      id: 'is-fff001',
+      id: staleOpenId,
       version: 1,
       kind: 'task',
       title: 'Old open task',
@@ -359,7 +377,7 @@ describe('stale command logic', () => {
 
     const staleClosedIssue: Issue = {
       type: 'is',
-      id: 'is-fff002',
+      id: staleClosedId,
       version: 2,
       kind: 'task',
       title: 'Old closed task',
@@ -389,6 +407,6 @@ describe('stale command logic', () => {
     });
 
     expect(staleOpen).toHaveLength(1);
-    expect(staleOpen[0]!.id).toBe('is-fff001');
+    expect(staleOpen[0]!.id).toBe(staleOpenId);
   });
 });

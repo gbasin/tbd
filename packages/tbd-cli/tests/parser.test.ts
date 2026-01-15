@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { parseIssue, serializeIssue, parseMarkdownWithFrontmatter } from '../src/file/parser.js';
+import { TEST_ULIDS, testId } from './test-helpers.js';
 
 describe('parseMarkdownWithFrontmatter', () => {
   it('parses basic front matter', () => {
@@ -50,7 +51,7 @@ describe('parseIssue', () => {
   it('parses a complete issue file', () => {
     const content = `---
 type: is
-id: is-a1b2c3
+id: ${testId(TEST_ULIDS.PARSER_1)}
 version: 3
 kind: bug
 title: Fix authentication timeout
@@ -79,7 +80,7 @@ Users are being logged out after exactly 5 minutes of inactivity.
 Found the issue in session.ts line 42. Working on fix.`;
 
     const issue = parseIssue(content);
-    expect(issue.id).toBe('is-a1b2c3');
+    expect(issue.id).toBe(testId(TEST_ULIDS.PARSER_1));
     expect(issue.title).toBe('Fix authentication timeout');
     expect(issue.status).toBe('in_progress');
     expect(issue.labels).toEqual(['backend', 'security']);
@@ -94,7 +95,7 @@ describe('round-trip', () => {
   it('parse -> serialize -> parse produces identical issue', () => {
     const original = {
       type: 'is' as const,
-      id: 'is-a1b2c3',
+      id: testId(TEST_ULIDS.PARSER_2),
       version: 5,
       kind: 'bug' as const,
       title: 'Round-trip test issue',
@@ -102,7 +103,7 @@ describe('round-trip', () => {
       priority: 1,
       assignee: 'alice',
       labels: ['frontend', 'urgent'],
-      dependencies: [{ type: 'blocks' as const, target: 'is-ffffff' }],
+      dependencies: [{ type: 'blocks' as const, target: testId(TEST_ULIDS.PARSER_3) }],
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-02T00:00:00Z',
       description: 'This is a test description.',
@@ -127,7 +128,7 @@ describe('round-trip', () => {
   it('handles issues with null fields', () => {
     const original = {
       type: 'is' as const,
-      id: 'is-000001',
+      id: testId(TEST_ULIDS.ULID_1),
       version: 1,
       kind: 'task' as const,
       title: 'Null field test',
@@ -154,7 +155,7 @@ describe('serializeIssue', () => {
   it('serializes an issue to canonical format', () => {
     const issue = {
       type: 'is' as const,
-      id: 'is-a1b2c3',
+      id: testId(TEST_ULIDS.ULID_2),
       version: 1,
       kind: 'task' as const,
       title: 'Test issue',
@@ -172,7 +173,7 @@ describe('serializeIssue', () => {
 
     // Check structure
     expect(content).toContain('---');
-    expect(content).toContain('id: is-a1b2c3');
+    expect(content).toContain(`id: ${testId(TEST_ULIDS.ULID_2)}`);
     expect(content).toContain('title: Test issue');
     expect(content).toContain('This is the description.');
     expect(content).toContain('## Notes');
@@ -186,7 +187,7 @@ describe('serializeIssue', () => {
   it('produces deterministic output (sorted keys)', () => {
     const issue = {
       type: 'is' as const,
-      id: 'is-a1b2c3',
+      id: testId(TEST_ULIDS.ULID_3),
       version: 1,
       kind: 'task' as const,
       title: 'Test',

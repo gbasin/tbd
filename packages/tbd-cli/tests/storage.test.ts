@@ -14,10 +14,11 @@ import {
   atomicWriteFile,
 } from '../src/file/storage.js';
 import type { Issue } from '../src/lib/types.js';
+import { TEST_ULIDS, testId } from './test-helpers.js';
 
 const makeIssue = (overrides: Partial<Issue> = {}): Issue => ({
   type: 'is',
-  id: 'is-a1b2c3',
+  id: testId(TEST_ULIDS.STORAGE_1),
   version: 1,
   kind: 'task',
   title: 'Test issue',
@@ -94,10 +95,11 @@ describe('writeIssue and readIssue', () => {
   });
 
   it('writes and reads an issue', async () => {
-    const issue = makeIssue({ title: 'Write/read test', id: 'is-111111' });
+    const issueId = testId(TEST_ULIDS.ULID_1);
+    const issue = makeIssue({ title: 'Write/read test', id: issueId });
 
     await writeIssue(tempDir, issue);
-    const read = await readIssue(tempDir, 'is-111111');
+    const read = await readIssue(tempDir, issueId);
 
     expect(read.id).toBe(issue.id);
     expect(read.title).toBe(issue.title);
@@ -105,18 +107,21 @@ describe('writeIssue and readIssue', () => {
   });
 
   it('writes to correct file path', async () => {
-    const issue = makeIssue({ id: 'is-abc123' });
+    const issueId = testId(TEST_ULIDS.ULID_2);
+    const issue = makeIssue({ id: issueId });
 
     await writeIssue(tempDir, issue);
 
-    const filePath = join(tempDir, 'issues', 'is-abc123.md');
+    const filePath = join(tempDir, 'issues', `${issueId}.md`);
     const content = await readFile(filePath, 'utf-8');
-    expect(content).toContain('id: is-abc123');
+    expect(content).toContain(`id: ${issueId}`);
   });
 
   it('preserves all issue fields', async () => {
+    const issueId = testId(TEST_ULIDS.STORAGE_2);
+    const targetId = testId(TEST_ULIDS.STORAGE_3);
     const issue = makeIssue({
-      id: 'is-222222',
+      id: issueId,
       title: 'Full field test',
       description: 'Test description',
       notes: 'Test notes',
@@ -125,11 +130,11 @@ describe('writeIssue and readIssue', () => {
       priority: 1,
       assignee: 'alice',
       labels: ['urgent', 'backend'],
-      dependencies: [{ type: 'blocks', target: 'is-333333' }],
+      dependencies: [{ type: 'blocks', target: targetId }],
     });
 
     await writeIssue(tempDir, issue);
-    const read = await readIssue(tempDir, 'is-222222');
+    const read = await readIssue(tempDir, issueId);
 
     expect(read.description).toBe(issue.description);
     expect(read.notes).toBe(issue.notes);
@@ -142,7 +147,7 @@ describe('writeIssue and readIssue', () => {
   });
 
   it('throws on non-existent issue', async () => {
-    await expect(readIssue(tempDir, 'is-nonexistent')).rejects.toThrow();
+    await expect(readIssue(tempDir, testId(TEST_ULIDS.ULID_9))).rejects.toThrow();
   });
 });
 
@@ -158,14 +163,17 @@ describe('listIssues', () => {
   });
 
   it('lists all issues in directory', async () => {
-    await writeIssue(tempDir, makeIssue({ id: 'is-000001', title: 'Issue 1' }));
-    await writeIssue(tempDir, makeIssue({ id: 'is-000002', title: 'Issue 2' }));
-    await writeIssue(tempDir, makeIssue({ id: 'is-000003', title: 'Issue 3' }));
+    const id1 = testId(TEST_ULIDS.ULID_1);
+    const id2 = testId(TEST_ULIDS.ULID_2);
+    const id3 = testId(TEST_ULIDS.ULID_3);
+    await writeIssue(tempDir, makeIssue({ id: id1, title: 'Issue 1' }));
+    await writeIssue(tempDir, makeIssue({ id: id2, title: 'Issue 2' }));
+    await writeIssue(tempDir, makeIssue({ id: id3, title: 'Issue 3' }));
 
     const issues = await listIssues(tempDir);
 
     expect(issues).toHaveLength(3);
-    expect(issues.map((i) => i.id).sort()).toEqual(['is-000001', 'is-000002', 'is-000003']);
+    expect(issues.map((i) => i.id).sort()).toEqual([id1, id2, id3].sort());
   });
 
   it('returns empty array for empty directory', async () => {
@@ -174,7 +182,8 @@ describe('listIssues', () => {
   });
 
   it('ignores non-.md files', async () => {
-    await writeIssue(tempDir, makeIssue({ id: 'is-000001' }));
+    const id1 = testId(TEST_ULIDS.ULID_4);
+    await writeIssue(tempDir, makeIssue({ id: id1 }));
 
     // Create a non-.md file
     const issuesDir = join(tempDir, 'issues');
@@ -182,7 +191,7 @@ describe('listIssues', () => {
 
     const issues = await listIssues(tempDir);
     expect(issues).toHaveLength(1);
-    expect(issues[0]!.id).toBe('is-000001');
+    expect(issues[0]!.id).toBe(id1);
   });
 });
 
@@ -198,14 +207,15 @@ describe('deleteIssue', () => {
   });
 
   it('deletes an issue', async () => {
-    const issue = makeIssue({ id: 'is-de1e7e' });
+    const issueId = testId(TEST_ULIDS.STORAGE_DEL);
+    const issue = makeIssue({ id: issueId });
     await writeIssue(tempDir, issue);
 
     // Verify it exists
     const before = await listIssues(tempDir);
     expect(before).toHaveLength(1);
 
-    await deleteIssue(tempDir, 'is-de1e7e');
+    await deleteIssue(tempDir, issueId);
 
     const after = await listIssues(tempDir);
     expect(after).toHaveLength(0);
@@ -213,6 +223,6 @@ describe('deleteIssue', () => {
 
   it('succeeds when issue does not exist', async () => {
     // Should not throw (valid ID format but doesn't exist)
-    await expect(deleteIssue(tempDir, 'is-000000')).resolves.toBeUndefined();
+    await expect(deleteIssue(tempDir, testId(TEST_ULIDS.ULID_9))).resolves.toBeUndefined();
   });
 });

@@ -3,29 +3,62 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { IssueSchema, IssueId, IssueIdInput, ConfigSchema } from '../src/lib/schemas.js';
+import {
+  IssueSchema,
+  IssueId,
+  ShortId,
+  ExternalIssueIdInput,
+  ConfigSchema,
+} from '../src/lib/schemas.js';
+
+// Sample valid ULID for testing (26 lowercase alphanumeric chars)
+const VALID_ULID = '01hx5zzkbkactav9wevgemmvrz';
+const VALID_ULID_2 = '01hx5zzkbkbctav9wevgemmvrs';
+const VALID_ULID_3 = '01hx5zzkbkcdtav9wevgemmvrt';
 
 describe('IssueId', () => {
-  it('accepts valid issue IDs', () => {
-    expect(IssueId.safeParse('is-a1b2c3').success).toBe(true);
-    expect(IssueId.safeParse('is-000000').success).toBe(true);
-    expect(IssueId.safeParse('is-ffffff').success).toBe(true);
+  it('accepts valid ULID-based issue IDs', () => {
+    expect(IssueId.safeParse(`is-${VALID_ULID}`).success).toBe(true);
+    expect(IssueId.safeParse('is-00000000000000000000000000').success).toBe(true);
+    expect(IssueId.safeParse('is-zzzzzzzzzzzzzzzzzzzzzzzzzz').success).toBe(true);
   });
 
   it('rejects invalid issue IDs', () => {
     expect(IssueId.safeParse('is-a1b2').success).toBe(false); // too short
-    expect(IssueId.safeParse('is-a1b2c3d4').success).toBe(false); // too long
-    expect(IssueId.safeParse('bd-a1b2c3').success).toBe(false); // wrong prefix
-    expect(IssueId.safeParse('is-ABCDEF').success).toBe(false); // uppercase
+    expect(IssueId.safeParse('is-a1b2c3').success).toBe(false); // old 6-char format
+    expect(IssueId.safeParse(`bd-${VALID_ULID}`).success).toBe(false); // wrong prefix
+    expect(IssueId.safeParse(`is-${VALID_ULID.toUpperCase()}`).success).toBe(false); // uppercase
+    expect(IssueId.safeParse('is-01hx5zzkbkactav9wevgemmvrz!').success).toBe(false); // invalid char
   });
 });
 
-describe('IssueIdInput', () => {
-  it('accepts valid input IDs', () => {
-    expect(IssueIdInput.safeParse('is-a1b2c3').success).toBe(true);
-    expect(IssueIdInput.safeParse('bd-a1b2c3').success).toBe(true);
-    expect(IssueIdInput.safeParse('a1b2c3').success).toBe(true);
-    expect(IssueIdInput.safeParse('a1b2').success).toBe(true); // 4 chars allowed for input
+describe('ShortId', () => {
+  it('accepts valid short IDs', () => {
+    expect(ShortId.safeParse('a7k2').success).toBe(true);
+    expect(ShortId.safeParse('b3m9x').success).toBe(true);
+    expect(ShortId.safeParse('0000').success).toBe(true);
+    expect(ShortId.safeParse('zzzz').success).toBe(true);
+  });
+
+  it('rejects invalid short IDs', () => {
+    expect(ShortId.safeParse('abc').success).toBe(false); // too short
+    expect(ShortId.safeParse('abcdef').success).toBe(false); // too long
+    expect(ShortId.safeParse('ABC1').success).toBe(false); // uppercase
+  });
+});
+
+describe('ExternalIssueIdInput', () => {
+  it('accepts valid external input IDs', () => {
+    expect(ExternalIssueIdInput.safeParse('bd-a7k2').success).toBe(true);
+    expect(ExternalIssueIdInput.safeParse('proj-a7k2').success).toBe(true);
+    expect(ExternalIssueIdInput.safeParse('a7k2').success).toBe(true);
+    expect(ExternalIssueIdInput.safeParse('a7k2x').success).toBe(true); // 5 chars
+  });
+
+  it('rejects invalid external input IDs', () => {
+    expect(ExternalIssueIdInput.safeParse('bd-abc').success).toBe(false); // too short
+    expect(ExternalIssueIdInput.safeParse('bd-abcdef').success).toBe(false); // too long
+    expect(ExternalIssueIdInput.safeParse(`bd-${VALID_ULID}`).success).toBe(false); // full ULID not external
   });
 });
 
@@ -33,7 +66,7 @@ describe('IssueSchema', () => {
   it('parses a minimal valid issue', () => {
     const issue = {
       type: 'is',
-      id: 'is-a1b2c3',
+      id: `is-${VALID_ULID}`,
       version: 1,
       title: 'Test issue',
       created_at: '2025-01-01T00:00:00Z',
@@ -53,7 +86,7 @@ describe('IssueSchema', () => {
   it('parses a complete issue', () => {
     const issue = {
       type: 'is',
-      id: 'is-a1b2c3',
+      id: `is-${VALID_ULID}`,
       version: 5,
       title: 'Fix authentication bug',
       description: 'Users are logged out after 5 minutes.',
@@ -63,8 +96,8 @@ describe('IssueSchema', () => {
       priority: 1,
       assignee: 'alice',
       labels: ['backend', 'security'],
-      dependencies: [{ type: 'blocks', target: 'is-f14c3d' }],
-      parent_id: 'is-000001',
+      dependencies: [{ type: 'blocks', target: `is-${VALID_ULID_2}` }],
+      parent_id: `is-${VALID_ULID_3}`,
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-02T00:00:00Z',
       created_by: 'bob',
@@ -84,7 +117,7 @@ describe('IssueSchema', () => {
   it('rejects invalid status', () => {
     const issue = {
       type: 'is',
-      id: 'is-a1b2c3',
+      id: `is-${VALID_ULID}`,
       version: 1,
       title: 'Test',
       status: 'invalid_status',
@@ -99,7 +132,7 @@ describe('IssueSchema', () => {
   it('rejects invalid priority', () => {
     const issue = {
       type: 'is',
-      id: 'is-a1b2c3',
+      id: `is-${VALID_ULID}`,
       version: 1,
       title: 'Test',
       priority: 5, // invalid: max is 4
