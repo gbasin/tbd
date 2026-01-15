@@ -1,7 +1,7 @@
-# Beads to Ceads Feature Mapping
+# Beads to Tbd Feature Mapping
 
-**Purpose:** Comprehensive mapping to ensure Ceads provides feature parity with Beads
-for LLM agent usability.
+**Purpose:** Comprehensive mapping to ensure Tbd provides feature parity with Beads for
+LLM agent usability.
 
 **Status:** Current (Updated after spec revisions)
 
@@ -9,10 +9,10 @@ for LLM agent usability.
 
 ## Executive Summary
 
-Ceads provides a clear isomorphism to Beads’ core functionality while simplifying the
+Tbd provides a clear isomorphism to Beads’ core functionality while simplifying the
 architecture. The key differences are:
 
-| Aspect | Beads | Ceads |
+| Aspect | Beads | Tbd |
 | --- | --- | --- |
 | Data locations | 4 (SQLite, local JSONL, sync branch, main) | 2 (files, sync branch) |
 | Storage | SQLite + JSONL | JSON files |
@@ -22,7 +22,7 @@ architecture. The key differences are:
 | Agent coordination | External (Agent Mail) | Built-in (agents/ directory) |
 
 **Core Finding:** All essential LLM agent workflows in Beads have direct equivalents in
-Ceads. The spec now includes full parity for core workflows.
+Tbd. The spec now includes full parity for core workflows.
 
 * * *
 
@@ -30,7 +30,7 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 1.1 Issue Commands
 
-| Beads Command | Ceads Command | Status |
+| Beads Command | Tbd Command | Status |
 | --- | --- | --- |
 | `bd create "Title" -p N -t type` | `cead create "Title" -p N -k kind` | ✅ `-t` → `-k` |
 | `bd create "Title" -l label1,label2` | `cead create "Title" -l label1 -l label2` | ✅ Repeatable flag |
@@ -54,7 +54,7 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 1.2 Dependency Commands
 
-| Beads Command | Ceads Command | Status |
+| Beads Command | Tbd Command | Status |
 | --- | --- | --- |
 | `bd dep add <child> <parent>` | `cead issue dep add <id> <target> --type blocks` | ✅ Explicit type |
 | `bd dep add <a> <b> --type blocks` | `cead issue dep add <id> <target> --type blocks` | ✅ Identical |
@@ -64,7 +64,7 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 1.3 Label Commands
 
-| Beads Command | Ceads Command | Status |
+| Beads Command | Tbd Command | Status |
 | --- | --- | --- |
 | `bd label add <id> <label>` | `cead issue update <id> --add-label <label>` | ✅ Via update |
 | `bd label remove <id> <label>` | `cead issue update <id> --remove-label <label>` | ✅ Via update |
@@ -73,14 +73,14 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 1.4 Comment Commands
 
-| Beads Command | Ceads Command | Status |
+| Beads Command | Tbd Command | Status |
 | --- | --- | --- |
 | Comments in `bd show` | Comments in `cead show` | ✅ Identical |
 | Comments added via SQLite | `cead issue comment <id> -s "subject" -b "body"` | ✅ Explicit command |
 
 ### 1.5 Sync Commands
 
-| Beads Command | Ceads Command | Status |
+| Beads Command | Tbd Command | Status |
 | --- | --- | --- |
 | `bd sync` | `cead sync` | ✅ Identical |
 | `bd import -i file.jsonl` | `cead import file.jsonl --format beads` | ✅ Specified |
@@ -88,17 +88,17 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 1.6 Agent Commands
 
-| Beads Feature | Ceads Command | Status |
+| Beads Feature | Tbd Command | Status |
 | --- | --- | --- |
 | `bd update <id> --status in_progress` | `cead agent claim <id>` | ✅ Explicit claim |
 | Release (set status back) | `cead agent release <id>` | ✅ Explicit release |
-| No agent registry | `cead agent register` | ✅ **New in Ceads** |
-| No agent list | `cead agent list` | ✅ **New in Ceads** |
-| No agent status | `cead agent status <status>` | ✅ **New in Ceads** |
+| No agent registry | `cead agent register` | ✅ **New in Tbd** |
+| No agent list | `cead agent list` | ✅ **New in Tbd** |
+| No agent status | `cead agent status <status>` | ✅ **New in Tbd** |
 
 ### 1.7 Daemon Commands
 
-| Beads Command | Ceads Command | Status |
+| Beads Command | Tbd Command | Status |
 | --- | --- | --- |
 | `bd daemons list` | `cead daemon status` | ✅ Similar |
 | `bd daemons start` | `cead daemon start` | ✅ Identical |
@@ -109,7 +109,7 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 1.8 Health & Maintenance Commands
 
-| Beads Command | Ceads Command | Status |
+| Beads Command | Tbd Command | Status |
 | --- | --- | --- |
 | `bd doctor` | `cead doctor` | ✅ Identical |
 | `bd doctor --fix` | `cead doctor --fix` | ✅ Identical |
@@ -123,9 +123,9 @@ Ceads. The spec now includes full parity for core workflows.
 | `bd search` | `cead list` filters | ✅ Via list |
 | `bd stats` | Not specified | ⚠️ Future |
 
-### 1.9 Molecule Commands (Future in Ceads)
+### 1.9 Molecule Commands (Future in Tbd)
 
-| Beads Command | Ceads Equivalent | Status |
+| Beads Command | Tbd Equivalent | Status |
 | --- | --- | --- |
 | `bd mol pour <proto>` | Not specified | ⚠️ Future |
 | `bd mol wisp <proto>` | `cead local create` | ✅ Similar |
@@ -140,7 +140,7 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 2.1 Issue Schema
 
-| Beads Field | Ceads Field | Status |
+| Beads Field | Tbd Field | Status |
 | --- | --- | --- |
 | `id` | `id` | ✅ Format: `bd-xxxx` → `is-xxxx` |
 | `title` | `title` | ✅ Identical |
@@ -167,7 +167,7 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 2.2 Status Values
 
-| Beads Status | Ceads Status | Status |
+| Beads Status | Tbd Status | Status |
 | --- | --- | --- |
 | `open` | `open` | ✅ Identical |
 | `in_progress` | `in_progress` | ✅ Identical |
@@ -180,7 +180,7 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 2.3 Issue Types/Kinds
 
-| Beads Type | Ceads Kind | Status |
+| Beads Type | Tbd Kind | Status |
 | --- | --- | --- |
 | `bug` | `bug` | ✅ Identical |
 | `feature` | `feature` | ✅ Identical |
@@ -197,7 +197,7 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 2.4 Dependency Types
 
-| Beads Type | Ceads Type | Status |
+| Beads Type | Tbd Type | Status |
 | --- | --- | --- |
 | `blocks` | `blocks` | ✅ Identical |
 | `related` | `related` | ✅ Identical |
@@ -213,17 +213,17 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 3.1 Storage Architecture
 
-| Aspect | Beads | Ceads |
+| Aspect | Beads | Tbd |
 | --- | --- | --- |
-| Primary store | SQLite (`.beads/beads.db`) | JSON files (`.ceads/nodes/`) |
+| Primary store | SQLite (`.beads/beads.db`) | JSON files (`.tbd/nodes/`) |
 | Sync format | JSONL (`.beads/issues.jsonl`) | JSON files (same as primary) |
 | Comments | Embedded in issue | Separate message files |
 | Events/audit | Embedded in issue | Via attic (conflict losers) |
-| Agent state | External | Built-in (`.ceads/nodes/agents/`) |
+| Agent state | External | Built-in (`.tbd/nodes/agents/`) |
 
 ### 3.2 Sync Architecture
 
-| Aspect | Beads | Ceads |
+| Aspect | Beads | Tbd |
 | --- | --- | --- |
 | Sync mechanism | SQLite ↔ JSONL ↔ git | Files ↔ git |
 | Branch strategy | Main or sync branch | Sync branch only |
@@ -234,7 +234,7 @@ Ceads. The spec now includes full parity for core workflows.
 
 ### 3.3 Query Performance
 
-| Aspect | Beads | Ceads (no daemon) | Ceads (with daemon) |
+| Aspect | Beads | Tbd (no daemon) | Tbd (with daemon) |
 | --- | --- | --- | --- |
 | List all issues | ~5ms (SQLite) | ~50ms (read files) | ~5ms (in-memory) |
 | Filter by status | ~2ms (indexed) | ~50ms (read+filter) | ~2ms (indexed) |
@@ -255,7 +255,7 @@ bd close <id> --reason "Done"  # Complete
 bd sync                       # Sync
 ```
 
-**Ceads:**
+**Tbd:**
 ```bash
 cead ready --json            # Find work
 cead agent claim <id>        # Claim (explicit)
@@ -264,7 +264,7 @@ cead close <id> --reason "Done"  # Complete
 cead sync                    # Sync
 ```
 
-**Assessment:** ✅ Identical workflow, slightly more explicit in Ceads.
+**Assessment:** ✅ Identical workflow, slightly more explicit in Tbd.
 
 ### 4.2 Creating and Linking Work
 
@@ -273,7 +273,7 @@ cead sync                    # Sync
 bd create "Found bug" -t bug -p 1 --deps discovered-from:<parent-id> --json
 ```
 
-**Ceads:**
+**Tbd:**
 ```bash
 cead create "Found bug" -k bug -p 1 --deps discovered-from:<parent-id> --json
 ```
@@ -284,9 +284,9 @@ cead create "Found bug" -k bug -p 1 --deps discovered-from:<parent-id> --json
 
 **Beads:** Uses external Agent Mail or `bd update --status in_progress` (honor system).
 
-**Ceads:** Built-in agent registry with explicit claim/release commands.
+**Tbd:** Built-in agent registry with explicit claim/release commands.
 
-**Assessment:** ✅ Ceads is stronger for multi-agent coordination.
+**Assessment:** ✅ Tbd is stronger for multi-agent coordination.
 
 ### 4.4 End-of-Session Sync
 
@@ -295,7 +295,7 @@ cead create "Found bug" -k bug -p 1 --deps discovered-from:<parent-id> --json
 bd sync  # Immediate flush/commit/push
 ```
 
-**Ceads:**
+**Tbd:**
 ```bash
 cead sync  # Immediate sync
 ```
@@ -308,7 +308,7 @@ cead sync  # Immediate sync
 # Export from Beads
 bd export -o beads-export.jsonl
 
-# Import to Ceads
+# Import to Tbd
 cead import beads-export.jsonl --format beads --dry-run  # Preview
 cead import beads-export.jsonl --format beads            # Execute
 ```
@@ -362,7 +362,7 @@ cead import beads-export.jsonl --format beads            # Execute
 
 ### 6.1 Command Discoverability
 
-| Aspect | Beads | Ceads |
+| Aspect | Beads | Tbd |
 | --- | --- | --- |
 | Command count | ~40+ commands | ~35 commands |
 | Subcommand depth | 2-3 levels | 2 levels |
@@ -371,7 +371,7 @@ cead import beads-export.jsonl --format beads            # Execute
 
 ### 6.2 ID Handling
 
-| Aspect | Beads | Ceads |
+| Aspect | Beads | Tbd |
 | --- | --- | --- |
 | ID format | `bd-xxxx` | Internal: `is-xxxx`, External: `cd-xxxx` |
 | Hierarchical IDs | `bd-xxxx.1.2` | `is-xxxx` + `parent_id` field |
@@ -379,7 +379,7 @@ cead import beads-export.jsonl --format beads            # Execute
 
 ### 6.3 Error Messages
 
-| Aspect | Beads | Ceads |
+| Aspect | Beads | Tbd |
 | --- | --- | --- |
 | Claim conflict | "already claimed by agent-X" | "already claimed by agent-X" |
 | Not found | Standard error | Standard error |
@@ -416,9 +416,9 @@ The following features now have full parity:
 
 - Beads import with status mapping
 
-- Agent coordination (enhanced in Ceads)
+- Agent coordination (enhanced in Tbd)
 
-### 7.2 Ceads Advantages
+### 7.2 Tbd Advantages
 
 - **Simpler architecture:** 2 data locations vs 4
 
@@ -444,7 +444,7 @@ The following features now have full parity:
 
 ## 8. Conclusion
 
-Ceads now provides **complete feature parity** with Beads for all core LLM agent
+Tbd now provides **complete feature parity** with Beads for all core LLM agent
 workflows:
 
 - Issue CRUD with all common flags
@@ -466,5 +466,5 @@ workflows:
 The remaining gaps are advanced features (templates, conditional dependencies,
 statistics) that can be added in future versions without affecting core workflows.
 
-**Overall Assessment:** LLMs can migrate from Beads to Ceads with no workflow changes.
+**Overall Assessment:** LLMs can migrate from Beads to Tbd with no workflow changes.
 The core isomorphism is complete.

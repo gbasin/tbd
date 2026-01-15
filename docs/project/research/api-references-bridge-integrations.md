@@ -17,9 +17,9 @@
 ## Executive Summary
 
 This research brief compiles key API references and documentation for building bridge
-integrations between CEADS (git-native issue tracker) and external platforms (GitHub,
+integrations between TBD (git-native issue tracker) and external platforms (GitHub,
 Slack). It also surveys existing git-native issue tracking systems and multi-agent
-coordination patterns relevant to the CEADS architecture.
+coordination patterns relevant to the TBD architecture.
 
 **Research Questions**:
 
@@ -854,7 +854,7 @@ objects). Good for small teams or personal projects.
 **Assessment**: Excellent choice for AI agent integration.
 YAML frontmatter + markdown is optimal format for LLM parsing.
 Simple dependency tracking.
-Consider for CEADS if prioritizing AI agent experience.
+Consider for TBD if prioritizing AI agent experience.
 
 * * *
 
@@ -909,7 +909,7 @@ https://aibit.im/blog/post/beads-elevate-your-ai-agent-s-memory-with-git-backed-
   https://aibit.im/blog/post/beads-elevate-your-ai-agent-s-memory-with-git-backed-issue-tracking
 
 **Assessment**: Innovative approach using JSONL + SQLite cache.
-Very relevant to CEADS design.
+Very relevant to TBD design.
 Consider hybrid approach: human-readable markdown in git + local cache for performance.
 
 * * *
@@ -982,7 +982,7 @@ brew install git-appraise
 **Assessment**: Excellent example of using git refs for structured data.
 Separating different data types into different refs is elegant.
 Schema approach ensures consistency.
-Consider for CEADS comment/discussion system.
+Consider for TBD comment/discussion system.
 
 * * *
 
@@ -1052,7 +1052,7 @@ Consider for CEADS comment/discussion system.
   https://docs.aws.amazon.com/prescriptive-guidance/latest/agentic-ai-frameworks/agent-to-agent-protocols.html
 
 **Assessment**: Standardization happening rapidly in 2026. A2A protocol most relevant
-for CEADS multi-agent coordination.
+for TBD multi-agent coordination.
 Consider implementing A2A-compatible agent cards for agent capabilities.
 
 * * *
@@ -1102,7 +1102,7 @@ Consider implementing A2A-compatible agent cards for agent capabilities.
 - InfoQ article: https://www.infoq.com/news/2026/01/multi-agent-design-patterns/
 
 **Assessment**: Essential vocabulary for agent architecture.
-CEADS likely needs Router (for task delegation), Tool Use (for git operations), and
+TBD likely needs Router (for task delegation), Tool Use (for git operations), and
 Human-in-the-Loop (for approvals).
 
 * * *
@@ -1171,8 +1171,8 @@ Human-in-the-Loop (for approvals).
 
 - AIM Multiple overview: https://research.aimultiple.com/agentic-orchestration/
 
-**Assessment**: CEADS should consider hierarchical approach with topic-based teams
-(bridge agents, git agents, etc.). Pub-sub for event notifications.
+**Assessment**: TBD should consider hierarchical approach with topic-based teams (bridge
+agents, git agents, etc.). Pub-sub for event notifications.
 A2A for peer delegation.
 
 * * *
@@ -1251,7 +1251,7 @@ A2A for peer delegation.
 
 **Assessment**: Consider LangGraph for graph-based task workflows.
 Study AutoGen’s planner-executor-critic pattern for code review.
-Ensure CEADS agents are interoperable with major frameworks.
+Ensure TBD agents are interoperable with major frameworks.
 
 * * *
 
@@ -1311,7 +1311,7 @@ Ensure CEADS agents are interoperable with major frameworks.
 - SmythOS overview:
   https://smythos.com/developers/agent-development/agent-communication-and-message-passing/
 
-**Assessment**: CEADS should use JSON-RPC for agent-to-agent calls, SSE for streaming
+**Assessment**: TBD should use JSON-RPC for agent-to-agent calls, SSE for streaming
 updates, and pub-sub for event notifications.
 Include correlation IDs for debugging distributed operations.
 
@@ -1569,15 +1569,15 @@ Monitor ANP for future decentralized scenarios.
 
 ## Open Research Questions
 
-1. **How should CEADS handle real-time synchronization conflicts?**
+1. **How should TBD handle real-time synchronization conflicts?**
 
-   - When GitHub issue and CEADS task diverge during offline work
+   - When GitHub issue and TBD task diverge during offline work
 
    - Conflict resolution strategies (last-write-wins vs manual merge)
 
    - Next steps: Prototype conflict detection and resolution UI
 
-2. **What’s the optimal local cache strategy for CEADS?**
+2. **What’s the optimal local cache strategy for TBD?**
 
    - SQLite like Beads vs in-memory vs no cache
 
@@ -1615,7 +1615,7 @@ Monitor ANP for future decentralized scenarios.
 
    - Next steps: Design failure handling architecture
 
-6. **Should CEADS support custom agent plugins?**
+6. **Should TBD support custom agent plugins?**
 
    - Plugin API design
 
@@ -1631,7 +1631,7 @@ Monitor ANP for future decentralized scenarios.
 
 ### Summary
 
-For CEADS bridge integrations, use modern, well-supported APIs and protocols:
+For TBD bridge integrations, use modern, well-supported APIs and protocols:
 
 - **GitHub**: REST API for CRUD, GraphQL for complex queries, webhooks for real-time
   updates
@@ -1673,13 +1673,13 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
 
    - Respond within 10 seconds
 
-   - Process event and sync to CEADS
+   - Process event and sync to TBD
 
 4. **Sync Strategy**: Bidirectional with conflict detection
 
-   - GitHub → CEADS: Real-time via webhooks
+   - GitHub → TBD: Real-time via webhooks
 
-   - CEADS → GitHub: On local commit
+   - TBD → GitHub: On local commit
 
    - Detect conflicts, notify user for resolution
 
@@ -1705,13 +1705,13 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
 
 3. **Commands**: Slash commands for common operations
 
-   - `/ceads create` - Create new task
+   - `/tbd create` - Create new task
 
-   - `/ceads list` - List open tasks
+   - `/tbd list` - List open tasks
 
-   - `/ceads assign` - Assign task
+   - `/tbd assign` - Assign task
 
-   - `/ceads status` - Update task status
+   - `/tbd status` - Update task status
 
 4. **Notifications**: Rich message formatting
 
@@ -1723,7 +1723,7 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
 
    - Support ephemeral messages for errors
 
-#### CEADS Storage Format
+#### TBD Storage Format
 
 **Recommended**: Hybrid approach inspired by tk and Beads
 
@@ -1740,7 +1740,7 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
    ---
    
    # Description
-   Implement bidirectional sync between CEADS and GitHub Issues...
+   Implement bidirectional sync between TBD and GitHub Issues...
    
    # Discussion
    - Comment 1...
@@ -1759,11 +1759,11 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
 
 3. **Git Structure**: Use dedicated branch or refs
 
-   - Option A: `.ceads/` directory on main branch
+   - Option A: `.tbd/` directory on main branch
 
-   - Option B: Separate `ceads-tasks` branch
+   - Option B: Separate `tbd-tasks` branch
 
-   - Option C: Git refs like `refs/ceads/tasks` (like git-bug)
+   - Option C: Git refs like `refs/tbd/tasks` (like git-bug)
 
 **Rationale**:
 
@@ -1903,8 +1903,7 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
 
 - [REST API endpoints for issues](https://docs.github.com/en/rest/issues)
 
-- [GitHub GraphQL API
-  Documentation](https://docs.github.com/en/graphql/reference/queries)
+- [GitHub GraphQL API Documentation](https://docs.github.com/en/graphql/reference/queries)
 
 - [GraphQL Changelog](https://docs.github.com/en/graphql/overview/changelog)
 
@@ -1914,19 +1913,15 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
 
 - [Creating Webhooks](https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks)
 
-- [Webhook Events and
-  Payloads](https://docs.github.com/en/webhooks/webhook-events-and-payloads)
+- [Webhook Events and Payloads](https://docs.github.com/en/webhooks/webhook-events-and-payloads)
 
 - [GitHub App Authentication](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/about-authentication-with-a-github-app)
 
-- [Generating Installation Access
-  Tokens](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app)
+- [Generating Installation Access Tokens](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app)
 
-- [Choosing Permissions for GitHub
-  Apps](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/choosing-permissions-for-a-github-app)
+- [Choosing Permissions for GitHub Apps](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/choosing-permissions-for-a-github-app)
 
-- [Using Webhooks with GitHub
-  Apps](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/using-webhooks-with-github-apps)
+- [Using Webhooks with GitHub Apps](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/using-webhooks-with-github-apps)
 
 ### Slack Documentation
 
@@ -1940,8 +1935,7 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
 
 - [Socket Mode Node.js SDK](https://slack.dev/node-slack-sdk/socket-mode/)
 
-- [Comparing HTTP & Socket
-  Mode](https://docs.slack.dev/apis/events-api/comparing-http-socket-mode/)
+- [Comparing HTTP & Socket Mode](https://docs.slack.dev/apis/events-api/comparing-http-socket-mode/)
 
 - [Legacy RTM API](https://api.slack.com/rtm)
 
@@ -1967,27 +1961,21 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
 
 ### Multi-Agent Systems
 
-- [Google’s Eight Essential Multi-Agent Design Patterns
-  (InfoQ)](https://www.infoq.com/news/2026/01/multi-agent-design-patterns/)
+- [Google’s Eight Essential Multi-Agent Design Patterns (InfoQ)](https://www.infoq.com/news/2026/01/multi-agent-design-patterns/)
 
 - [A2A Protocol Explained](https://onereach.ai/blog/what-is-a2a-agent-to-agent-protocol/)
 
-- [Top 5 Open Protocols for Multi-Agent AI
-  Systems](https://onereach.ai/blog/power-of-multi-agent-ai-open-protocols/)
+- [Top 5 Open Protocols for Multi-Agent AI Systems](https://onereach.ai/blog/power-of-multi-agent-ai-open-protocols/)
 
 - [Agent Communication Protocols Survey (arXiv)](https://arxiv.org/html/2505.02279v1)
 
-- [AWS Agent-to-Agent Protocols
-  Guide](https://docs.aws.amazon.com/prescriptive-guidance/latest/agentic-ai-frameworks/agent-to-agent-protocols.html)
+- [AWS Agent-to-Agent Protocols Guide](https://docs.aws.amazon.com/prescriptive-guidance/latest/agentic-ai-frameworks/agent-to-agent-protocols.html)
 
-- [Agent Communication Protocols
-  (DigitalOcean)](https://www.digitalocean.com/community/tutorials/agent-communication-protocols-explained)
+- [Agent Communication Protocols (DigitalOcean)](https://www.digitalocean.com/community/tutorials/agent-communication-protocols-explained)
 
-- [8 Best Multi-Agent AI Frameworks for
-  2026](https://www.multimodal.dev/post/best-multi-agent-ai-frameworks)
+- [8 Best Multi-Agent AI Frameworks for 2026](https://www.multimodal.dev/post/best-multi-agent-ai-frameworks)
 
-- [7 Agentic AI Trends to Watch in
-  2026](https://machinelearningmastery.com/7-agentic-ai-trends-to-watch-in-2026/)
+- [7 Agentic AI Trends to Watch in 2026](https://machinelearningmastery.com/7-agentic-ai-trends-to-watch-in-2026/)
 
 - [AI Agent Orchestration Guide](https://kanerika.com/blogs/ai-agent-orchestration/)
 
@@ -2088,11 +2076,11 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
   "agent_id": "github-bridge-agent",
   "name": "GitHub Bridge Agent",
   "version": "1.0.0",
-  "description": "Synchronizes CEADS tasks with GitHub Issues",
+  "description": "Synchronizes TBD tasks with GitHub Issues",
   "capabilities": [
     {
       "name": "sync_task_to_github",
-      "description": "Create or update GitHub issue from CEADS task",
+      "description": "Create or update GitHub issue from TBD task",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2113,7 +2101,7 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
     },
     {
       "name": "sync_github_to_task",
-      "description": "Create or update CEADS task from GitHub issue",
+      "description": "Create or update TBD task from GitHub issue",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2141,11 +2129,11 @@ For CEADS bridge integrations, use modern, well-supported APIs and protocols:
 }
 ```
 
-### Appendix D: Example CEADS Task Format
+### Appendix D: Example TBD Task Format
 
 ````markdown
 ---
-id: ceads-2026-001
+id: tbd-2026-001
 title: Implement GitHub webhook handler
 status: in-progress
 priority: high
@@ -2156,9 +2144,9 @@ tags: [bridge, github, webhook, integration]
 github_issue: owner/repo#123
 slack_thread: C123456/p1234567890
 dependencies:
-  - ceads-2026-002
+  - tbd-2026-002
 related:
-  - ceads-2025-050
+  - tbd-2025-050
 ---
 
 # Description
@@ -2219,7 +2207,7 @@ def verify_signature(payload, signature, secret):
 
 5. Worker processes event async
 
-6. Update CEADS task
+6. Update TBD task
 
 7. Log result
 

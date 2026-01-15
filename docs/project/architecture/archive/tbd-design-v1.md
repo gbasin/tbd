@@ -1,4 +1,4 @@
-# Ceads: A Simple Git-Native Coordination System for AI Agents
+# Tbd: A Simple Git-Native Coordination System for AI Agents
 
 **Author:** Joshua Levy (github.com/jlevy) and various LLMs
 
@@ -12,7 +12,7 @@
 
 1. [Introduction](#1-introduction)
 
-   - [What is Ceads?](#11-what-is-ceads)
+   - [What is Tbd?](#11-what-is-tbd)
 
    - [Motivation](#12-motivation)
 
@@ -128,15 +128,15 @@
 
 ## 1. Introduction
 
-### 1.1 What is Ceads?
+### 1.1 What is Tbd?
 
-> *The name “Ceads” follows “Beads” in the spirit of C following (and learning from) B.*
+> *The name “Tbd” follows “Beads” in the spirit of C following (and learning from) B.*
 
-**Ceads** (pronounced “seeds”) is a git-native coordination layer for AI coding agents.
+**Tbd** (pronounced “seeds”) is a git-native coordination layer for AI coding agents.
 It provides issue tracking, agent registry, claims, and messaging—all stored as JSON
 files in a git repository and synced using standard git commands.
 
-Ceads draws on several sources:
+Tbd draws on several sources:
 
 - **[Beads](https://github.com/steveyegge/beads)**: Steve Yegge’s git-backed issue
   tracker for AI agents, which proved the concept valuable but accumulated architectural
@@ -189,7 +189,7 @@ Embedding coordination data in the same repository provides:
 
 - **Code-adjacent context**: Issues live next to the code they describe
 
-Ceads is designed around three core ideas:
+Tbd is designed around three core ideas:
 
 1. **The file system is the database, git is the sync protocol.** Each entity is a file.
    Directories are collections.
@@ -257,7 +257,7 @@ These principles guide how we achieve the goals:
 
 ### 1.5 Comparison with Beads
 
-Ceads builds on lessons learned from [Beads](https://github.com/steveyegge/beads), an
+Tbd builds on lessons learned from [Beads](https://github.com/steveyegge/beads), an
 earlier git-backed issue tracker for AI agents.
 While Beads proved the concept valuable, its architecture accumulated complexity:
 
@@ -273,7 +273,7 @@ While Beads proved the concept valuable, its architecture accumulated complexity
 
 - **Tight coupling**: Adding new entity types requires changes throughout the sync layer
 
-Ceads addresses these by simplifying the architecture: fewer data locations, no
+Tbd addresses these by simplifying the architecture: fewer data locations, no
 skip-worktree hacks, no git worktrees required, an optional daemon, and schema-agnostic
 sync. See [Appendix 7.4](#74-comparison-with-beads) for a detailed comparison table.
 
@@ -314,7 +314,7 @@ If violated, the noted mitigations apply:
 
 ### 1.7 Layer Overview
 
-Ceads is organized into distinct layers, each with clear responsibilities:
+Tbd is organized into distinct layers, each with clear responsibilities:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -332,13 +332,13 @@ Ceads is organized into distinct layers, each with clear responsibilities:
 ┌──────────────────────────────┼───────────────────────────────────┐
 │                        Git Layer                                 │
 │                        Distributed sync                          │
-│   ceads-sync branch │ git fetch/push │ merge algorithm          │
+│   tbd-sync branch │ git fetch/push │ merge algorithm          │
 └──────────────────────────────┬───────────────────────────────────┘
                                │
 ┌──────────────────────────────┼───────────────────────────────────┐
 │                        File Layer                                │
 │                        Format specification                      │
-│   .ceads/config.yml │ .ceads-sync/ │ JSON schemas (Zod)         │
+│   .tbd/config.yml │ .tbd-sync/ │ JSON schemas (Zod)         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -346,7 +346,7 @@ Ceads is organized into distinct layers, each with clear responsibilities:
 Storage-agnostic; could theoretically work with any backend.
 
 **Git Layer**: Defines sync using standard git commands.
-The `ceads-sync` branch, push/pull operations, merge algorithm.
+The `tbd-sync` branch, push/pull operations, merge algorithm.
 
 **CLI Layer**: Defines the command interface for users and agents.
 Wraps File and Git layers.
@@ -437,28 +437,28 @@ async function atomicWrite(path: string, content: string): Promise<void> {
 
 - Important on network filesystems and Windows
 
-**Cleanup:** On startup, remove any orphaned `.tmp.*` files in ceads directories.
+**Cleanup:** On startup, remove any orphaned `.tmp.*` files in tbd directories.
 
 ### 2.2 Directory Structure
 
-Ceads uses two directories with a clear separation of concerns:
+Tbd uses two directories with a clear separation of concerns:
 
-- **`.ceads/`** on the main branch (and all working branches): Configuration and local
+- **`.tbd/`** on the main branch (and all working branches): Configuration and local
   files
 
-- **`.ceads-sync/`** on the `ceads-sync` branch: Synced data (entities, attic, metadata)
+- **`.tbd-sync/`** on the `tbd-sync` branch: Synced data (entities, attic, metadata)
 
 #### On Main Branch (all working branches)
 
 ```
-.ceads/
+.tbd/
 ├── config.yml              # Project configuration (tracked)
 ├── .gitignore              # Ignores local/ directory (tracked)
 │
 └── local/                  # Everything below is gitignored
     ├── state.json          # Per-node sync state (last_sync, node_id)
     ├── worktrees/          # Hidden git worktree for sync operations
-    │   └── ceads-sync/     # Checkout of ceads-sync branch
+    │   └── tbd-sync/     # Checkout of tbd-sync branch
     ├── nodes/              # Private workspace (never synced)
     │   └── lo-l1m2.json
     ├── cache/              # Bridge cache
@@ -471,10 +471,10 @@ Ceads uses two directories with a clear separation of concerns:
     └── daemon.log          # Daemon log file
 ```
 
-#### On `ceads-sync` Branch
+#### On `tbd-sync` Branch
 
 ```
-.ceads-sync/
+.tbd-sync/
 ├── nodes/                     # Shared graph entities
 │   ├── issues/                # Issue nodes
 │   │   ├── is-a1b2.json
@@ -496,9 +496,9 @@ Ceads uses two directories with a clear separation of concerns:
 └── meta.json                  # Shared metadata (schema_versions, created_at)
 ```
 
-> **Note on directory split**: The `.ceads/` directory on main contains configuration
+> **Note on directory split**: The `.tbd/` directory on main contains configuration
 > (which versions with your code) and local-only files (which are gitignored).
-> The `.ceads-sync/` directory on the sync branch contains all shared data.
+> The `.tbd-sync/` directory on the sync branch contains all shared data.
 > This separation ensures synced data never causes merge conflicts on your working
 > branches.
 
@@ -510,10 +510,10 @@ Ceads uses two directories with a clear separation of concerns:
 
 ### 2.3 Entity Collection Pattern
 
-Ceads uses a uniform pattern for all node types.
+Tbd uses a uniform pattern for all node types.
 Each collection is:
 
-1. **A directory** under `.ceads-sync/nodes/` (on the sync branch)
+1. **A directory** under `.tbd-sync/nodes/` (on the sync branch)
 
 2. **A Zod schema** defining the entity structure
 
@@ -523,7 +523,7 @@ Each collection is:
 
 To add a new node type (e.g., `workflows`):
 
-1. Create directory: `.ceads-sync/nodes/workflows/` (on sync branch)
+1. Create directory: `.tbd-sync/nodes/workflows/` (on sync branch)
 
 2. Define schema: `WorkflowSchema` in Zod
 
@@ -540,27 +540,27 @@ Only the merge rules (in Git Layer) need updating for new node types.
 
 | Collection | Directory | Internal Prefix | Purpose |
 | --- | --- | --- | --- |
-| Issues | `.ceads-sync/nodes/issues/` | `is-` | Task tracking |
-| Agents | `.ceads-sync/nodes/agents/` | `ag-` | Agent registry |
-| Messages | `.ceads-sync/nodes/messages/` | `ms-` | Comments on issues (and future messaging) |
+| Issues | `.tbd-sync/nodes/issues/` | `is-` | Task tracking |
+| Agents | `.tbd-sync/nodes/agents/` | `ag-` | Agent registry |
+| Messages | `.tbd-sync/nodes/messages/` | `ms-` | Comments on issues (and future messaging) |
 
 #### Non-Node Collections (on main branch, gitignored)
 
 | Collection | Directory | Internal Prefix | Purpose |
 | --- | --- | --- | --- |
-| Local | `.ceads/local/nodes/` | `lo-` | Private workspace (never synced) |
+| Local | `.tbd/local/nodes/` | `lo-` | Private workspace (never synced) |
 
 > **Note**: Local items use the same entity pattern but are not “nodes” because they are
 > not part of the shared coordination graph.
-> They live in `.ceads/local/nodes/` on the main branch and are gitignored—never synced.
+> They live in `.tbd/local/nodes/` on the main branch and are gitignored—never synced.
 
 #### Future Node Collections (Examples)
 
 | Collection | Directory | Internal Prefix | Purpose |
 | --- | --- | --- | --- |
-| Templates | `.ceads-sync/nodes/templates/` | `tp-` | Issue templates |
-| Workflows | `.ceads-sync/nodes/workflows/` | `wf-` | Multi-step procedures |
-| Artifacts | `.ceads-sync/nodes/artifacts/` | `ar-` | File attachments |
+| Templates | `.tbd-sync/nodes/templates/` | `tp-` | Issue templates |
+| Workflows | `.tbd-sync/nodes/workflows/` | `wf-` | Multi-step procedures |
+| Artifacts | `.tbd-sync/nodes/artifacts/` | `ar-` | File attachments |
 
 > **Note**: Messages support comments on issues and replies to other messages via
 > `in_reply_to`. Messages are time-sorted by `created_at`. Future extensions (threading
@@ -669,11 +669,11 @@ External (display):   proj-a1b        # 3-6 chars, project prefix
 The project prefix is configured in the main branch `config.yaml`:
 
 ```yaml
-ceads:
+tbd:
   project_prefix: proj    # User-configurable, e.g., "myapp", "backend"
 ```
 
-The prefix is **not stored** in `.ceads-sync/`—it’s purely a display concern.
+The prefix is **not stored** in `.tbd-sync/`—it’s purely a display concern.
 Users can rename the prefix at any time without breaking references.
 
 ##### Short ID Generation
@@ -772,7 +772,7 @@ Short ID mappings are stored as **one file per short ID**, following the same pa
 entity storage:
 
 ```
-.ceads-sync/short-ids/
+.tbd-sync/short-ids/
 ├── a1b.json     # {"internal_id": "is-a1b2c3d4e5"}
 ├── x7k.json     # {"internal_id": "is-x7y8z9a0b1"}
 └── m3p9.json    # {"internal_id": "is-m3n4o5p6q7"}
@@ -1018,13 +1018,13 @@ type Issue = z.infer<typeof IssueSchema>;
 > The `sequence` array is a convenience for ordering.
 > 
 > **Invariants:**
->
+> 
 > - If child.parent_id = P, then child.id SHOULD appear in P.sequence
 >
 > - If P.sequence contains C, then C.parent_id SHOULD equal P
 > 
 > **When inconsistent** (detected by `cead doctor`):
->
+> 
 > - If child has parent_id but isn’t in parent’s sequence: add to sequence
 >
 > - If parent’s sequence contains ID but that issue has different parent_id: remove from
@@ -1066,7 +1066,7 @@ type Agent = z.infer<typeof AgentSchema>;
 > commits/hour, causing push rejections and retry storms.
 > 
 > **Mitigation strategies:**
->
+> 
 > 1. **Throttle heartbeats**: Update every 5-15 minutes, not every minute
 >
 > 2. **Separate presence from durable state**: Use Bridge Layer for real-time presence;
@@ -1177,17 +1177,17 @@ See [Decision 10](#decision-10-messages-as-unified-commentmessage-model) for rat
 
 #### 2.5.7 ConfigSchema
 
-Project configuration stored in `.ceads/config.yml` on the main branch.
+Project configuration stored in `.tbd/config.yml` on the main branch.
 This is the human-editable configuration file that versions with your code.
 
 ```yaml
-# .ceads/config.yml
-# See: https://github.com/[org]/ceads
+# .tbd/config.yml
+# See: https://github.com/[org]/tbd
 
-ceads_version: "0.1.0"
+tbd_version: "0.1.0"
 
 sync:
-  branch: ceads-sync       # Branch name for synced data
+  branch: tbd-sync       # Branch name for synced data
   # repo: origin           # Remote repository (default: origin)
 
 # Display aliases for entity IDs (internal → external)
@@ -1206,12 +1206,12 @@ settings:
 ```typescript
 // TypeScript schema for config.yml validation
 const SyncConfig = z.object({
-  branch: z.string().default('ceads-sync'),
+  branch: z.string().default('tbd-sync'),
   repo: z.string().default('origin'),
 });
 
 const ConfigSchema = z.object({
-  ceads_version: z.string(),
+  tbd_version: z.string(),
   sync: SyncConfig.default({}),
   prefixes: z.record(z.string(), z.string()).default({
     is: 'cd',
@@ -1233,7 +1233,7 @@ type Config = z.infer<typeof ConfigSchema>;
 
 #### 2.5.8 MetaSchema
 
-Shared metadata stored in `.ceads-sync/meta.json` on the sync branch.
+Shared metadata stored in `.tbd-sync/meta.json` on the sync branch.
 This file tracks schema versions and repository-wide metadata—it is managed by the
 system, not edited by users.
 
@@ -1256,12 +1256,12 @@ type Meta = z.infer<typeof MetaSchema>;
 > merge conflicts. Instead, sync timestamps are tracked locally (see LocalStateSchema).
 
 > **Note**: User-editable configuration (prefixes, TTLs, sync settings) is in
-> `.ceads/config.yml` on the main branch.
+> `.tbd/config.yml` on the main branch.
 > See [ConfigSchema](#257-configschema).
 
 #### 2.5.9 LocalStateSchema
 
-Per-node state stored in `.ceads/local/state.json` (gitignored, never synced).
+Per-node state stored in `.tbd/local/state.json` (gitignored, never synced).
 Each machine maintains its own local state.
 
 ```typescript
@@ -1321,7 +1321,7 @@ type AtticEntry = z.infer<typeof AtticEntrySchema>;
 ```
 
 > **Why base/ours/theirs?** Storing all three values enables:
->
+> 
 > - Understanding what actually happened (was base modified by both?)
 >
 > - Manual recovery (user can see all versions and pick the right one)
@@ -1334,7 +1334,7 @@ type AtticEntry = z.infer<typeof AtticEntrySchema>;
 
 #### Version Tracking
 
-Schema versions are tracked in `.ceads-sync/meta.json` (on the sync branch):
+Schema versions are tracked in `.tbd-sync/meta.json` (on the sync branch):
 
 ```json
 {
@@ -1347,7 +1347,7 @@ Schema versions are tracked in `.ceads-sync/meta.json` (on the sync branch):
 }
 ```
 
-> **Note:** User-editable configuration (prefixes, TTLs) lives in `.ceads/config.yml` on
+> **Note:** User-editable configuration (prefixes, TTLs) lives in `.tbd/config.yml` on
 > the main branch. Schema versions live in `meta.json` on the sync branch because they
 > describe the synced data and must propagate with it.
 
@@ -1386,9 +1386,9 @@ cead doctor --check-schema
 cead migrate --to 2
 
 # What it does:
-# 1. Backs up all entities to .ceads-sync/attic/migrations/
+# 1. Backs up all entities to .tbd-sync/attic/migrations/
 # 2. Transforms each entity to new schema
-# 3. Updates .ceads-sync/meta.json schema_versions
+# 3. Updates .tbd-sync/meta.json schema_versions
 # 4. Syncs to propagate changes
 ```
 
@@ -1427,20 +1427,20 @@ Key properties:
 
 - **Standard git CLI**: All operations expressible as git commands
 
-- **ceads-sync branch**: Dedicated branch for Ceads data, never pollutes main
+- **tbd-sync branch**: Dedicated branch for Tbd data, never pollutes main
 
 - **Hash-based conflict detection**: Content hash comparison triggers merge
 
 ### 3.2 Sync Branch Architecture
 
-Ceads uses a split architecture with configuration on main and data on a sync branch:
+Tbd uses a split architecture with configuration on main and data on a sync branch:
 
 ```
-main branch:                    ceads-sync branch:
-├── src/                        └── .ceads-sync/
+main branch:                    tbd-sync branch:
+├── src/                        └── .tbd-sync/
 ├── tests/                          ├── nodes/
 ├── README.md                       │   ├── issues/
-├── .ceads/                         │   ├── agents/
+├── .tbd/                         │   ├── agents/
 │   ├── config.yml (tracked)        │   └── messages/
 │   └── .gitignore (tracked)        ├── attic/
 │   └── local/     (gitignored)     └── meta.json
@@ -1451,13 +1451,13 @@ main branch:                    ceads-sync branch:
 
 #### Why This Architecture?
 
-1. **Discoverable**: Clone repo, see `.ceads/config.yml`, know ceads is configured
+1. **Discoverable**: Clone repo, see `.tbd/config.yml`, know tbd is configured
 
 2. **Config versions with code**: Configuration changes can be part of PRs
 
 3. **No sync conflicts on main**: All synced data is on a separate branch
 
-4. **No skip-worktree hacks**: Local files are gitignored within `.ceads/`
+4. **No skip-worktree hacks**: Local files are gitignored within `.tbd/`
 
 5. **No git worktrees needed**: Sync uses
    [git plumbing commands](https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain),
@@ -1468,37 +1468,37 @@ main branch:                    ceads-sync branch:
 #### Files Tracked on Main Branch
 
 ```
-.ceads/config.yml       # Project configuration (YAML)
-.ceads/.gitignore       # Ignores local/ directory
+.tbd/config.yml       # Project configuration (YAML)
+.tbd/.gitignore       # Ignores local/ directory
 ```
 
-#### .ceads/.gitignore Contents
+#### .tbd/.gitignore Contents
 
 ```gitignore
 # All local/transient files are under local/
 local/
 ```
 
-#### Files Tracked on ceads-sync Branch
+#### Files Tracked on tbd-sync Branch
 
 ```
-.ceads-sync/nodes/          # All node types (issues, agents, messages)
-.ceads-sync/attic/          # Conflict and orphan archive
-.ceads-sync/short-ids/      # Short ID → Internal ID mappings (one file per)
-.ceads-sync/meta.json       # Shared metadata (schema versions)
+.tbd-sync/nodes/          # All node types (issues, agents, messages)
+.tbd-sync/attic/          # Conflict and orphan archive
+.tbd-sync/short-ids/      # Short ID → Internal ID mappings (one file per)
+.tbd-sync/meta.json       # Shared metadata (schema versions)
 ```
 
 #### Files Never Tracked (Local Only)
 
-These live in `.ceads/local/` on main and are gitignored:
+These live in `.tbd/local/` on main and are gitignored:
 
 ```
-.ceads/local/state.json     # Per-node sync state (last_sync, node_id)
-.ceads/local/nodes/         # Private workspace
-.ceads/local/cache/         # Bridge cache (outbound, inbound, dead_letter, state)
-.ceads/local/daemon.sock    # Daemon socket
-.ceads/local/daemon.pid     # Daemon PID
-.ceads/local/daemon.log     # Daemon log
+.tbd/local/state.json     # Per-node sync state (last_sync, node_id)
+.tbd/local/nodes/         # Private workspace
+.tbd/local/cache/         # Bridge cache (outbound, inbound, dead_letter, state)
+.tbd/local/daemon.sock    # Daemon socket
+.tbd/local/daemon.pid     # Daemon PID
+.tbd/local/daemon.log     # Daemon log
 ```
 
 ### 3.3 Sync Operations
@@ -1522,10 +1522,10 @@ function parseVersion(content: string): number {
 
 ```bash
 # Read a file from sync branch without checkout
-git show ceads-sync:.ceads-sync/nodes/issues/is-a1b2.json
+git show tbd-sync:.tbd-sync/nodes/issues/is-a1b2.json
 
 # List files in a directory on sync branch
-git ls-tree ceads-sync .ceads-sync/nodes/issues/
+git ls-tree tbd-sync .tbd-sync/nodes/issues/
 ```
 
 #### 3.3.3 File-Level Sync Algorithm
@@ -1534,15 +1534,15 @@ For each file, compare local and remote by **content hash first** (not version):
 
 ```
 SYNC_FILE(local_path, sync_path):
-  local = read_file(local_path)                    # May be null (in .ceads/local/nodes/)
-  remote = git show ceads-sync:{sync_path}         # May be null (in .ceads-sync/)
+  local = read_file(local_path)                    # May be null (in .tbd/local/nodes/)
+  remote = git show tbd-sync:{sync_path}         # May be null (in .tbd-sync/)
 
   if local is null and remote is null:
     return  # Nothing to do
 
   if local is null:
     # New from remote - copy to local
-    git show ceads-sync:{sync_path} > local_path
+    git show tbd-sync:{sync_path} > local_path
     return
 
   if remote is null:
@@ -1567,7 +1567,7 @@ SYNC_FILE(local_path, sync_path):
 > “contains the other writer’s changes”—it only means “edited more times locally.”
 > 
 > **Example of why version-only is unsafe:**
->
+> 
 > - Base entity: version 3
 >
 > - Agent A edits once → version 4
@@ -1585,29 +1585,29 @@ Fetch remote changes and apply to local cache:
 
 ```bash
 # 1. Fetch latest sync branch
-git fetch origin ceads-sync
+git fetch origin tbd-sync
 
-# 2. For each collection, sync files from .ceads-sync/ to local cache
+# 2. For each collection, sync files from .tbd-sync/ to local cache
 #    (implementation iterates and applies SYNC_FILE)
 
-# 3. Update .ceads/local/state.json with last_sync timestamp (local only)
+# 3. Update .tbd/local/state.json with last_sync timestamp (local only)
 ```
 
 Expressed as git commands:
 
 ```bash
 # Fetch
-git fetch origin ceads-sync
+git fetch origin tbd-sync
 
 # Get list of remote files
-git ls-tree -r --name-only origin/ceads-sync .ceads-sync/
+git ls-tree -r --name-only origin/tbd-sync .tbd-sync/
 
 # Read specific remote file
-git show origin/ceads-sync:.ceads-sync/nodes/issues/is-a1b2.json
+git show origin/tbd-sync:.tbd-sync/nodes/issues/is-a1b2.json
 
 # Copy remote file to local cache (if remote is newer)
-# Note: local cache is in .ceads/local/cache/ or memory, not .ceads-sync/
-git show origin/ceads-sync:.ceads-sync/nodes/issues/is-a1b2.json
+# Note: local cache is in .tbd/local/cache/ or memory, not .tbd-sync/
+git show origin/tbd-sync:.tbd-sync/nodes/issues/is-a1b2.json
 ```
 
 #### 3.3.5 Push Operation
@@ -1616,23 +1616,23 @@ Push local changes to remote sync branch:
 
 ```bash
 # 1. Fetch to ensure we have latest
-git fetch origin ceads-sync
+git fetch origin tbd-sync
 
 # 2. Sync all collections (may pull remote changes first)
 
 # 3. Create a tree with updated files
-git read-tree ceads-sync
-git add .ceads-sync/nodes/ .ceads-sync/attic/ .ceads-sync/short-ids/ .ceads-sync/meta.json
+git read-tree tbd-sync
+git add .tbd-sync/nodes/ .tbd-sync/attic/ .tbd-sync/short-ids/ .tbd-sync/meta.json
 git write-tree
 
 # 4. Create commit on sync branch
-git commit-tree <tree> -p ceads-sync -m "ceads sync: $(date -Iseconds)"
+git commit-tree <tree> -p tbd-sync -m "tbd sync: $(date -Iseconds)"
 
 # 5. Update sync branch ref
-git update-ref refs/heads/ceads-sync <commit>
+git update-ref refs/heads/tbd-sync <commit>
 
 # 6. Push to remote
-git push origin ceads-sync
+git push origin tbd-sync
 
 # If push rejected (non-fast-forward):
 #   Pull, merge, retry with backoff
@@ -1741,7 +1741,7 @@ outcome. Merge rules are defined per entity type and applied during conflict res
 > contributes it). Removals do not propagate—the label reappears after merge.
 > 
 > This is acceptable for labels (typically additive), but means:
->
+> 
 > - To truly remove a label, all copies must remove it before any sync
 >
 > - Or, use `set_3way` when base is available (see `mergeSet3Way` in Section 3.6)
@@ -1749,7 +1749,7 @@ outcome. Merge rules are defined per entity type and applied during conflict res
 > - Or, use LWW for the entire labels array (loses additions, but removals work)
 > 
 > **Design choice**: We use `union` (add-only) for labels in v1 because:
->
+> 
 > 1. Labels are typically additive (adding context is common, removal is rare)
 >
 > 2. False additions are less harmful than false removals
@@ -1984,12 +1984,12 @@ function mergeSet3Way(
 ### 3.7 Attic Structure
 
 The attic preserves data that would otherwise be lost, enabling recovery and auditing.
-It lives on the sync branch in `.ceads-sync/attic/`.
+It lives on the sync branch in `.tbd-sync/attic/`.
 
 #### Directory Layout
 
 ```
-.ceads-sync/attic/
+.tbd-sync/attic/
 ├── conflicts/                 # Merge conflict losers
 │   ├── is-a1b2/
 │   │   ├── 20250107T103000Z_description_theirs.json
@@ -2037,7 +2037,7 @@ Each attic file contains the `AtticEntrySchema` (defined in File Layer 2.5.10):
 {
   "kind": "field_conflict",
   "entity_id": "is-a1b2c3d4e5",
-  "path": ".ceads-sync/nodes/issues/is-a1b2c3d4e5.json",
+  "path": ".tbd-sync/nodes/issues/is-a1b2c3d4e5.json",
   "field": "description",
   "timestamp": "2025-01-07T10:30:00Z",
 
@@ -2065,7 +2065,7 @@ Each attic file contains the `AtticEntrySchema` (defined in File Layer 2.5.10):
 
 - `cead attic prune --days 30` removes old entries
 
-- Configurable TTL in `.ceads/config.yml` (see [ConfigSchema](#257-configschema))
+- Configurable TTL in `.tbd/config.yml` (see [ConfigSchema](#257-configschema))
 
 ### 3.8 Deletion Semantics
 
@@ -2127,7 +2127,7 @@ This means **deletions don’t propagate reliably** without tombstones.
 Soft deletion (status change) propagates correctly because it’s a modification, not a
 removal.
 
-> **Design choice**: Ceads uses soft-delete as the primary deletion mechanism.
+> **Design choice**: Tbd uses soft-delete as the primary deletion mechanism.
 > Hard deletion is available but creates consistency challenges in distributed systems.
 
 * * *
@@ -2137,7 +2137,7 @@ removal.
 ### 4.1 Overview
 
 The CLI Layer defines the **command interface** for users and agents.
-It wraps the File and Git layers, providing a consistent way to interact with Ceads.
+It wraps the File and Git layers, providing a consistent way to interact with Tbd.
 
 Key properties:
 
@@ -2155,19 +2155,19 @@ Key properties:
 cead <command> [subcommand] [args] [options]
 ```
 
-> **Note**: The CLI command is `cead` (singular) while the project/directory is `ceads`
+> **Note**: The CLI command is `cead` (singular) while the project/directory is `tbd`
 > (plural). This avoids conflict with the shell `cd` command.
 
 ### 4.3 Initialization
 
 ```bash
-# Initialize Ceads in current repository
+# Initialize Tbd in current repository
 cead init
 
 # What it does:
-# 1. Creates .ceads/ directory with config.yml and .gitignore
-# 2. Creates local subdirectory tree (.ceads/local/nodes/, .ceads/local/cache/)
-# 3. Creates ceads-sync branch with .ceads-sync/ structure
+# 1. Creates .tbd/ directory with config.yml and .gitignore
+# 2. Creates local subdirectory tree (.tbd/local/nodes/, .tbd/local/cache/)
+# 3. Creates tbd-sync branch with .tbd-sync/ structure
 # 4. Pushes sync branch to origin (if remote exists)
 # 5. Returns to original branch
 # 6. Outputs instructions for user to commit config files
@@ -2177,19 +2177,19 @@ cead init
 
 **Output:**
 ```
-Created .ceads/config.yml
-Created .ceads/.gitignore
-Created sync branch: ceads-sync
+Created .tbd/config.yml
+Created .tbd/.gitignore
+Created sync branch: tbd-sync
 Pushed sync branch to origin
 
 To complete setup, commit the config files:
-  git add .ceads/config.yml .ceads/.gitignore
-  git commit -m "Initialize ceads"
+  git add .tbd/config.yml .tbd/.gitignore
+  git commit -m "Initialize tbd"
 ```
 
 **What gets created on main branch:**
 ```
-.ceads/
+.tbd/
 ├── config.yml      # Default configuration
 ├── .gitignore      # Ignores local/ directory
 └── local/          # Empty, all gitignored content lives here
@@ -2197,9 +2197,9 @@ To complete setup, commit the config files:
     └── cache/      # For bridge cache
 ```
 
-**What gets created on ceads-sync branch:**
+**What gets created on tbd-sync branch:**
 ```
-.ceads-sync/
+.tbd-sync/
 ├── nodes/
 │   ├── issues/     # Empty
 │   ├── agents/     # Empty
@@ -2622,7 +2622,7 @@ Options:
 
 **Beads Status Mapping:**
 
-| Beads Status | Ceads Import Behavior |
+| Beads Status | Tbd Import Behavior |
 | --- | --- |
 | `open` | → `open` |
 | `in_progress` | → `in_progress` |
@@ -2684,7 +2684,7 @@ cd-f14c     2025-01-08T09:15:00Z     full         (full entity backup)
 
 ### 4.9 Doctor Commands
 
-Health check and repair for the Ceads database:
+Health check and repair for the Tbd database:
 
 ```bash
 # Run health checks
@@ -2801,9 +2801,9 @@ Key properties:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      Ceads Core (Git)                            │
+│                      Tbd Core (Git)                            │
 │                      Source of truth                             │
-│   .ceads-sync/nodes/issues/is-a1b2.json                         │
+│   .tbd-sync/nodes/issues/is-a1b2.json                         │
 │     {                                                            │
 │       "id": "is-a1b2",                                          │
 │       "title": "Fix auth bug",                                  │
@@ -2825,7 +2825,7 @@ Key properties:
 ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
 │  GitHub Issues  │  │     Slack       │  │  Native Bridge  │
 │                 │  │                 │  │                 │
-│  Issue #42      │  │  #coordination  │  │  Hosted Ceads   │
+│  Issue #42      │  │  #coordination  │  │  Hosted Tbd   │
 │  Labels, state  │  │  channel        │  │  service        │
 └─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
@@ -2855,7 +2855,7 @@ Bridges provide eventually consistent views of Git state:
 | **Conflict Preservation** | No data ever lost; conflicts preserved in attic |
 | **Git is Truth** | On conflict, Git wins; Bridge changes go to attic |
 
-**Ceads does NOT provide:**
+**Tbd does NOT provide:**
 
 - Linearizability (global ordering)
 
@@ -2903,8 +2903,8 @@ Bridges provide eventually consistent views of Git state:
 
 ```bash
 # Environment variables for bridge secrets
-export CEADS_GITHUB_WEBHOOK_SECRET="..."
-export CEADS_SLACK_SIGNING_SECRET="..."
+export TBD_GITHUB_WEBHOOK_SECRET="..."
+export TBD_SLACK_SIGNING_SECRET="..."
 ```
 
 #### Rate Limiting for Webhooks
@@ -2917,7 +2917,7 @@ export CEADS_SLACK_SIGNING_SECRET="..."
 
 ### 5.3 GitHub Issues Bridge
 
-Sync Ceads issues with [GitHub Issues](https://docs.github.com/en/rest/issues) for
+Sync Tbd issues with [GitHub Issues](https://docs.github.com/en/rest/issues) for
 real-time coordination and human visibility.
 
 #### Use Cases
@@ -2937,33 +2937,33 @@ real-time coordination and human visibility.
 cead github promote <issue-id>
 
 # Promote with specific options
-cead github promote <issue-id> --labels "ceads-sync,priority:high"
+cead github promote <issue-id> --labels "tbd-sync,priority:high"
 ```
 
 **What happens:**
 
 1. Creates GitHub Issue with mapped fields
 
-2. Adds `bridge.github` metadata to Ceads entity
+2. Adds `bridge.github` metadata to Tbd entity
 
 3. Sets up bidirectional sync
 
 #### Field Mapping
 
-| Ceads Field | GitHub Field | Notes |
+| Tbd Field | GitHub Field | Notes |
 | --- | --- | --- |
 | `title` | `title` | Direct mapping |
-| `description` | `body` | Includes Ceads metadata block |
+| `description` | `body` | Includes Tbd metadata block |
 | `status` | Labels | `status:open`, `status:in_progress`, etc. |
 | `priority` | Labels | `priority:0`, `priority:1`, etc. |
 | `assignee` | Labels | `claimed:agent-id` |
-| `labels` | Labels | Prefixed: `ceads:label-name` |
+| `labels` | Labels | Prefixed: `tbd:label-name` |
 
 #### Conflict Resolution
 
 On bidirectional sync conflicts:
 
-- **Ceads wins** for most fields (agent is authority)
+- **Tbd wins** for most fields (agent is authority)
 
 - **Labels union** (both sources contribute)
 
@@ -2986,12 +2986,12 @@ Other agents see the label via GitHub webhooks or polling.
 #### Sync Flow
 
 ```
-Ceads → GitHub:
+Tbd → GitHub:
   1. Detect local change (version increment)
   2. Update GitHub Issue via API
   3. Update synced_at timestamp
 
-GitHub → Ceads:
+GitHub → Tbd:
   1. Webhook fires (or poll detects change)
   2. Update local entity
   3. Increment version
@@ -3000,13 +3000,13 @@ GitHub → Ceads:
 
 #### Conflict Resolution
 
-When Ceads and GitHub diverge:
+When Tbd and GitHub diverge:
 
 - Compare `synced_at` with GitHub’s `updated_at`
 
 - Field-level merge where possible
 
-- On conflict, Ceads wins (configurable)
+- On conflict, Tbd wins (configurable)
 
 - Log discrepancies for review
 
@@ -3036,7 +3036,7 @@ Agent A                    Slack                     Agent B
    │                         │                          │
    │                   (optional)                       │
    │                         │                          │
-   │            Archive to .ceads-sync/nodes/messages/  │
+   │            Archive to .tbd-sync/nodes/messages/  │
 ```
 
 #### Configuration
@@ -3071,7 +3071,7 @@ cead message archive --days 7
 
 ### 5.5 Native Bridge
 
-A hosted Ceads coordination service for teams that want real-time without external
+A hosted Tbd coordination service for teams that want real-time without external
 dependencies.
 
 #### Use Cases
@@ -3082,7 +3082,7 @@ dependencies.
 
 - Want a unified coordination layer
 
-- Self-hosted or Ceads-hosted options
+- Self-hosted or Tbd-hosted options
 
 #### Architecture
 
@@ -3130,7 +3130,7 @@ dependencies.
 
 ### 5.6 Local UI Bridge
 
-A local desktop application that connects to Ceads and provides visual interfaces like
+A local desktop application that connects to Tbd and provides visual interfaces like
 Kanban boards, dashboards, or agent activity monitors.
 The layered architecture supports diverse clients beyond CLI and remote bridges.
 
@@ -3171,7 +3171,7 @@ The Local UI Bridge validates our architecture by showing that:
                             │ fs.watch()
                             ▼
               ┌─────────────────────────────┐
-              │     .ceads/ (local)         │
+              │     .tbd/ (local)         │
               │       cache/, local/        │
               │    (local working files)    │
               └─────────────────────────────┘
@@ -3179,7 +3179,7 @@ The Local UI Bridge validates our architecture by showing that:
                             │ sync
                             ▼
               ┌─────────────────────────────┐
-              │   .ceads-sync/ (git)        │
+              │   .tbd-sync/ (git)        │
               │     nodes/, attic/          │
               │    (synced via git)         │
               └─────────────────────────────┘
@@ -3199,7 +3199,7 @@ The Local UI Bridge validates our architecture by showing that:
 
 **Workflow**:
 
-1. UI watches `.ceads/` and cached entity data for changes
+1. UI watches `.tbd/` and cached entity data for changes
 
 2. Agent commits and pushes → git pull brings changes → fs.watch triggers UI refresh
 
@@ -3239,7 +3239,7 @@ The Local UI Bridge validates our architecture by showing that:
           ┌──────────┘              └──────────┐
           ▼                                    ▼
     ┌──────────┐                      ┌──────────────┐
-    │ .ceads/  │                      │   Bridges    │
+    │ .tbd/  │                      │   Bridges    │
     │  files   │                      │ (Slack, etc) │
     └──────────┘                      └──────────────┘
 ```
@@ -3331,7 +3331,7 @@ The cache layer provides offline-first semantics with automatic sync on reconnec
 #### Cache Directory Structure
 
 ```
-.ceads/local/cache/              # Local cache (never synced to git)
+.tbd/local/cache/              # Local cache (never synced to git)
 ├── outbound/                    # Queue: items waiting to send to bridge
 ├── inbound/                     # Buffer: recent items from bridge
 └── state.json                   # Connection state
@@ -3485,7 +3485,7 @@ interface Session {
 
 #### Protocol
 
-Communication via Unix socket (`.ceads/local/daemon.sock`) or TCP on Windows.
+Communication via Unix socket (`.tbd/local/daemon.sock`) or TCP on Windows.
 
 **Request/Response format** ([JSON-RPC](https://www.jsonrpc.org/specification) style):
 
@@ -3532,7 +3532,7 @@ Daemon pushes events to connected agents:
 
 **Startup:**
 
-1. Load all files from `.ceads/` into memory
+1. Load all files from `.tbd/` into memory
 
 2. Rebuild indexes
 
@@ -3570,7 +3570,7 @@ cead daemon flush              # Force flush memory → files
 
 ### 6.2 Use Cases by Complexity
 
-Ceads supports a spectrum of usage patterns:
+Tbd supports a spectrum of usage patterns:
 
 #### 1. Single Developer, Local Workflow
 
@@ -3705,17 +3705,17 @@ cead local promote lo-a1b2  # Promote to real issue when ready
 ```bash
 # Initialize
 $ cead init
-Created .ceads/config.yml
-Created .ceads/.gitignore
-Created sync branch: ceads-sync
+Created .tbd/config.yml
+Created .tbd/.gitignore
+Created sync branch: tbd-sync
 Pushed sync branch to origin
 
 To complete setup, commit the config files:
-  git add .ceads/config.yml .ceads/.gitignore
-  git commit -m "Initialize ceads"
+  git add .tbd/config.yml .tbd/.gitignore
+  git commit -m "Initialize tbd"
 
-$ git add .ceads/config.yml .ceads/.gitignore
-$ git commit -m "Initialize ceads"
+$ git add .tbd/config.yml .tbd/.gitignore
+$ git commit -m "Initialize tbd"
 
 # Create issues
 $ cead create "Set up database schema" -p 1 -k task
@@ -3743,7 +3743,7 @@ $ cead close cd-a1b2 --reason "Schema created"
 
 # Sync to git
 $ cead sync
-Pushed 4 files to ceads-sync
+Pushed 4 files to tbd-sync
 ```
 
 #### Example 2: Multi-Agent Coordination
@@ -3751,7 +3751,7 @@ Pushed 4 files to ceads-sync
 ```bash
 # Terminal 1: Start daemon
 $ cead daemon start
-Daemon started on .ceads/local/daemon.sock
+Daemon started on .tbd/local/daemon.sock
 
 # Terminal 2: Agent 1
 $ cead agent register --name "claude-backend"
@@ -3825,8 +3825,8 @@ Model Context Protocol tools wrapping CLI for Claude, Cursor, etc.
 ```typescript
 // Example MCP tool definition
 {
-  name: "ceads_create_issue",
-  description: "Create a new issue in Ceads",
+  name: "tbd_create_issue",
+  description: "Create a new issue in Tbd",
   parameters: {
     title: { type: "string", required: true },
     priority: { type: "number", default: 2 },
@@ -3843,11 +3843,11 @@ Tool definitions for agent frameworks (LangChain, CrewAI, AutoGen).
 
 Language-specific library bindings:
 
-- TypeScript: `@ceads/client`
+- TypeScript: `@tbd/client`
 
-- Python: `ceads-py`
+- Python: `tbd-py`
 
-- Rust: `ceads-rs`
+- Rust: `tbd-rs`
 
 #### Watch Layer
 
@@ -3865,12 +3865,12 @@ File system watching for UIs and IDEs:
 
 #### Decision 1: Split Architecture (Config on Main, Data on Sync Branch)
 
-**Choice**: Configuration (`.ceads/config.yml`) lives on main branch; synced entities
-live exclusively on `ceads-sync` branch in `.ceads-sync/` directory.
+**Choice**: Configuration (`.tbd/config.yml`) lives on main branch; synced entities live
+exclusively on `tbd-sync` branch in `.tbd-sync/` directory.
 
 **Rationale**:
 
-- **Discoverable**: Clone repo, see `.ceads/config.yml`, know ceads is configured
+- **Discoverable**: Clone repo, see `.tbd/config.yml`, know tbd is configured
 
 - **Config versions with code**: Configuration changes can be part of PRs
 
@@ -3883,8 +3883,8 @@ live exclusively on `ceads-sync` branch in `.ceads-sync/` directory.
 - Issues shared across all code branches (correct for multi-agent use case)
 
 **Tradeoff**: Two locations to understand (config on main, data on sync branch).
-Mitigated by clear naming (`.ceads/` for config/local, `.ceads-sync/` for synced data)
-and `cead init` setting up both locations.
+Mitigated by clear naming (`.tbd/` for config/local, `.tbd-sync/` for synced data) and
+`cead init` setting up both locations.
 
 #### Decision 2: File-Per-Entity
 
@@ -4077,7 +4077,7 @@ How to update sync branch without checking it out?
 
    - Con: Complex, error-prone, hard to debug
 
-2. **Hidden worktree** (`git worktree add .ceads/local/worktrees/ceads-sync`)
+2. **Hidden worktree** (`git worktree add .tbd/local/worktrees/tbd-sync`)
 
    - Pro: Standard git porcelain (pull, commit, push)
 
@@ -4085,7 +4085,7 @@ How to update sync branch without checking it out?
 
    - Pro: Easier to debug (normal git commands work)
 
-   - Con: Extra disk space (~size of `.ceads-sync/` directory)
+   - Con: Extra disk space (~size of `.tbd-sync/` directory)
 
 3. **Shallow clone of sync branch**
 
@@ -4099,20 +4099,20 @@ The hidden worktree approach provides the best balance of simplicity and capabil
 
 ```bash
 # During cead init:
-git worktree add .ceads/local/worktrees/ceads-sync --detach
-cd .ceads/local/worktrees/ceads-sync
-git switch --orphan ceads-sync  # or checkout if branch exists
+git worktree add .tbd/local/worktrees/tbd-sync --detach
+cd .tbd/local/worktrees/tbd-sync
+git switch --orphan tbd-sync  # or checkout if branch exists
 # ... create initial structure ...
-git add . && git commit -m "ceads init"
-git push -u origin ceads-sync
+git add . && git commit -m "tbd init"
+git push -u origin tbd-sync
 
 # During cead sync:
-cd .ceads/local/worktrees/ceads-sync
-git fetch origin ceads-sync
-git merge origin/ceads-sync  # 3-way merge with merge driver if configured
-git add .ceads-sync/
-git commit -m "ceads sync: $(date -Iseconds)"
-git push origin ceads-sync
+cd .tbd/local/worktrees/tbd-sync
+git fetch origin tbd-sync
+git merge origin/tbd-sync  # 3-way merge with merge driver if configured
+git add .tbd-sync/
+git commit -m "tbd sync: $(date -Iseconds)"
+git push origin tbd-sync
 ```
 
 **Benefits:**
@@ -4164,10 +4164,10 @@ When two agents reorder the same parent’s `sequence` array concurrently?
 bd export -o beads-export.jsonl --format jsonl
 ```
 
-#### Import to Ceads
+#### Import to Tbd
 
 ```bash
-# Initialize ceads
+# Initialize tbd
 cead init
 
 # Import beads export
@@ -4176,7 +4176,7 @@ cead import beads-export.jsonl --format beads
 # The importer:
 # - Converts bd-* IDs to is-* internal IDs
 # - Configures external prefix alias so CLI displays cd-*
-# - Maps beads fields to ceads schema
+# - Maps beads fields to tbd schema
 # - Preserves dependencies, comments, labels
 # - Skips wisps (ephemeral issues)
 ```
@@ -4186,7 +4186,7 @@ cead import beads-export.jsonl --format beads
 A mapping file is created during import (stored on sync branch for audit trail):
 
 ```json
-// .ceads-sync/migrations/beads-import-2025-01-07.json
+// .tbd-sync/migrations/beads-import-2025-01-07.json
 {
   "bd-a1b2": "is-x1y2",
   "bd-f14c": "is-a3b4"
@@ -4197,7 +4197,7 @@ This allows references in commit messages to be traced to new IDs.
 
 ### 7.4 Comparison with Beads
 
-| Aspect | Beads | Ceads |
+| Aspect | Beads | Tbd |
 | --- | --- | --- |
 | Data locations | 4 (SQLite, local JSONL, sync branch, main) | 3 (config on main, data on sync branch, local cache) |
 | File system compatibility | SQLite WAL fails on NFS/cloud | Works on any file system |
@@ -4219,7 +4219,7 @@ This allows references in commit messages to be traced to new IDs.
 **On main branch (and all working branches):**
 
 ```
-.ceads/
+.tbd/
 ├── config.yml              # Project configuration (tracked)
 ├── .gitignore              # Ignores local/ directory (tracked)
 │
@@ -4237,10 +4237,10 @@ This allows references in commit messages to be traced to new IDs.
     └── daemon.log          # Daemon log (local only)
 ```
 
-**On ceads-sync branch:**
+**On tbd-sync branch:**
 
 ```
-.ceads-sync/
+.tbd-sync/
 ├── nodes/                     # Shared graph entities
 │   ├── issues/                # Issue nodes
 │   │   ├── is-a1b2.json
@@ -4266,50 +4266,50 @@ This allows references in commit messages to be traced to new IDs.
 #### Files Tracked on Main Branch
 
 ```
-.ceads/config.yml           # Project configuration (YAML)
-.ceads/.gitignore           # Ignores local/ directory
+.tbd/config.yml           # Project configuration (YAML)
+.tbd/.gitignore           # Ignores local/ directory
 ```
 
-#### .ceads/.gitignore Contents
+#### .tbd/.gitignore Contents
 
 ```gitignore
 # All local/transient files are under local/
 local/
 ```
 
-#### Files Tracked on ceads-sync Branch
+#### Files Tracked on tbd-sync Branch
 
 ```
-.ceads-sync/nodes/          # All node types (issues, agents, messages)
-.ceads-sync/attic/          # Conflict and orphan archive
-.ceads-sync/meta.json       # Runtime metadata
+.tbd-sync/nodes/          # All node types (issues, agents, messages)
+.tbd-sync/attic/          # Conflict and orphan archive
+.tbd-sync/meta.json       # Runtime metadata
 ```
 
 #### Files Never Tracked (Local Only)
 
-These live in `.ceads/local/` on main and are gitignored:
+These live in `.tbd/local/` on main and are gitignored:
 
 ```
-.ceads/local/state.json     # Per-node sync state (last_sync, node_id)
-.ceads/local/nodes/         # Private workspace
-.ceads/local/cache/         # Bridge cache (outbound, inbound, dead_letter, state)
-.ceads/local/daemon.sock    # Daemon socket
-.ceads/local/daemon.pid     # Daemon PID
-.ceads/local/daemon.log     # Daemon log
+.tbd/local/state.json     # Per-node sync state (last_sync, node_id)
+.tbd/local/nodes/         # Private workspace
+.tbd/local/cache/         # Bridge cache (outbound, inbound, dead_letter, state)
+.tbd/local/daemon.sock    # Daemon socket
+.tbd/local/daemon.pid     # Daemon PID
+.tbd/local/daemon.log     # Daemon log
 ```
 
 #### Example Config File
 
-**Config** (`.ceads/config.yml` on main branch):
+**Config** (`.tbd/config.yml` on main branch):
 
 ```yaml
-# Ceads configuration
-# See: https://github.com/[org]/ceads
+# Tbd configuration
+# See: https://github.com/[org]/tbd
 
-ceads_version: "0.1.0"
+tbd_version: "0.1.0"
 
 sync:
-  branch: ceads-sync
+  branch: tbd-sync
   # repo: origin
 
 prefixes:
@@ -4325,7 +4325,7 @@ settings:
 
 #### Example Node Files
 
-**Issue** (`.ceads-sync/nodes/issues/is-a1b2.json`):
+**Issue** (`.tbd-sync/nodes/issues/is-a1b2.json`):
 
 ```json
 {
@@ -4347,7 +4347,7 @@ settings:
 }
 ```
 
-**Issue with children** (`.ceads-sync/nodes/issues/is-e5f6.json`):
+**Issue with children** (`.tbd-sync/nodes/issues/is-e5f6.json`):
 
 ```json
 {
@@ -4367,7 +4367,7 @@ settings:
 }
 ```
 
-**Child issue** (`.ceads-sync/nodes/issues/is-c3d4.json`):
+**Child issue** (`.tbd-sync/nodes/issues/is-c3d4.json`):
 
 ```json
 {
@@ -4386,7 +4386,7 @@ settings:
 }
 ```
 
-**Message (comment on issue)** (`.ceads-sync/nodes/messages/ms-p1q2.json`):
+**Message (comment on issue)** (`.tbd-sync/nodes/messages/ms-p1q2.json`):
 
 ```json
 {
@@ -4402,7 +4402,7 @@ settings:
 }
 ```
 
-**Agent** (`.ceads-sync/nodes/agents/ag-x1y2.json`):
+**Agent** (`.tbd-sync/nodes/agents/ag-x1y2.json`):
 
 ```json
 {
@@ -4428,7 +4428,7 @@ settings:
 }
 ```
 
-**Local item** (`.ceads/local/nodes/lo-l1m2.json`):
+**Local item** (`.tbd/local/nodes/lo-l1m2.json`):
 
 ```json
 {
@@ -4445,7 +4445,7 @@ settings:
 }
 ```
 
-**Meta** (`.ceads-sync/meta.json` on sync branch):
+**Meta** (`.tbd-sync/meta.json` on sync branch):
 
 ```json
 {
@@ -4459,7 +4459,7 @@ settings:
 ```
 
 > **Note**: User-editable configuration (prefixes, TTLs, sync settings) is in
-> `.ceads/config.yml` on the main branch.
+> `.tbd/config.yml` on the main branch.
 > See [Example Config File](#example-config-file).
 
 ### 7.6 Key References
@@ -4714,11 +4714,11 @@ function hlcCompare(a: HybridTimestamp, b: HybridTimestamp): number {
 }
 ```
 
-**Migration:** Entities without `hlc` field get one synthesized: `{ wall: updated_at,
-logical: version, node: "migrated" }`
+**Migration:** Entities without `hlc` field get one synthesized:
+`{ wall: updated_at, logical: version, node: "migrated" }`
 
-**Reference:** [Hybrid Logical Clocks (Kulkarni et
-al.)](https://cse.buffalo.edu/tech-reports/2014-04.pdf)
+**Reference:**
+[Hybrid Logical Clocks (Kulkarni et al.)](https://cse.buffalo.edu/tech-reports/2014-04.pdf)
 
 #### 7.7.2 Lease-Based Claims
 
@@ -4812,8 +4812,8 @@ resolution rules are needed.
 ```typescript
 // Per-field sync direction
 const SyncDirection = z.enum([
-  'ceads_wins',    // Ceads overwrites Bridge
-  'bridge_wins',   // Bridge overwrites Ceads
+  'tbd_wins',    // Tbd overwrites Bridge
+  'bridge_wins',   // Bridge overwrites Tbd
   'lww',           // Last-write-wins by timestamp
   'union',         // Merge arrays
 ]);

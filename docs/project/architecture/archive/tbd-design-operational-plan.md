@@ -1,30 +1,32 @@
-# Ceads Design: Operational Edit Plan
+# Tbd Design: Operational Edit Plan
 
-**Source:** [ceads-distributed-systems-review.md](ceads-distributed-systems-review.md)
+**Source:** [tbd-distributed-systems-review.md](tbd-distributed-systems-review.md)
 
-**Target:** [ceads-design.md](ceads-design.md)
+**Target:** [tbd-design.md](tbd-design.md)
 
-**Status:** Revised - Complex items moved to Optional Enhancements appendix (Section 7.7)
+**Status:** Revised - Complex items moved to Optional Enhancements appendix (Section
+7.7)
 
-> **Note:** After review, we decided to keep v1 simple. HLC, lease-based claims, and
-> detailed Bridge specs are documented in Appendix 7.7 as optional enhancements to add
-> if specific problems arise. The core design uses simple `updated_at` LWW with the
-> attic preserving all conflict losers.
+> **Note:** After review, we decided to keep v1 simple.
+> HLC, lease-based claims, and detailed Bridge specs are documented in Appendix 7.7 as
+> optional enhancements to add if specific problems arise.
+> The core design uses simple `updated_at` LWW with the attic preserving all conflict
+> losers.
 
----
+* * *
 
 ## Overview
 
 This document provides a step-by-step implementation plan for all Critical and Important
-items identified in the distributed systems review. Work through these sequentially,
-checking off items as they are completed.
+items identified in the distributed systems review.
+Work through these sequentially, checking off items as they are completed.
 
 ### Directory Structure Reference
 
 All paths in this document use the current directory structure:
 
 ```
-.ceads/                     # On main branch
+.tbd/                     # On main branch
 ├── config.yml              # Tracked
 ├── .gitignore              # Tracked (ignores "local/")
 └── local/                  # All gitignored:
@@ -36,13 +38,13 @@ All paths in this document use the current directory structure:
     │   └── state.json
     └── daemon.*            # Daemon files
 
-.ceads-sync/                # On ceads-sync branch
+.tbd-sync/                # On tbd-sync branch
 ├── nodes/                  # Synced entities
 ├── attic/                  # Conflict archive
 └── meta.json               # Runtime metadata
 ```
 
----
+* * *
 
 ## Phase 1: Critical Issues (Must Address Before v1)
 
@@ -131,7 +133,7 @@ function updateHlc(current: HybridTimestamp, nodeId: string): HybridTimestamp {
 }
 ```
 
----
+* * *
 
 ### Edit 1.2: Add Bridge Consistency Guarantees
 
@@ -154,7 +156,7 @@ Bridges provide eventually consistent views of Git state. The following guarante
 | **Monotonic Reads** | Once version N seen, never see version < N (same session) |
 | **Conflict Preservation** | No data ever lost; conflicts preserved in attic |
 
-**Ceads does NOT provide:**
+**Tbd does NOT provide:**
 - Linearizability (global ordering)
 - Serializable transactions
 - Strong consistency
@@ -181,13 +183,14 @@ When Git and Bridge both have changes to the same entity:
    - Bridge changes preserved in attic with `source: "bridge"` metadata
 ```
 
----
+* * *
 
 ### Edit 1.3: Add Idempotency Keys to Outbound Queue
 
 - [x] **Completed**
 
-**Location:** Section 5.8 (Offline-First Architecture), update Cache Types and add schema
+**Location:** Section 5.8 (Offline-First Architecture), update Cache Types and add
+schema
 
 **Current (Section 5.8, Cache State Schema around line 2273):**
 ```typescript
@@ -237,7 +240,7 @@ const CacheState = z.object({
 
 **Add to directory structure (Section 5.8):**
 ```
-.ceads/local/cache/
+.tbd/local/cache/
 ├── outbound/              # Queue: items waiting to send
 │   ├── {uuid}.json        # Pending items
 │   └── {uuid}.delivered   # Confirmed, awaiting cleanup
@@ -247,7 +250,7 @@ const CacheState = z.object({
 └── state.json
 ```
 
----
+* * *
 
 ## Phase 2: Important Issues (Strong Recommendation)
 
@@ -326,7 +329,7 @@ Options:
 - Stale claims (agent inactive + expired lease) auto-release
 ```
 
----
+* * *
 
 ### Edit 2.2: Add GitHub Field-Level Sync Direction
 
@@ -334,19 +337,19 @@ Options:
 
 **Location:** Section 5.3 (GitHub Issues Bridge), add configuration schema
 
-**Add after "Field Mapping" table:**
-```markdown
+**Add after “Field Mapping” table:**
+````markdown
 #### Sync Direction Configuration
 
 Each field can have a sync direction policy:
 
 ```typescript
 const GitHubSyncDirection = z.enum([
-  'ceads_wins',    // Ceads overwrites GitHub
-  'github_wins',   // GitHub overwrites Ceads
+  'tbd_wins',    // Tbd overwrites GitHub
+  'github_wins',   // GitHub overwrites Tbd
   'lww',           // Last-write-wins by timestamp
   'union',         // Merge both (for arrays)
-  'readonly',      // Ceads reads from GitHub, never writes
+  'readonly',      // Tbd reads from GitHub, never writes
 ]);
 
 const GitHubBridgeConfig = z.object({
@@ -356,9 +359,9 @@ const GitHubBridgeConfig = z.object({
 
   field_sync: z.object({
     title: GitHubSyncDirection.default('lww'),
-    description: GitHubSyncDirection.default('ceads_wins'),
+    description: GitHubSyncDirection.default('tbd_wins'),
     status: GitHubSyncDirection.default('lww'),
-    priority: GitHubSyncDirection.default('ceads_wins'),
+    priority: GitHubSyncDirection.default('tbd_wins'),
     labels: GitHubSyncDirection.default('union'),
     assignee: GitHubSyncDirection.default('lww'),
     comments: z.literal('union'),      // Always merge, never overwrite
@@ -369,11 +372,11 @@ const GitHubBridgeConfig = z.object({
     burst_size: z.number().default(100),
   }).default({}),
 });
-```
+````
 
 **Default behavior:**
 - `title`, `status`, `assignee`: LWW (collaborative editing)
-- `description`, `priority`: Ceads wins (agent is authority)
+- `description`, `priority`: Tbd wins (agent is authority)
 - `labels`: Union (both sources contribute)
 - `comments`: Always merged, never deleted
 
@@ -382,11 +385,11 @@ const GitHubBridgeConfig = z.object({
 GitHub API limits: 5,000 requests/hour (authenticated).
 
 **Implementation:**
-- Track request count in `.ceads/local/cache/state.json`
+- Track request count in `.tbd/local/cache/state.json`
 - Exponential backoff on 429 responses
 - Batch operations where possible (GraphQL)
 - Log warning at 80% of limit
-```
+````
 
 ---
 
@@ -401,18 +404,14 @@ GitHub API limits: 5,000 requests/hour (authenticated).
 #### Retry and Failure Handling
 
 **Retry Policy:**
-```
-Attempt 1: immediate
-Attempt 2: 1 second delay
-Attempt 3: 2 seconds
-Attempt 4: 4 seconds
-...
-Attempt N: min(initial * 2^(N-1), max_backoff)
-```
+````
+Attempt 1: immediate Attempt 2: 1 second delay Attempt 3: 2 seconds Attempt 4: 4 seconds
+… Attempt N: min(initial * 2^(N-1), max_backoff)
+````
 
 **After max_attempts exceeded:**
-1. Move item from `.ceads/local/cache/outbound/` to `.ceads/local/cache/dead_letter/`
-2. Increment `dead_letter_count` in `.ceads/local/cache/state.json`
+1. Move item from `.tbd/local/cache/outbound/` to `.tbd/local/cache/dead_letter/`
+2. Increment `dead_letter_count` in `.tbd/local/cache/state.json`
 3. Log error with full context
 4. Item preserved indefinitely until manual intervention
 
@@ -426,14 +425,14 @@ cead cache dead-letter retry <idempotency-key>
 
 # Discard a dead letter item
 cead cache dead-letter discard <idempotency-key>
-```
+````
 
 **FIFO Ordering:**
 - Outbound queue is FIFO within entity type
-- If item N fails, items N+1... are blocked for same entity
+- If item N fails, items N+1 … are blocked for same entity
 - Different entities can proceed independently
 - This prevents out-of-order delivery for single entity
-```
+````
 
 ---
 
@@ -451,10 +450,10 @@ Entity IDs follow a consistent pattern:
 
 - **Prefix**: 2-3 lowercase letters derived from directory name
 - **Hash**: Lowercase alphanumeric, typically 4-8 characters
-```
+````
 
 **Expand to:**
-```markdown
+````markdown
 Entity IDs follow a consistent pattern:
 
 {prefix}-{hash}
@@ -473,7 +472,7 @@ function generateId(prefix: string): string {
   const hash = bytes.toString('base36').toLowerCase().slice(0, 6);
   return `${prefix}${hash}`;
 }
-```
+````
 
 **Properties:**
 - **Cryptographically random**: No timestamp or content dependency
@@ -484,7 +483,7 @@ function generateId(prefix: string): string {
 ```typescript
 const EntityId = z.string().regex(/^[a-z]{2}-[a-z0-9]{6}$/);
 ```
-```
+````
 
 ---
 
@@ -500,7 +499,7 @@ const EntityId = z.string().regex(/^[a-z]{2}-[a-z0-9]{6}$/);
 
 #### Version Tracking
 
-Schema versions are tracked in `.ceads-sync/meta.json` (on the sync branch):
+Schema versions are tracked in `.tbd-sync/meta.json` (on the sync branch):
 
 ```json
 {
@@ -511,11 +510,11 @@ Schema versions are tracked in `.ceads-sync/meta.json` (on the sync branch):
   "created_at": "2025-01-07T08:00:00Z",
   "last_sync": "2025-01-07T14:30:00Z"
 }
-```
+````
 
-> **Note:** User-editable configuration (prefixes, TTLs) lives in `.ceads/config.yml`
-> on the main branch. Schema versions live in `meta.json` on the sync branch because
-> they describe the synced data and must propagate with it.
+> **Note:** User-editable configuration (prefixes, TTLs) lives in `.tbd/config.yml` on
+> the main branch. Schema versions live in `meta.json` on the sync branch because they
+> describe the synced data and must propagate with it.
 
 #### Compatibility Requirements
 
@@ -544,9 +543,9 @@ cead doctor --check-schema
 cead migrate --to 2
 
 # What it does:
-# 1. Backs up all entities to .ceads-sync/attic/migrations/
+# 1. Backs up all entities to .tbd-sync/attic/migrations/
 # 2. Transforms each entity to new schema
-# 3. Updates .ceads-sync/meta.json schema_versions
+# 3. Updates .tbd-sync/meta.json schema_versions
 # 4. Syncs to propagate changes
 ```
 
@@ -554,15 +553,15 @@ cead migrate --to 2
 
 When Agent A (schema v2) syncs with Agent B (schema v1):
 
-1. A's entities written in v2 format
+1. A’s entities written in v2 format
 2. B reads v2 entities, unknown fields preserved
 3. B writes entities (preserving unknown v2 fields)
-4. A reads B's changes, sees preserved v2 fields
+4. A reads B’s changes, sees preserved v2 fields
 5. No data loss; both continue operating
 
 **Warning:** If v2 has breaking changes, B may fail to parse.
-CLI should warn: "Remote entities require CLI version >= X.Y.Z"
-```
+CLI should warn: “Remote entities require CLI version >= X.Y.Z”
+````
 
 ---
 
@@ -618,7 +617,7 @@ function validateSlackRequest(
     Buffer.from(expected)
   );
 }
-```
+````
 
 **Secret Management:**
 - Store secrets in environment variables, never in config files
@@ -663,11 +662,11 @@ They should be addressed as part of the implementation:
 **Add to Section 3.3:**
 - Pull atomicity: fetch to staging, validate, apply all or none
 - Push atomicity: git's native push is atomic
-- Recovery: `.ceads/local/sync-error.log`, `sync_status` in meta.json
+- Recovery: `.tbd/local/sync-error.log`, `sync_status` in meta.json
 
 ### 11.3 Multi-Entity Atomicity
 **Options:**
-- Operation journaling in `.ceads/local/journal/`
+- Operation journaling in `.tbd/local/journal/`
 - Or document that `cead doctor --fix` recovers inconsistent state
 
 ### 11.4 Schema Migration Strategy
@@ -693,3 +692,4 @@ They should be addressed as part of the implementation:
 - [CRDTs: Conflict-free Replicated Data Types](https://crdt.tech/)
 - [GitHub Webhook Security](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries)
 - [Slack Request Verification](https://api.slack.com/authentication/verifying-requests-from-slack)
+```

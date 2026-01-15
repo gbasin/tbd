@@ -1,18 +1,18 @@
-# Ceads YAML/Markdown Format Exploration
+# Tbd YAML/Markdown Format Exploration
 
 **Status:** Exploration / RFC
 
 **Date:** January 2025
 
-**Related:** ceads-design-v2-phase1.md
+**Related:** tbd-design-v2-phase1.md
 
 * * *
 
 ## Executive Summary
 
 This document explores replacing JSON storage with **Markdown + YAML front matter** for
-Ceads issue files. This is the format used by static site generators (Jekyll, Hugo,
-Astro) and is increasingly common for content management.
+Tbd issue files. This is the format used by static site generators (Jekyll, Hugo, Astro)
+and is increasingly common for content management.
 
 **Key benefits:**
 
@@ -133,7 +133,7 @@ A fast, simple Beads replacement implemented as ~900 lines of bash.
 
 - Dependency tracking with `dep`, `undep`, tree visualization
 
-- `ready` and `blocked` commands (same semantics as Beads/Ceads)
+- `ready` and `blocked` commands (same semantics as Beads/Tbd)
 
 - `query` outputs JSON for jq integration
 
@@ -145,7 +145,7 @@ A fast, simple Beads replacement implemented as ~900 lines of bash.
 
 - Assumes coordinated team workflows
 
-**Learnings for Ceads:**
+**Learnings for Tbd:**
 
 - Markdown+YAML works well in production (~1,900 tickets)
 
@@ -193,7 +193,7 @@ Issue tracking with plain Markdown, designed for distributed/disconnected teams.
 
 - Single file means more manual conflict resolution
 
-**Learnings for Ceads:**
+**Learnings for Tbd:**
 
 - Git hooks for commit integration is powerful
 
@@ -247,7 +247,7 @@ Decentralized issue management stored in Git.
 
 - Import tracking for incremental GitHub sync
 
-**Learnings for Ceads:**
+**Learnings for Tbd:**
 
 - Multiple files per issue (metadata + content) is interesting but complex
 
@@ -287,7 +287,7 @@ Distributed, offline-first bug tracker embedded in Git.
 
 - `bridge` for GitHub integration
 
-**Learnings for Ceads:**
+**Learnings for Tbd:**
 
 - Git object storage is clever but non-inspectable
 
@@ -331,7 +331,7 @@ Content goes here...
 
 - Numerous YAML front matter parsers in every language
 
-**Learnings for Ceads:**
+**Learnings for Tbd:**
 
 - Format is battle-tested at scale
 
@@ -349,7 +349,7 @@ Content goes here...
 | git-bug | Git objects | No file clutter, CRDT-like | Not inspectable |
 | SSGs | MD+YAML, file-per-content | Universal, great tooling | No sync built-in |
 
-**Synthesis for Ceads:**
+**Synthesis for Tbd:**
 
 1. **File-per-entity with Markdown+YAML is the right choice**
 
@@ -473,19 +473,19 @@ Found the issue in session.ts line 42. Working on fix.
 
 - **Option B**: `.issue.md` (explicit, filters in glob patterns)
 
-- **Option C**: `.ceads` (custom extension, clear ownership)
+- **Option C**: `.tbd` (custom extension, clear ownership)
 
 **Recommendation**: `.md` for maximum compatibility.
-The YAML front matter and directory location already identify these as Ceads issues.
+The YAML front matter and directory location already identify these as Tbd issues.
 
 #### File Naming
 
 ```
 # Current (JSON)
-.ceads-sync/issues/is-a1b2c3.json
+.tbd-sync/issues/is-a1b2c3.json
 
 # Proposed (Markdown)
-.ceads-sync/issues/is-a1b2c3.md
+.tbd-sync/issues/is-a1b2c3.md
 ```
 
 ### 1.2 Schema Changes
@@ -690,8 +690,8 @@ No line-level merge - treat as atomic text blocks.
 Minimal changes - just file extensions:
 
 ```
-# On ceads-sync branch
-.ceads-sync/
+# On tbd-sync branch
+.tbd-sync/
 ├── issues/
 │   ├── is-a1b2c3.md          # Was .json
 │   ├── is-f14c3d.md
@@ -707,10 +707,10 @@ Minimal changes - just file extensions:
 
 #### Config Files Also YAML
 
-For consistency, all Ceads files use YAML:
+For consistency, all Tbd files use YAML:
 
 ```
-.ceads/
+.tbd/
 ├── config.yaml               # Was config.yml (same format, clearer extension)
 └── cache/
     ├── state.yaml            # Was state.json
@@ -728,7 +728,7 @@ not user-edited. This is an implementation choice.
 # No change to interface
 cead create "Fix bug" -t bug -p 1 -d "Description here"
 
-# Creates .ceads-sync/issues/is-a1b2c3.md
+# Creates .tbd-sync/issues/is-a1b2c3.md
 ```
 
 #### Show Command
@@ -788,7 +788,7 @@ cead edit bd-a1b2
 Config is already YAML. Clarify the extension:
 
 ```yaml
-# .ceads/config.yaml (was config.yml)
+# .tbd/config.yaml (was config.yml)
 
 version: "1.0"
 
@@ -799,7 +799,7 @@ settings:
 
 sync:
   remote: origin
-  branch: ceads-sync
+  branch: tbd-sync
 
 display:
   id_prefix: bd
@@ -819,7 +819,7 @@ cead import beads-export.jsonl
 #### JSON to Markdown Conversion
 
 ```bash
-# If migrating existing Ceads JSON to Markdown
+# If migrating existing Tbd JSON to Markdown
 cead migrate --format markdown
 
 # Converts all .json files to .md
@@ -864,7 +864,7 @@ the sync branch.
 
 ```
 repo/
-├── .ceads/
+├── .tbd/
 │   └── config.yaml
 ├── issues/                    # New: issues on main branch
 │   ├── active/
@@ -879,7 +879,7 @@ repo/
 
 ```
 repo/
-├── .ceads/
+├── .tbd/
 ├── src/
 │   ├── auth/
 │   │   ├── session.ts
@@ -908,7 +908,7 @@ cead sync
 #### Config Extension
 
 ```yaml
-# .ceads/config.yaml
+# .tbd/config.yaml
 
 local_issues:
   enabled: true
@@ -935,7 +935,7 @@ git commit -m "Fix auth timeout (bd-a1b2)"
 
 # Sync back to shared branch
 cead sync
-# Merges to ceads-sync, optionally removes local copy
+# Merges to tbd-sync, optionally removes local copy
 ```
 
 ### 2.2 Edit Directory Workflow
@@ -999,30 +999,30 @@ cead validate ./issue-review/
 
 ```bash
 # Find all high-priority bugs
-grep -l "priority: [01]" .ceads-sync/issues/*.md | \
+grep -l "priority: [01]" .tbd-sync/issues/*.md | \
   xargs grep -l "kind: bug"
 
 # List issues by assignee
-for f in .ceads-sync/issues/*.md; do
+for f in .tbd-sync/issues/*.md; do
   assignee=$(grep "^assignee:" "$f" | cut -d: -f2 | tr -d ' ')
   echo "$assignee: $(basename $f)"
 done | sort
 
 # Bulk status change via sed (then sync)
-sed -i 's/status: open/status: deferred/' .ceads-sync/issues/is-old*.md
+sed -i 's/status: open/status: deferred/' .tbd-sync/issues/is-old*.md
 
 # Count issues by status
-grep -h "^status:" .ceads-sync/issues/*.md | sort | uniq -c
+grep -h "^status:" .tbd-sync/issues/*.md | sort | uniq -c
 ```
 
 #### Integration with ripgrep/fzf
 
 ```bash
 # Interactive issue search
-rg --type md "authentication" .ceads-sync/issues/ | fzf
+rg --type md "authentication" .tbd-sync/issues/ | fzf
 
 # Find issues mentioning a file
-rg "session.ts" .ceads-sync/issues/
+rg "session.ts" .tbd-sync/issues/
 ```
 
 ### 2.4 Inline Comments
@@ -1084,7 +1084,7 @@ Comments section uses **append-only** merge:
 #### Template Directory
 
 ```
-.ceads/templates/
+.tbd/templates/
 ├── bug.md
 ├── feature.md
 ├── task.md
@@ -1524,7 +1524,7 @@ Weekly sync with security team on Tuesdays.
 ### Config File
 
 ```yaml
-# .ceads/config.yaml
+# .tbd/config.yaml
 
 version: "1.0"
 
@@ -1535,7 +1535,7 @@ settings:
 
 sync:
   remote: origin
-  branch: ceads-sync
+  branch: tbd-sync
 
 display:
   id_prefix: bd
@@ -1550,7 +1550,7 @@ local_issues:
 
 # New: templates
 templates:
-  directory: .ceads/templates/
+  directory: .tbd/templates/
   default: task
 ```
 
@@ -1583,7 +1583,7 @@ Users are being logged out after exactly 5 minutes...
 
 ### Format Decisions
 
-1. **File extension**: `.md` vs `.issue.md` vs `.ceads`?
+1. **File extension**: `.md` vs `.issue.md` vs `.tbd`?
 
    - `.md` has best editor support
 
@@ -1635,13 +1635,13 @@ Users are being logged out after exactly 5 minutes...
 
    - Recommendation: Defer to Phase 1.5, design for it now
 
-7. **Template location**: `.ceads/templates/` or user-configurable?
+7. **Template location**: `.tbd/templates/` or user-configurable?
 
    - Fixed location is simpler
 
    - Configurable allows shared templates
 
-   - Recommendation: Fixed `.ceads/templates/`, consider shared later
+   - Recommendation: Fixed `.tbd/templates/`, consider shared later
 
 ### Migration Decisions
 

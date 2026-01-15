@@ -1,6 +1,6 @@
-# Ceads V2 Phase 1 Design Review Tracking
+# Tbd V2 Phase 1 Design Review Tracking
 
-**Review Source:** ceads-design-v2-review1-gpt-5-pro.md
+**Review Source:** tbd-design-v2-review1-gpt-5-pro.md
 
 **Tracking Started:** January 2025
 
@@ -158,7 +158,7 @@ These add missing details but don’t fundamentally change the design.
 
   - **Location:** §5.5 “IDs change” + §5.1.4
 
-  - **Fix:** Clarify that imported IDs get new Ceads IDs, display prefix only affects
+  - **Fix:** Clarify that imported IDs get new Tbd IDs, display prefix only affects
     output
 
 * * *
@@ -171,8 +171,8 @@ These add missing details but don’t fundamentally change the design.
 
   - **Location:** IssueSchema includes `notes`; CLI commands don’t expose it
 
-  - **Fix:** Add `--notes` and `--notes-file` to update command, show notes in `cead
-    show`
+  - **Fix:** Add `--notes` and `--notes-file` to update command, show notes in
+    `cead show`
 
 - [x] **V2-031**: Examples show IDs with `bd-` prefix but internal IDs are `is-`
 
@@ -182,8 +182,8 @@ These add missing details but don’t fundamentally change the design.
 
 ### Import Command Consistency
 
-- [x] **V2-033**: Design goal says `cead import beads` but CLI spec says `cead import
-  <file>`
+- [x] **V2-033**: Design goal says `cead import beads` but CLI spec says
+  `cead import <file>`
 
   - **Location:** §1.3 Design Goals vs §5.1 Import Command
 
@@ -208,7 +208,7 @@ These are substantive changes that may affect architecture.
 
   - **Resolution:** Added explicit requirement for isolated index, invariant statement
 
-- [x] **V2-002**: Local working copy location for `.ceads-sync/` is undefined
+- [x] **V2-002**: Local working copy location for `.tbd-sync/` is undefined
 
   - **Location:** §2.2 Directory Structure + §3.3 Sync Operations
 
@@ -219,21 +219,20 @@ These are substantive changes that may affect architecture.
   - **Resolution:** Added section 2.6 Local Storage Model clarifying cache-based
     approach
 
-- [x] **V2-003**: Missing rule for not leaving untracked `.ceads-sync/` noise on main
+- [x] **V2-003**: Missing rule for not leaving untracked `.tbd-sync/` noise on main
 
   - **Location:** §2.2 + §3.2
 
-  - **Problem:** If `.ceads-sync/` used locally, it will show as untracked
+  - **Problem:** If `.tbd-sync/` used locally, it will show as untracked
 
   - **Resolution:** Addressed in Local Storage Model - files live in cache, not working
     tree
 
-- [?] **V2-004**: `git show ceads-sync:` vs remote tracking branch ambiguity
+- [?] **V2-004**: `git show tbd-sync:` vs remote tracking branch ambiguity
 
   - **Location:** §3.3.1 Reading from Sync Branch
 
-  - **Problem:** After fetch, should read from `origin/ceads-sync` not local
-    `ceads-sync`
+  - **Problem:** After fetch, should read from `origin/tbd-sync` not local `tbd-sync`
 
   - **Status:** Needs review - may require restructuring sync section
 
@@ -269,7 +268,7 @@ These are substantive changes that may affect architecture.
 
 - [?] **V2-016**: Single mapping file on sync branch can become a conflict hotspot
 
-  - **Location:** §5.1.4 `.ceads-sync/mappings/beads.json`
+  - **Location:** §5.1.4 `.tbd-sync/mappings/beads.json`
 
   - **Options:**
 
@@ -458,8 +457,8 @@ These are suggestions for alternate approaches, not bugs.
 
 ## Open Questions for Discussion
 
-1. **V2-004**: Should we explicitly define when to read from `origin/ceads-sync` vs
-   local `ceads-sync`?
+1. **V2-004**: Should we explicitly define when to read from `origin/tbd-sync` vs local
+   `tbd-sync`?
 
 2. **V2-012**: Should we add a note about clock skew or defer HLC to Phase 2?
 

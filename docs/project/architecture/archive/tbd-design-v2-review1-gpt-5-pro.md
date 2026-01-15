@@ -1,5 +1,5 @@
-Below is a detailed design review of **Ceads V2 Phase 1 (Beads replacement)**, with (a)
-a set of creative alternatives / scope-shaping ideas, and (b) an editor-ready issue list
+Below is a detailed design review of **Tbd V2 Phase 1 (Beads replacement)**, with (a) a
+set of creative alternatives / scope-shaping ideas, and (b) an editor-ready issue list
 you can paste into the spec review doc or a GitHub issue.
 This review is based on the V2 Phase 1 spec, plus the earlier V1 spec and the V1 design
 review you referenced.
@@ -78,11 +78,11 @@ non-event.
 
 ### 3) Apply “file-per-entity” to mapping files too
 
-`.ceads-sync/mappings/beads.json` is a potential conflict hotspot if more than one node
+`.tbd-sync/mappings/beads.json` is a potential conflict hotspot if more than one node
 imports concurrently (even if rare).
 If you’ve embraced file-per-entity, it’s consistent to do:
 
-* `.ceads-sync/mappings/beads/bd-x7y8.json` → `{ "ceads_id": "is-..." }`
+* `.tbd-sync/mappings/beads/bd-x7y8.json` → `{ "tbd_id": "is-..." }`
 
 Then imports never contend on a single monolithic mapping file.
 
@@ -119,7 +119,7 @@ Right now, sync reads like it may compare “everything vs everything.”
 A small local-only state can reduce work massively:
 
 * Store last-synced **remote commit hash** (or last merged hash) in
-  `.ceads/cache/state.json`
+  `.tbd/cache/state.json`
 
 * On sync: `git diff --name-only <baseline>..<remote>` to find changed issues quickly
 
@@ -129,9 +129,9 @@ This keeps Phase 1 fast without introducing a DB. It’s still “boring git.”
 
 You can keep Phase 1 non-goals intact while reserving a clean seam for Phase 2:
 
-* `.ceads/cache/outbox/` for bridge intents
+* `.tbd/cache/outbox/` for bridge intents
 
-* `.ceads/cache/inbox/` for bridge results
+* `.tbd/cache/inbox/` for bridge results
 
 This was a big theme in the V1 review (“bridge runtime, not every agent integrates”).
 
@@ -149,48 +149,48 @@ You can copy/paste this as a checklist.
 ### Git layer correctness and safety
 
 * **[V2-001] [BLOCKER] Git write flow can clobber user index / staged changes**
-  **Where:** §3.3.2 “Writing to Sync Branch” **Problem:** The sequence `git read-tree
-  ceads-sync; git add ...; git write-tree` as written operates on the *current repo
-  index*, which risks destroying/overwriting a developer’s staged changes (and generally
-  assumes the index is “owned” by cead).
+  **Where:** §3.3.2 “Writing to Sync Branch” **Problem:** The sequence
+  `git read-tree tbd-sync; git add ...; git write-tree` as written operates on the
+  *current repo index*, which risks destroying/overwriting a developer’s staged changes
+  (and generally assumes the index is “owned” by cead).
   **Suggested change:** Specify that all plumbing operations MUST run with an isolated
   index/worktree (e.g., `GIT_INDEX_FILE=...` and `GIT_WORK_TREE=...`) or use an internal
   hidden worktree. Add an explicit invariant: “cead never modifies the user’s
   index/staging area.”
 
-* **[V2-002] [BLOCKER] Local working copy location for `.ceads-sync/` is undefined**
+* **[V2-002] [BLOCKER] Local working copy location for `.tbd-sync/` is undefined**
   **Where:** §2.2 Directory Structure + §3.3 Sync Operations **Problem:** The spec says
-  `.ceads-sync/` exists on the `ceads-sync` branch, but then uses `git add
-  .ceads-sync/issues/` which requires those files to exist in the working tree.
-  Meanwhile main branch structure omits `.ceads-sync/` entirely.
+  `.tbd-sync/` exists on the `tbd-sync` branch, but then uses
+  `git add .tbd-sync/issues/` which requires those files to exist in the working tree.
+  Meanwhile main branch structure omits `.tbd-sync/` entirely.
   **Suggested change:** Add an explicit subsection: “Local storage model.”
   Choose one:
 
-  1. `.ceads-sync/` exists locally (gitignored on main) and is used as a workspace, OR
+  1. `.tbd-sync/` exists locally (gitignored on main) and is used as a workspace, OR
 
-  2. issues live under `.ceads/cache/...` locally and are written into git objects
+  2. issues live under `.tbd/cache/...` locally and are written into git objects
      directly, OR
 
-  3. hidden worktree checkout for `ceads-sync` exists under
-     `.ceads/cache/worktrees/...`. Make it normative so implementation + UX are aligned.
+  3. hidden worktree checkout for `tbd-sync` exists under `.tbd/cache/worktrees/...`.
+     Make it normative so implementation + UX are aligned.
 
-* **[V2-003] [BLOCKER] Missing rule for not leaving untracked `.ceads-sync/` noise on
-  main** **Where:** §2.2 + §3.2 (tracked files on main) **Problem:** If `.ceads-sync/`
-  is used as a local workspace on main, it will show as untracked unless explicitly
-  ignored. Current `.ceads/.gitignore` ignores only `cache/`. **Suggested change:** If
-  `.ceads-sync/` exists on main working tree, specify how it is ignored:
+* **[V2-003] [BLOCKER] Missing rule for not leaving untracked `.tbd-sync/` noise on
+  main** **Where:** §2.2 + §3.2 (tracked files on main) **Problem:** If `.tbd-sync/` is
+  used as a local workspace on main, it will show as untracked unless explicitly
+  ignored. Current `.tbd/.gitignore` ignores only `cache/`. **Suggested change:** If
+  `.tbd-sync/` exists on main working tree, specify how it is ignored:
 
-  * recommend adding `.ceads-sync/` to top-level `.gitignore` OR
+  * recommend adding `.tbd-sync/` to top-level `.gitignore` OR
 
   * write to `.git/info/exclude` in `cead init` OR
 
-  * avoid having `.ceads-sync/` exist on main at all (use hidden worktree or cache).
+  * avoid having `.tbd-sync/` exist on main at all (use hidden worktree or cache).
 
-* **[V2-004] [MAJOR] `git show ceads-sync:...` vs remote tracking branch ambiguity**
-  **Where:** §3.3.1 Reading from Sync Branch **Problem:** Examples read from
-  `ceads-sync:` but sync begins with `git fetch origin ceads-sync`. After fetching, the
-  authoritative remote ref is typically `origin/ceads-sync` (unless you also update
-  local `ceads-sync`). This is ambiguous and can lead to reading stale data.
+* **[V2-004] [MAJOR] `git show tbd-sync:...` vs remote tracking branch ambiguity**
+  **Where:** §3.3.1 Reading from Sync Branch **Problem:** Examples read from `tbd-sync:`
+  but sync begins with `git fetch origin tbd-sync`. After fetching, the authoritative
+  remote ref is typically `origin/tbd-sync` (unless you also update local `tbd-sync`).
+  This is ambiguous and can lead to reading stale data.
   **Suggested change:** Define: “Remote truth is `refs/remotes/<remote>/<branch>`.” Use
   that consistently for reads after fetch, then merge into local.
 
@@ -216,8 +216,7 @@ You can copy/paste this as a checklist.
   “Remote changes (not yet pulled)” need a baseline definition (last successful sync?
   last pull? remote-tracking vs local cached state?). **Suggested change:** Define
   baseline as `state.json.last_successful_sync_commit` (local-only), and compute pending
-  changes via `git diff --name-status <baseline>..origin/ceads-sync` plus local dirty
-  set.
+  changes via `git diff --name-status <baseline>..origin/tbd-sync` plus local dirty set.
 
 * * *
 
@@ -311,7 +310,7 @@ You can copy/paste this as a checklist.
 * **[V2-015] [MAJOR] Display-prefix compatibility vs import mapping is inconsistent**
   **Where:** §5.5 “IDs change” + §5.1.4 mapping file **Problem:** One part implies Beads
   IDs become `is-a1b2` (same suffix), but import mapping explicitly maps Beads IDs to
-  newly generated Ceads IDs (not necessarily same suffix).
+  newly generated Tbd IDs (not necessarily same suffix).
   **Suggested change:** Make this consistent.
   Options:
 
@@ -321,7 +320,7 @@ You can copy/paste this as a checklist.
     not suffix). Update examples accordingly.
 
 * **[V2-016] [MAJOR] Single mapping file on sync branch can become a conflict hotspot**
-  **Where:** §5.1.4 `.ceads-sync/mappings/beads.json` **Problem:** Concurrent imports or
+  **Where:** §5.1.4 `.tbd-sync/mappings/beads.json` **Problem:** Concurrent imports or
   partial migrations could cause merges on the same file.
   **Suggested change:** Store per-beads-id mapping files (file-per-entity) or define
   merge semantics for `beads.json` as a “map union with conflict on key mismatch.”
@@ -342,7 +341,7 @@ You can copy/paste this as a checklist.
   Windows** **Where:** §2.1 Canonical JSON **Problem:** If a contributor ends up with
   CRLF vs LF, content hashes differ.
   **Suggested change:** Specify LF line endings and recommend `.gitattributes` rule for
-  `.ceads-sync/**` (e.g., `text eol=lf`) or ensure writer always emits LF.
+  `.tbd-sync/**` (e.g., `text eol=lf`) or ensure writer always emits LF.
 
 * **[V2-019] [MAJOR] Atomic write algorithm is not fully cross-platform safe as stated**
   **Where:** §2.1 Atomic File Writes **Problem:** The snippet claims “POSIX guarantees
@@ -434,7 +433,7 @@ You can copy/paste this as a checklist.
   Global Options **Problem:** For new users, `--db` suggests SQLite again.
   It’s only here for Beads compatibility, but that’s not stated.
   **Suggested change:** Keep `--db` as alias for compatibility, but document preferred
-  `--ceads-dir` (or similar) and mark `--db` as compatibility alias.
+  `--tbd-dir` (or similar) and mark `--db` as compatibility alias.
 
 * **[V2-029] [MAJOR] Lack of attic CLI undermines “no data loss” claim** **Where:**
   Attic sections vs CLI commands **Problem:** You can say “no data loss,” but without a
@@ -471,11 +470,11 @@ You can copy/paste this as a checklist.
 
 ### Import/migration specifics
 
-* **[V2-033] [MAJOR] Design goal says `cead import beads` but CLI spec says `cead import
-  <file>`** **Where:** §1.3 Design Goals vs §5.1 Import Command **Problem:** Minor
-  inconsistency but confusing.
-  **Suggested change:** Make the goal say: “`cead import <beads-export.jsonl>` and `cead
-  import --from-beads`”.
+* **[V2-033] [MAJOR] Design goal says `cead import beads` but CLI spec says
+  `cead import <file>`** **Where:** §1.3 Design Goals vs §5.1 Import Command
+  **Problem:** Minor inconsistency but confusing.
+  **Suggested change:** Make the goal say: “`cead import <beads-export.jsonl>` and
+  `cead import --from-beads`”.
 
 * **[V2-034] [MAJOR] Multi-source import merge should also write attic on conflicts**
   **Where:** §5.1.3 Multi-Source Merge Algorithm **Problem:** It uses LWW on
@@ -516,7 +515,7 @@ You can copy/paste this as a checklist.
   doing it naïvely is O(n) file reads and defeats the purpose.
   **Suggested change:** Define checksum as either:
 
-  * git tree hash of `.ceads-sync/issues` at the synced commit, OR
+  * git tree hash of `.tbd-sync/issues` at the synced commit, OR
 
   * a rolling hash of (filename, mtime, size) stored in state.json, OR
 
@@ -524,9 +523,10 @@ You can copy/paste this as a checklist.
 
 * **[V2-039] [MAJOR] Performance goals likely require incremental sync, not full scans**
   **Where:** §1.3 Performance target + §3.3 sync algorithm **Problem:** <50ms for common
-  operations on 5k–10k issues is hard if you frequently scan many files or call `git
-  show` repeatedly. **Suggested change:** Add a normative expectation that common
-  operations use the local index and/or diff-based incremental updates.
+  operations on 5k–10k issues is hard if you frequently scan many files or call
+  `git show` repeatedly.
+  **Suggested change:** Add a normative expectation that common operations use the local
+  index and/or diff-based incremental updates.
 
 * * *
 
@@ -534,8 +534,8 @@ You can copy/paste this as a checklist.
 
 * **[V2-040] [MINOR] `--auto-sync` wording doesn’t match config key** **Where:** §5.5
   Migration gotchas (#3) **Problem:** Says “with `--auto-sync` config” but config key is
-  `settings.auto_sync`. **Suggested change:** Replace with “with `settings.auto_sync:
-  true`”.
+  `settings.auto_sync`. **Suggested change:** Replace with “with
+  `settings.auto_sync: true`”.
 
 * **[V2-041] [MINOR] Several sections call it “version-based conflict resolution” but
   detection is hash-based** **Where:** §1.1 Key characteristics, plus §3.4 **Problem:**

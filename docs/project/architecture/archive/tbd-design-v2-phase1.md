@@ -1,4 +1,4 @@
-# Ceads Design V2 Phase 1: Beads Replacement
+# Tbd Design V2 Phase 1: Beads Replacement
 
 **Author:** Joshua Levy (github.com/jlevy) and various LLMs
 
@@ -10,14 +10,13 @@
 
 ## Table of Contents
 
-- [Ceads Design V2 Phase 1: Beads
-  Replacement](#ceads-design-v2-phase-1-beads-replacement)
+- [Tbd Design V2 Phase 1: Beads Replacement](#tbd-design-v2-phase-1-beads-replacement)
 
   - [Table of Contents](#table-of-contents)
 
   - [1. Introduction](#1-introduction)
 
-    - [1.1 What is Ceads?](#11-what-is-ceads)
+    - [1.1 What is Tbd?](#11-what-is-tbd)
 
     - [1.2 Why Replace Beads?](#12-why-replace-beads)
 
@@ -41,7 +40,7 @@
 
       - [On Main Branch (all working branches)](#on-main-branch-all-working-branches)
 
-      - [On `ceads-sync` Branch](#on-ceads-sync-branch)
+      - [On `tbd-sync` Branch](#on-tbd-sync-branch)
 
     - [2.6 Local Storage Model](#26-local-storage-model)
 
@@ -79,9 +78,9 @@
 
       - [Files Tracked on Main Branch](#files-tracked-on-main-branch)
 
-      - [.ceads/.gitignore Contents](#ceadsgitignore-contents)
+      - [.tbd/.gitignore Contents](#tbdgitignore-contents)
 
-      - [Files Tracked on ceads-sync Branch](#files-tracked-on-ceads-sync-branch)
+      - [Files Tracked on tbd-sync Branch](#files-tracked-on-tbd-sync-branch)
 
     - [3.3 Sync Operations](#33-sync-operations)
 
@@ -163,8 +162,7 @@
 
       - [5.1.1 Import Command](#511-import-command)
 
-      - [5.1.2 Multi-Source Import
-        (--from-beads)](#512-multi-source-import---from-beads)
+      - [5.1.2 Multi-Source Import (--from-beads)](#512-multi-source-import---from-beads)
 
       - [5.1.3 Multi-Source Merge Algorithm](#513-multi-source-merge-algorithm)
 
@@ -174,8 +172,7 @@
 
       - [5.1.6 Merge Behavior on Re-Import](#516-merge-behavior-on-re-import)
 
-      - [5.1.7 Handling Deletions and
-        Tombstones](#517-handling-deletions-and-tombstones)
+      - [5.1.7 Handling Deletions and Tombstones](#517-handling-deletions-and-tombstones)
 
       - [5.1.8 Dependency ID Translation](#518-dependency-id-translation)
 
@@ -219,22 +216,17 @@
 
       - [Decision 2: No daemon in Phase 1](#decision-2-no-daemon-in-phase-1)
 
-      - [Decision 3: Sync branch instead of
-        main](#decision-3-sync-branch-instead-of-main)
+      - [Decision 3: Sync branch instead of main](#decision-3-sync-branch-instead-of-main)
 
-      - [Decision 4: Display ID prefix for Beads
-        compat](#decision-4-display-id-prefix-for-beads-compat)
+      - [Decision 4: Display ID prefix for Beads compat](#decision-4-display-id-prefix-for-beads-compat)
 
-      - [Decision 5: Only “blocks” dependencies in Phase
-        1](#decision-5-only-blocks-dependencies-in-phase-1)
+      - [Decision 5: Only “blocks” dependencies in Phase 1](#decision-5-only-blocks-dependencies-in-phase-1)
 
-      - [Decision 6: JSON storage vs Markdown +
-        YAML](#decision-6-json-storage-vs-markdown--yaml)
+      - [Decision 6: JSON storage vs Markdown + YAML](#decision-6-json-storage-vs-markdown--yaml)
 
     - [7.2 Future Enhancements (Phase 2+)](#72-future-enhancements-phase-2)
 
-      - [Additional Dependency Types (High
-        Priority)](#additional-dependency-types-high-priority)
+      - [Additional Dependency Types (High Priority)](#additional-dependency-types-high-priority)
 
       - [Agent Registry](#agent-registry)
 
@@ -250,8 +242,7 @@
 
     - [7.3 File Structure Reference](#73-file-structure-reference)
 
-  - [Appendix A: Beads to Ceads Feature
-    Mapping](#appendix-a-beads-to-ceads-feature-mapping)
+  - [Appendix A: Beads to Tbd Feature Mapping](#appendix-a-beads-to-tbd-feature-mapping)
 
     - [A.1 Executive Summary](#a1-executive-summary)
 
@@ -261,13 +252,11 @@
 
       - [A.2.2 Label Commands (Full Parity)](#a22-label-commands-full-parity)
 
-      - [A.2.3 Dependency Commands (Partial - blocks
-        only)](#a23-dependency-commands-partial---blocks-only)
+      - [A.2.3 Dependency Commands (Partial - blocks only)](#a23-dependency-commands-partial---blocks-only)
 
       - [A.2.4 Sync Commands (Full Parity)](#a24-sync-commands-full-parity)
 
-      - [A.2.5 Maintenance Commands (Full
-        Parity)](#a25-maintenance-commands-full-parity)
+      - [A.2.5 Maintenance Commands (Full Parity)](#a25-maintenance-commands-full-parity)
 
       - [A.2.6 Global Options (Full Parity)](#a26-global-options-full-parity)
 
@@ -291,8 +280,7 @@
 
       - [A.5.1 Basic Agent Loop (Full Parity)](#a51-basic-agent-loop-full-parity)
 
-      - [A.5.2 Creating Linked Work (Partial
-        Parity)](#a52-creating-linked-work-partial-parity)
+      - [A.5.2 Creating Linked Work (Partial Parity)](#a52-creating-linked-work-partial-parity)
 
       - [A.5.3 Migration Workflow](#a53-migration-workflow)
 
@@ -318,13 +306,13 @@
 
 ## 1. Introduction
 
-### 1.1 What is Ceads?
+### 1.1 What is Tbd?
 
-**Ceads** is an alternative to [Beads](https://github.com/steveyegge/beads) that
+**Tbd** is an alternative to [Beads](https://github.com/steveyegge/beads) that
 eliminates some rough edges and architectural complexity while maintaining CLI
 compatibility.
 
-Ceads is pronounced “seeds” and follows Beads in the spirit of C following B.
+Tbd is pronounced “seeds” and follows Beads in the spirit of C following B.
 
 **Key characteristics:**
 
@@ -363,7 +351,7 @@ architecture accumulated complexity:
 
 - **Network filesystem issues**: SQLite doesn’t work well on NFS/SMB
 
-**Ceads Solutions:**
+**Tbd Solutions:**
 
 - **2-location data**: Config on main branch, entities on sync branch
 
@@ -379,7 +367,7 @@ architecture accumulated complexity:
 
 **Related Work:**
 
-Ceads builds on lessons from the git-native issue tracking ecosystem:
+Tbd builds on lessons from the git-native issue tracking ecosystem:
 
 - **[ticket](https://github.com/wedow/ticket)**: A fast, simple Beads replacement
   implemented as a single bash script (about 900 lines) with Markdown + YAML frontmatter
@@ -388,7 +376,7 @@ Ceads builds on lessons from the git-native issue tracking ecosystem:
   Successfully manages about 1,900 tickets in production.
   Provides `migrate-beads` command for smooth transitions.
   Key insight: “You don’t need to index everything with SQLite when you have awk.”
-  Ceads shares this philosophy while adding TypeScript implementation, stronger conflict
+  Tbd shares this philosophy while adding TypeScript implementation, stronger conflict
   resolution, and cross-platform reliability.
 
 - **[git-bug](https://github.com/git-bug/git-bug)**: Stores issues as git objects,
@@ -399,7 +387,7 @@ Ceads builds on lessons from the git-native issue tracking ecosystem:
 
 - **[beans](https://github.com/hmans/beans)**: Another minimalist git-friendly tracker
 
-The common thread: **simplicity, no background services, git for distribution**. Ceads
+The common thread: **simplicity, no background services, git for distribution**. Tbd
 combines these proven patterns with multi-environment sync and conflict resolution.
 
 ### 1.3 Design Goals
@@ -409,7 +397,7 @@ combines these proven patterns with multi-environment sync and conflict resoluti
 
 2. **No data loss**: Conflicts preserve both versions via attic mechanism
 
-3. **Works anywhere**: Just `npm install -g ceads` anywhere: local dev, CI, cloud IDEs
+3. **Works anywhere**: Just `npm install -g tbd` anywhere: local dev, CI, cloud IDEs
    (Claude Code, Codespaces), network filesystems
 
 4. **Simple architecture**: Easy to understand, debug, and maintain
@@ -463,7 +451,7 @@ Add complexity only when proven necessary.
 
 ### 1.6 Layer Overview
 
-Ceads V2 Phase 1 has three layers:
+Tbd V2 Phase 1 has three layers:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -476,13 +464,13 @@ Ceads V2 Phase 1 has three layers:
 ┌──────────────────────────────┼───────────────────────────────────┐
 │                        Git Layer                                 │
 │                        Distributed sync                          │
-│   ceads-sync branch │ git fetch/push │ merge algorithm          │
+│   tbd-sync branch │ git fetch/push │ merge algorithm          │
 └──────────────────────────────┬───────────────────────────────────┘
                                │
 ┌──────────────────────────────┼───────────────────────────────────┐
 │                        File Layer                                │
 │                        Format specification                      │
-│   .ceads/config.yml │ .ceads-sync/ │ JSON schemas (Zod)         │
+│   .tbd/config.yml │ .tbd-sync/ │ JSON schemas (Zod)         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -531,8 +519,8 @@ across implementations:
 
 - UTF-8 encoding
 
-- LF line endings on all platforms (recommend `.gitattributes` rule: `.ceads-sync/**
-  text eol=lf`)
+- LF line endings on all platforms (recommend `.gitattributes` rule:
+  `.tbd-sync/** text eol=lf`)
 
 **Array ordering rules** (to ensure deterministic hashes):
 
@@ -596,7 +584,7 @@ async function atomicWrite(path: string, content: string): Promise<void> {
 
 - Implementations should use a well-tested atomic-write library when available
 
-**Cleanup:** On startup, remove orphaned `.tmp.*` files in ceads directories that are
+**Cleanup:** On startup, remove orphaned `.tmp.*` files in tbd directories that are
 **older than 1 hour**. This threshold prevents race conditions where one process creates
 a temp file while another is cleaning up.
 Alternatively, include `node_id` in temp file names and only cleanup files matching the
@@ -604,16 +592,16 @@ current node’s prefix.
 
 ### 2.2 Directory Structure
 
-Ceads uses two directories:
+Tbd uses two directories:
 
-- **`.ceads/`** on main branch: Configuration (tracked) + local cache (gitignored)
+- **`.tbd/`** on main branch: Configuration (tracked) + local cache (gitignored)
 
-- **`.ceads-sync/`** on `ceads-sync` branch: Synced entities and attic
+- **`.tbd-sync/`** on `tbd-sync` branch: Synced entities and attic
 
 #### On Main Branch (all working branches)
 
 ```
-.ceads/
+.tbd/
 ├── config.yml              # Project configuration (tracked)
 ├── .gitignore              # Ignores cache/ directory (tracked)
 │
@@ -623,10 +611,10 @@ Ceads uses two directories:
     └── sync.lock           # Optional sync coordination file
 ```
 
-#### On `ceads-sync` Branch
+#### On `tbd-sync` Branch
 
 ```
-.ceads-sync/
+.tbd-sync/
 ├── issues/                 # Issue entities
 │   ├── is-a1b2.json
 │   └── is-f14c.json
@@ -635,7 +623,7 @@ Ceads uses two directories:
 │       └── is-a1b2/
 │           └── 2025-01-07T10-30-00Z_description.json
 ├── mappings/               # Import ID mappings
-│   └── beads.json          # Beads ID → Ceads ID mapping
+│   └── beads.json          # Beads ID → Tbd ID mapping
 └── meta.json               # Metadata (schema version)
 ```
 
@@ -654,11 +642,11 @@ Ceads uses two directories:
 This section clarifies where issue data lives on a developer’s working branch, which is
 not explicitly covered in the directory structure above.
 
-**Design choice:** Issue data lives in `.ceads/cache/entities/` on the working branch
-(gitignored), not in `.ceads-sync/` on the working tree.
+**Design choice:** Issue data lives in `.tbd/cache/entities/` on the working branch
+(gitignored), not in `.tbd-sync/` on the working tree.
 
 ```
-.ceads/
+.tbd/
 ├── config.yml              # Tracked
 ├── .gitignore              # Tracked
 └── cache/                  # Gitignored - all local state
@@ -673,7 +661,7 @@ not explicitly covered in the directory structure above.
 
 **Why cache-based, not working-tree based?**
 
-1. **No untracked file noise**: `.ceads-sync/` never appears on main branch
+1. **No untracked file noise**: `.tbd-sync/` never appears on main branch
 
 2. **Clear separation**: Synced data vs local cache is unambiguous
 
@@ -681,10 +669,9 @@ not explicitly covered in the directory structure above.
 
 4. **Matches mental model**: “Sync branch has entities, main branch has config”
 
-**Invariant:** The `.ceads-sync/` directory should NEVER exist on a developer’s working
+**Invariant:** The `.tbd-sync/` directory should NEVER exist on a developer’s working
 tree when on main or feature branches.
-It only exists as content on the `ceads-sync` branch, accessed via git plumbing
-commands.
+It only exists as content on the `tbd-sync` branch, accessed via git plumbing commands.
 
 ### 2.3 Entity Collection Pattern
 
@@ -696,13 +683,13 @@ Future phases may add: agents, messages, workflows, templates
 
 | Collection | Directory | ID Prefix | Purpose |
 | --- | --- | --- | --- |
-| Issues | `.ceads-sync/issues/` | `is-` | Task tracking (synced) |
+| Issues | `.tbd-sync/issues/` | `is-` | Task tracking (synced) |
 
 #### Adding New Entity Types (Future)
 
 To add a new entity type:
 
-1. Create directory: `.ceads-sync/messages/` (on sync branch)
+1. Create directory: `.tbd-sync/messages/` (on sync branch)
 
 2. Define schema: `MessageSchema` in Zod
 
@@ -898,7 +885,7 @@ type Issue = z.infer<typeof IssueSchema>;
 **Notes on tombstone status:**
 
 Beads has a `tombstone` status for soft-deleted issues.
-In Ceads, we handle deletion differently:
+In Tbd, we handle deletion differently:
 
 - Closed issues remain in `issues/` directory with `status: closed`
 
@@ -908,14 +895,14 @@ In Ceads, we handle deletion differently:
 
 #### 2.5.4 ConfigSchema
 
-Project configuration stored in `.ceads/config.yml`:
+Project configuration stored in `.tbd/config.yml`:
 
 ```yaml
-# .ceads/config.yml
-ceads_version: "2.0.0"
+# .tbd/config.yml
+tbd_version: "2.0.0"
 
 sync:
-  branch: ceads-sync       # Branch name for synced data
+  branch: tbd-sync       # Branch name for synced data
   remote: origin           # Remote repository
 
 # Display settings
@@ -930,9 +917,9 @@ settings:
 
 ```typescript
 const ConfigSchema = z.object({
-  ceads_version: z.string(),
+  tbd_version: z.string(),
   sync: z.object({
-    branch: z.string().default('ceads-sync'),
+    branch: z.string().default('tbd-sync'),
     remote: z.string().default('origin'),
   }).default({}),
   display: z.object({
@@ -947,7 +934,7 @@ const ConfigSchema = z.object({
 
 #### 2.5.5 MetaSchema
 
-Shared metadata stored in `.ceads-sync/meta.json` on the sync branch:
+Shared metadata stored in `.tbd-sync/meta.json` on the sync branch:
 
 ```typescript
 const MetaSchema = z.object({
@@ -959,11 +946,11 @@ const MetaSchema = z.object({
 > **Note**: `last_sync` is intentionally NOT stored in `meta.json`. Syncing this file
 > would create a conflict hotspot—every node updates it on every sync, causing constant
 > merge conflicts. Instead, sync timestamps are tracked locally in
-> `.ceads/cache/state.json` (gitignored).
+> `.tbd/cache/state.json` (gitignored).
 
 #### 2.5.6 LocalStateSchema
 
-Per-node state stored in `.ceads/cache/state.json` (gitignored, never synced).
+Per-node state stored in `.tbd/cache/state.json` (gitignored, never synced).
 Each machine maintains its own local state:
 
 ```typescript
@@ -982,11 +969,11 @@ const LocalStateSchema = z.object({
 > Keeping it local eliminates this hotspot.
 
 **Sync Baseline:** The `last_synced_commit` field stores the git commit hash on
-`ceads-sync` that was last successfully synced.
+`tbd-sync` that was last successfully synced.
 This enables:
 
-- `cead sync --status` to compute pending changes via `git diff --name-status
-  <baseline>..origin/ceads-sync`
+- `cead sync --status` to compute pending changes via
+  `git diff --name-status <baseline>..origin/tbd-sync`
 
 - Incremental sync operations without full scans
 
@@ -1032,28 +1019,28 @@ merging.
 
 - **Standard git**: All operations use git CLI
 
-- **Dedicated sync branch**: `ceads-sync` branch never pollutes main
+- **Dedicated sync branch**: `tbd-sync` branch never pollutes main
 
 - **Hash-based conflict detection**: Content hash comparison triggers merge
 
-**Critical Invariant:** Ceads MUST NEVER modify the user’s git index or staging area.
+**Critical Invariant:** Tbd MUST NEVER modify the user’s git index or staging area.
 All git plumbing operations that write to the sync branch MUST use an isolated index
 file via `GIT_INDEX_FILE` environment variable.
-This ensures that a developer’s staged changes are never corrupted by ceads operations.
+This ensures that a developer’s staged changes are never corrupted by tbd operations.
 
 ```bash
 # Example: all sync branch writes use isolated index
-export GIT_INDEX_FILE="$(git rev-parse --git-dir)/ceads-index"
+export GIT_INDEX_FILE="$(git rev-parse --git-dir)/tbd-index"
 ```
 
 ### 3.2 Sync Branch Architecture
 
 ```
-main branch:                    ceads-sync branch:
-├── src/                        └── .ceads-sync/
+main branch:                    tbd-sync branch:
+├── src/                        └── .tbd-sync/
 ├── tests/                          ├── issues/
 ├── README.md                       ├── attic/
-├── .ceads/                         └── meta.json
+├── .tbd/                         └── meta.json
 │   ├── config.yml (tracked)
 │   ├── .gitignore (tracked)
 │   └── cache/     (gitignored)
@@ -1065,7 +1052,7 @@ main branch:                    ceads-sync branch:
 1. **No conflicts on main**: Coordination data never creates merge conflicts in feature
    branches
 
-2. **Simple allow-listing**: Cloud sandboxes can allow push to `ceads-sync` only
+2. **Simple allow-listing**: Cloud sandboxes can allow push to `tbd-sync` only
 
 3. **Shared across branches**: All feature branches see the same issues
 
@@ -1074,23 +1061,23 @@ main branch:                    ceads-sync branch:
 #### Files Tracked on Main Branch
 
 ```
-.ceads/config.yml       # Project configuration (YAML)
-.ceads/.gitignore       # Ignores cache/ directory
+.tbd/config.yml       # Project configuration (YAML)
+.tbd/.gitignore       # Ignores cache/ directory
 ```
 
-#### .ceads/.gitignore Contents
+#### .tbd/.gitignore Contents
 
 ```gitignore
 # Local cache (rebuildable)
 cache/
 ```
 
-#### Files Tracked on ceads-sync Branch
+#### Files Tracked on tbd-sync Branch
 
 ```
-.ceads-sync/issues/     # Issue entities
-.ceads-sync/attic/      # Conflict archive
-.ceads-sync/meta.json   # Metadata
+.tbd-sync/issues/     # Issue entities
+.tbd-sync/attic/      # Conflict archive
+.tbd-sync/meta.json   # Metadata
 ```
 
 ### 3.3 Sync Operations
@@ -1101,10 +1088,10 @@ Sync uses standard git commands to read/write the sync branch without checking i
 
 ```bash
 # Read a file from sync branch without checkout
-git show ceads-sync:.ceads-sync/issues/is-a1b2.json
+git show tbd-sync:.tbd-sync/issues/is-a1b2.json
 
 # List files in issues directory
-git ls-tree ceads-sync .ceads-sync/issues/
+git ls-tree tbd-sync .tbd-sync/issues/
 ```
 
 #### 3.3.2 Writing to Sync Branch
@@ -1113,29 +1100,29 @@ All write operations use an isolated index to protect user’s staged changes:
 
 ```bash
 # Setup isolated index
-export GIT_INDEX_FILE="$(git rev-parse --git-dir)/ceads-index"
+export GIT_INDEX_FILE="$(git rev-parse --git-dir)/tbd-index"
 
 # 1. Fetch latest
-git fetch origin ceads-sync
+git fetch origin tbd-sync
 
 # 2. Read current sync branch state into isolated index
-git read-tree ceads-sync
+git read-tree tbd-sync
 
 # 3. Update index with local changes
-#    (files from .ceads/cache/entities/ are added to the tree)
-git update-index --add --cacheinfo 100644,<blob-sha>,".ceads-sync/issues/is-a1b2c3.json"
+#    (files from .tbd/cache/entities/ are added to the tree)
+git update-index --add --cacheinfo 100644,<blob-sha>,".tbd-sync/issues/is-a1b2c3.json"
 
 # 4. Write tree from isolated index
 TREE=$(git write-tree)
 
 # 5. Create commit on sync branch
-COMMIT=$(git commit-tree $TREE -p ceads-sync -m "ceads sync: $(date -Iseconds)")
+COMMIT=$(git commit-tree $TREE -p tbd-sync -m "tbd sync: $(date -Iseconds)")
 
 # 6. Update sync branch ref
-git update-ref refs/heads/ceads-sync $COMMIT
+git update-ref refs/heads/tbd-sync $COMMIT
 
 # 7. Push to remote
-git push origin ceads-sync
+git push origin tbd-sync
 ```
 
 **Push Retry Algorithm (V2-005):**
@@ -1146,15 +1133,15 @@ If push is rejected (non-fast-forward), retry with merge:
 MAX_RETRIES = 3
 
 for attempt in 1..MAX_RETRIES:
-  1. git fetch origin ceads-sync
-  2. Compute diff between prepared_commit and origin/ceads-sync
+  1. git fetch origin tbd-sync
+  2. Compute diff between prepared_commit and origin/tbd-sync
   3. For each conflicting file:
      - Load both versions as JSON
      - Apply merge rules (section 3.5)
      - Write merged result, save losers to attic
   4. Create new tree with merged files
   5. Create new commit with both parents (merge commit)
-  6. git push origin ceads-sync
+  6. git push origin tbd-sync
   7. If push succeeds: done
   8. If push rejected: continue to next attempt
 
@@ -1342,7 +1329,7 @@ merged.extensions = {
 The attic preserves data lost in conflicts:
 
 ```
-.ceads-sync/attic/
+.tbd-sync/attic/
 └── conflicts/
     └── is-a1b2/
         ├── 2025-01-07T10-30-00Z_description.json
@@ -1400,17 +1387,17 @@ cead <command> [subcommand] [args] [options]
 cead init [options]
 
 Options:
-  --sync-branch <name>  Sync branch name (default: ceads-sync)
+  --sync-branch <name>  Sync branch name (default: tbd-sync)
   --remote <name>       Remote name (default: origin)
 ```
 
 **What it does:**
 
-1. Creates `.ceads/` directory with `config.yml` and `.gitignore`
+1. Creates `.tbd/` directory with `config.yml` and `.gitignore`
 
-2. Creates `.ceads/cache/` (gitignored)
+2. Creates `.tbd/cache/` (gitignored)
 
-3. Creates `ceads-sync` branch with `.ceads-sync/` structure
+3. Creates `tbd-sync` branch with `.tbd-sync/` structure
 
 4. Pushes sync branch to origin (if remote exists)
 
@@ -1420,13 +1407,13 @@ Options:
 
 **Output:**
 ```
-Initialized ceads in /path/to/repo
-Created sync branch: ceads-sync
+Initialized tbd in /path/to/repo
+Created sync branch: tbd-sync
 Pushed sync branch to origin
 
 To complete setup, commit the config files:
-  git add .ceads/config.yml .ceads/.gitignore
-  git commit -m "Initialize ceads"
+  git add .tbd/config.yml .tbd/.gitignore
+  git commit -m "Initialize tbd"
 ```
 
 ### 4.4 Issue Commands
@@ -1831,8 +1818,8 @@ Available on all commands:
 ```bash
 --help                      Show help
 --version                   Show version
---db <path>                 Custom .ceads directory path (Beads compat alias)
---dir <path>                Custom .ceads directory path (preferred)
+--db <path>                 Custom .tbd directory path (Beads compat alias)
+--dir <path>                Custom .tbd directory path (preferred)
 --no-sync                   Disable auto-sync (per command)
 --json                      JSON output
 --actor <name>              Override actor name
@@ -1958,7 +1945,7 @@ cead attic restore 2025-01-07T10-30-00Z_description
 The import command is designed to be **idempotent and safe to re-run**. This enables
 workflows where:
 
-- Initial migration from Beads to Ceads
+- Initial migration from Beads to Tbd
 
 - Ongoing sync if some agents still use Beads temporarily
 
@@ -2012,7 +1999,7 @@ cead import --from-beads --branch beads-sync
 
 #### 5.1.2 Multi-Source Import (--from-beads)
 
-When using `--from-beads`, Ceads reads directly from the Beads repository structure
+When using `--from-beads`, Tbd reads directly from the Beads repository structure
 instead of an exported file.
 This is useful when you want to import without running `bd export` first, or when you
 need to capture changes from both main and sync branches.
@@ -2184,7 +2171,7 @@ Import complete.
 #### 5.1.4 ID Mapping
 
 The key to idempotent import is **stable ID mapping**. The same Beads issue must always
-map to the same Ceads issue, even across multiple imports on different machines.
+map to the same Tbd issue, even across multiple imports on different machines.
 
 **Mapping storage:**
 
@@ -2210,7 +2197,7 @@ Each imported issue stores its original Beads ID in the `extensions` field:
 To enable O(1) lookups on large issue sets, import also maintains a mapping file:
 
 ```
-.ceads-sync/mappings/beads.json
+.tbd-sync/mappings/beads.json
 ```
 
 ```json
@@ -2223,21 +2210,21 @@ To enable O(1) lookups on large issue sets, import also maintains a mapping file
 
 This file:
 
-- Is synced with other Ceads data on the sync branch
+- Is synced with other Tbd data on the sync branch
 
 - Enables instant lookup of existing mappings
 
 - Is authoritative (extensions field is for reference/debugging)
 
 **Mapping recovery:** If the mapping file is corrupted or lost, it can be reconstructed
-by scanning all issues and reading `extensions.beads.original_id`. Run: `cead doctor
---fix` to rebuild mappings from extensions data.
+by scanning all issues and reading `extensions.beads.original_id`. Run:
+`cead doctor --fix` to rebuild mappings from extensions data.
 
 #### 5.1.5 Import Algorithm
 
 ```
 IMPORT_BEADS(jsonl_file):
-  1. Load existing mapping from .ceads-sync/mappings/beads.json
+  1. Load existing mapping from .tbd-sync/mappings/beads.json
      (create empty {} if not exists)
 
   2. For each line in jsonl_file:
@@ -2245,40 +2232,40 @@ IMPORT_BEADS(jsonl_file):
      b. beads_id = issue.id (e.g., "bd-x7y8")
 
      c. Look up beads_id in mapping:
-        - If found: ceads_id = mapping[beads_id]
-          Load existing Ceads issue for merge
-        - If not found: ceads_id = generate_new_id("is-")
-          Add mapping[beads_id] = ceads_id
+        - If found: tbd_id = mapping[beads_id]
+          Load existing Tbd issue for merge
+        - If not found: tbd_id = generate_new_id("is-")
+          Add mapping[beads_id] = tbd_id
 
-     d. Convert Beads fields to Ceads format (see Field Mapping)
+     d. Convert Beads fields to Tbd format (see Field Mapping)
 
      e. Set extensions.beads.original_id = beads_id
         Set extensions.beads.imported_at = now()
 
-     f. If existing Ceads issue:
+     f. If existing Tbd issue:
         - Compare updated_at timestamps
         - If Beads is newer: apply merge using standard rules
-        - If Ceads is newer: skip (Ceads changes preserved)
+        - If Tbd is newer: skip (Tbd changes preserved)
         - If same: no-op (already imported)
      g. If new issue:
-        - Write new Ceads issue file
+        - Write new Tbd issue file
 
   3. Save updated mapping file
 
-  4. Report: N new, M updated, K unchanged, J skipped (Ceads newer)
+  4. Report: N new, M updated, K unchanged, J skipped (Tbd newer)
 
   5. Sync (unless --no-sync)
 ```
 
 #### 5.1.6 Merge Behavior on Re-Import
 
-When re-importing an issue that already exists in Ceads:
+When re-importing an issue that already exists in Tbd:
 
 | Scenario | Behavior |
 | --- | --- |
-| Beads unchanged, Ceads unchanged | No-op |
-| Beads updated, Ceads unchanged | Update Ceads with Beads changes |
-| Beads unchanged, Ceads updated | Keep Ceads changes (skip) |
+| Beads unchanged, Tbd unchanged | No-op |
+| Beads updated, Tbd unchanged | Update Tbd with Beads changes |
+| Beads unchanged, Tbd updated | Keep Tbd changes (skip) |
 | Both updated | Merge using LWW rules, loser to attic |
 
 **Merge uses standard issue merge rules:**
@@ -2294,12 +2281,12 @@ When re-importing an issue that already exists in Ceads:
 ```
 Time 0: Import bd-a1b2 → is-x1y2 (initial import)
 Time 1: Agent updates bd-a1b2 in Beads (adds label "urgent")
-Time 2: Human updates is-x1y2 in Ceads (changes priority to 1)
+Time 2: Human updates is-x1y2 in Tbd (changes priority to 1)
 Time 3: Re-import bd-a1b2
 
 Result: is-x1y2 has both changes:
   - Label "urgent" (from Beads, union merge)
-  - Priority 1 (from Ceads, more recent updated_at wins)
+  - Priority 1 (from Tbd, more recent updated_at wins)
 ```
 
 #### 5.1.7 Handling Deletions and Tombstones
@@ -2312,7 +2299,7 @@ Result: is-x1y2 has both changes:
 Beads uses `tombstone` status for soft-deleted issues.
 On import:
 
-| Beads Status | Ceads Behavior | Rationale |
+| Beads Status | Tbd Behavior | Rationale |
 | --- | --- | --- |
 | `tombstone` (first import) | Skip by default | Don't import deleted issues |
 | `tombstone` (re-import) | Set `status: closed`, add label `deleted-in-beads` | Preserve history |
@@ -2330,7 +2317,7 @@ On import, these must be translated:
 
 ```
 Beads: { "type": "blocks", "target": "bd-m5n6" }
-Ceads: { "type": "blocks", "target": "is-d4e5f6" }  # Looked up from mapping
+Tbd: { "type": "blocks", "target": "is-d4e5f6" }  # Looked up from mapping
 ```
 
 **Algorithm:**
@@ -2376,7 +2363,7 @@ Would import from beads-export.jsonl:
     ...
   Unchanged:       142
   Would skip:      2
-    bd-p1q2 (is-g7h8) - Ceads newer by 1 day
+    bd-p1q2 (is-g7h8) - Tbd newer by 1 day
 ```
 
 #### 5.1.10 Migration Workflow
@@ -2390,8 +2377,8 @@ bd export > beads-export.jsonl
 # In target repo (may be same repo)
 cead init
 cead import beads-export.jsonl
-git add .ceads/
-git commit -m "Initialize ceads and import from beads"
+git add .tbd/
+git commit -m "Initialize tbd and import from beads"
 cead sync
 ```
 
@@ -2402,7 +2389,7 @@ cead sync
 bd export > beads-export.jsonl
 cead import beads-export.jsonl  # Safe to re-run
 
-# After import, Ceads is authoritative
+# After import, Tbd is authoritative
 # New work should use cead commands
 ```
 
@@ -2410,16 +2397,16 @@ cead import beads-export.jsonl  # Safe to re-run
 
 ```bash
 # Agent accidentally used Beads commands
-# Recover that work into Ceads
+# Recover that work into Tbd
 bd export > beads-export.jsonl
 cead import beads-export.jsonl
 cead sync
-# Agent's work is now in Ceads
+# Agent's work is now in Tbd
 ```
 
 ### 5.2 Command Mapping
 
-| Beads Command | Ceads Equivalent | Status | Notes |
+| Beads Command | Tbd Equivalent | Status | Notes |
 | --- | --- | --- | --- |
 | `bd init` | `cead init` | ✅ Full | Identical behavior |
 | `bd create` | `cead create` | ✅ Full | All options supported |
@@ -2456,7 +2443,7 @@ cead sync
 
 ### 5.3 Field Mapping
 
-| Beads Field | Ceads Field | Notes |
+| Beads Field | Tbd Field | Notes |
 | --- | --- | --- |
 | `id` | `id` | New format: `is-xxxx` vs `bd-xxxx` |
 | `title` | `title` | Identical |
@@ -2478,7 +2465,7 @@ cead sync
 
 ### 5.4 Status Mapping
 
-| Beads Status | Ceads Status | Migration Behavior |
+| Beads Status | Tbd Status | Migration Behavior |
 | --- | --- | --- |
 | `open` | `open` | Direct mapping |
 | `in_progress` | `in_progress` | Direct mapping |
@@ -2490,13 +2477,13 @@ cead sync
 **Tombstone handling:**
 
 Beads uses `tombstone` for soft-deleted issues.
-Ceads options:
+Tbd options:
 
 1. **Skip on import**: Don’t import tombstoned issues (default)
 
 2. **Import as closed**: Convert to `closed` with label `tombstone`
 
-3. **Import to attic**: Store in `.ceads-sync/attic/deleted/`
+3. **Import to attic**: Store in `.tbd-sync/attic/deleted/`
 
 ### 5.5 Compatibility Notes
 
@@ -2520,44 +2507,44 @@ Ceads options:
 
 - Beads: Single `issues.jsonl` file
 
-- Ceads: File-per-issue in `.ceads-sync/issues/`
+- Tbd: File-per-issue in `.tbd-sync/issues/`
 
 **Database:**
 
 - Beads: SQLite cache
 
-- Ceads: Optional index, rebuildable from files
+- Tbd: Optional index, rebuildable from files
 
 **Daemon:**
 
 - Beads: Required background daemon
 
-- Ceads: No daemon (optional background sync in Phase 2)
+- Tbd: No daemon (optional background sync in Phase 2)
 
 **Git integration:**
 
 - Beads: Complex worktree setup
 
-- Ceads: Simple sync branch
+- Tbd: Simple sync branch
 
 **Conflict handling:**
 
 - Beads: JSONL merge conflicts
 
-- Ceads: Field-level merge with attic
+- Tbd: Field-level merge with attic
 
 **ID format:**
 
 - Beads: `bd-xxxx` (4-6 hex chars)
 
-- Ceads: `is-xxxx` (4-6 hex chars)
+- Tbd: `is-xxxx` (4-6 hex chars)
 
   - Display as `bd-xxxx` via `display.id_prefix` config
 
 ### 5.6 Compatibility Contract
 
-This section defines the stability guarantees for scripts and tooling that depend on
-Ceads CLI output.
+This section defines the stability guarantees for scripts and tooling that depend on Tbd
+CLI output.
 
 **Stable (will not change without major version bump):**
 
@@ -2597,7 +2584,7 @@ These flags/behaviors are maintained for Beads script compatibility:
 
 #### Migration Gotchas
 
-1. **IDs change**: Beads `bd-a1b2` becomes Ceads `is-a1b2` internally
+1. **IDs change**: Beads `bd-a1b2` becomes Tbd `is-a1b2` internally
 
    - Set `display.id_prefix: bd` to show as `bd-a1b2`
 
@@ -2607,7 +2594,7 @@ These flags/behaviors are maintained for Beads script compatibility:
 
 3. **No auto-flush**: Beads auto-syncs on write
 
-   - Ceads syncs on `cead sync` or with `settings.auto_sync: true` in config
+   - Tbd syncs on `cead sync` or with `settings.auto_sync: true` in config
 
 4. **Tombstone issues**: Decide import behavior (skip/convert/attic)
 
@@ -2619,7 +2606,7 @@ These flags/behaviors are maintained for Beads script compatibility:
 
 #### Query Index
 
-**Optional caching layer** (`.ceads/cache/index.json`):
+**Optional caching layer** (`.tbd/cache/index.json`):
 
 ```typescript
 // JSON-serializable index structure
@@ -2644,11 +2631,11 @@ interface Index {
 **Checksum strategy:**
 
 The index freshness is determined by comparing `baseline_commit` to the current
-`ceads-sync` branch HEAD:
+`tbd-sync` branch HEAD:
 
 ```bash
 # Check if index is fresh
-CURRENT=$(git rev-parse ceads-sync)
+CURRENT=$(git rev-parse tbd-sync)
 if [ "$CURRENT" == "$INDEX_BASELINE_COMMIT" ]; then
   # Index is fresh, use it
 else
@@ -2665,7 +2652,7 @@ fi
 
 3. If no index or baseline missing, full rebuild from all issue files
 
-4. Store in `.ceads/cache/index.json`
+4. Store in `.tbd/cache/index.json`
 
 5. Cache is gitignored, never synced
 
@@ -2679,9 +2666,9 @@ fi
 
 - Incremental update: <100ms for typical sync (10-50 changed files)
 
-**Incremental operations:** Common operations like `cead list`, `cead ready`, and `cead
-sync --status` use the index and diff-based updates to meet performance targets even at
-scale.
+**Incremental operations:** Common operations like `cead list`, `cead ready`, and
+`cead sync --status` use the index and diff-based updates to meet performance targets
+even at scale.
 
 #### File I/O Optimization
 
@@ -2735,11 +2722,11 @@ scale.
 
 ### 6.3 Migration Path
 
-**Beads → Ceads migration checklist:**
+**Beads → Tbd migration checklist:**
 
 1. ✅ Export Beads data: `bd export > backup.jsonl`
 
-2. ✅ Initialize Ceads: `cead init`
+2. ✅ Initialize Tbd: `cead init`
 
 3. ✅ Import: `cead import backup.jsonl`
 
@@ -2749,15 +2736,15 @@ scale.
 
 6. ✅ Test workflows: create, update, sync
 
-7. ✅ Commit config: `git add .ceads/ && git commit`
+7. ✅ Commit config: `git add .tbd/ && git commit`
 
-8. ✅ Sync team: `git push origin ceads-sync`
+8. ✅ Sync team: `git push origin tbd-sync`
 
 9. ✅ Update docs: Replace `bd` with `cead` in scripts (or keep `bd` alias)
 
 **Gradual rollout:**
 
-- Keep Beads running alongside Ceads initially
+- Keep Beads running alongside Tbd initially
 
 - Compare outputs (`bd list` vs `cead list`)
 
@@ -2813,7 +2800,7 @@ scale.
 
 #### Decision 3: Sync branch instead of main
 
-**Choice**: Dedicated `ceads-sync` branch
+**Choice**: Dedicated `tbd-sync` branch
 
 **Rationale**:
 
@@ -2911,7 +2898,7 @@ frontmatter, which offers:
 - Future: `cead edit <id>` opens in $EDITOR with Markdown preview
 
 **Credit**: ticket’s Markdown approach is elegant for simple workflows.
-Ceads chooses JSON for multi-environment sync robustness, but we may add Markdown
+Tbd chooses JSON for multi-environment sync robustness, but we may add Markdown
 export/import in Phase 2 for best of both worlds.
 
 ### 7.2 Future Enhancements (Phase 2+)
@@ -3031,15 +3018,15 @@ No changes to sync algorithm needed.
 ```
 repo/
 ├── .git/
-├── .ceads/                         # On main branch
+├── .tbd/                         # On main branch
 │   ├── config.yml                  # Tracked: project config
 │   ├── .gitignore                  # Tracked: ignores cache/
 │   └── cache/                      # Gitignored: local only
 │       ├── index.json              # Optional query cache
 │       └── sync.lock               # Optional sync coordination
 │
-└── (on ceads-sync branch)
-    └── .ceads-sync/
+└── (on tbd-sync branch)
+    └── .tbd-sync/
         ├── issues/                 # Issue entities
         │   ├── is-a1b2.json
         │   └── is-f14c.json
@@ -3054,24 +3041,24 @@ repo/
 
 | Location | Files | Size |
 | --- | --- | --- |
-| `.ceads/` | 3 | <1 KB |
-| `.ceads/cache/` | 1-2 | <500 KB |
-| `.ceads-sync/issues/` | 1,000 | ~2 MB |
-| `.ceads-sync/attic/` | 10-50 | <100 KB |
+| `.tbd/` | 3 | <1 KB |
+| `.tbd/cache/` | 1-2 | <500 KB |
+| `.tbd-sync/issues/` | 1,000 | ~2 MB |
+| `.tbd-sync/attic/` | 10-50 | <100 KB |
 
 * * *
 
-## Appendix A: Beads to Ceads Feature Mapping
+## Appendix A: Beads to Tbd Feature Mapping
 
-This appendix provides a comprehensive mapping between Beads and Ceads V2 Phase 1 for
+This appendix provides a comprehensive mapping between Beads and Tbd V2 Phase 1 for
 migration planning and compatibility reference.
 
 ### A.1 Executive Summary
 
-Ceads V2 Phase 1 provides CLI-level compatibility with Beads for core issue tracking
-while simplifying the architecture:
+Tbd V2 Phase 1 provides CLI-level compatibility with Beads for core issue tracking while
+simplifying the architecture:
 
-| Aspect | Beads | Ceads V2 Phase 1 |
+| Aspect | Beads | Tbd V2 Phase 1 |
 | --- | --- | --- |
 | Data locations | 4 (SQLite, local JSONL, sync branch, main) | 2 (files on sync branch, config on main) |
 | Storage | SQLite + JSONL | JSON files (file-per-entity) |
@@ -3081,14 +3068,14 @@ while simplifying the architecture:
 | Conflict resolution | 3-way merge | Content hash LWW + attic |
 
 **Core Finding:** All essential issue tracking workflows in Beads have direct CLI
-equivalents in Ceads V2 Phase 1. Advanced features (agent coordination, templates,
+equivalents in Tbd V2 Phase 1. Advanced features (agent coordination, templates,
 real-time sync) are explicitly deferred.
 
 ### A.2 CLI Command Mapping
 
 #### A.2.1 Issue Commands (Full Parity)
 
-| Beads Command | Ceads Command | Status | Notes |
+| Beads Command | Tbd Command | Status | Notes |
 | --- | --- | --- | --- |
 | `bd create "Title"` | `cead create "Title"` | ✅ Full | Identical |
 | `bd create "Title" -t type` | `cead create "Title" -t type` | ✅ Full | Same flag |
@@ -3128,7 +3115,7 @@ real-time sync) are explicitly deferred.
 
 #### A.2.2 Label Commands (Full Parity)
 
-| Beads Command | Ceads Command | Status | Notes |
+| Beads Command | Tbd Command | Status | Notes |
 | --- | --- | --- | --- |
 | `bd label add <id> <label>` | `cead label add <id> <label>` | ✅ Full | Identical |
 | `bd label remove <id> <label>` | `cead label remove <id> <label>` | ✅ Full | Identical |
@@ -3138,7 +3125,7 @@ Also available via update: `cead update <id> --add-label X` and `--remove-label 
 
 #### A.2.3 Dependency Commands (Partial - blocks only)
 
-| Beads Command | Ceads Command | Status | Notes |
+| Beads Command | Tbd Command | Status | Notes |
 | --- | --- | --- | --- |
 | `bd dep add <a> <b>` | `cead dep add <id> <target>` | ✅ Full | Default: blocks |
 | `bd dep add <a> <b> --type blocks` | `cead dep add <id> <target> --type blocks` | ✅ Full | Identical |
@@ -3153,7 +3140,7 @@ This is sufficient for the `ready` command algorithm.
 
 #### A.2.4 Sync Commands (Full Parity)
 
-| Beads Command | Ceads Command | Status | Notes |
+| Beads Command | Tbd Command | Status | Notes |
 | --- | --- | --- | --- |
 | `bd sync` | `cead sync` | ✅ Full | Pull then push |
 | `bd sync --pull` | `cead sync --pull` | ✅ Full | Pull only |
@@ -3162,7 +3149,7 @@ This is sufficient for the `ready` command algorithm.
 
 #### A.2.5 Maintenance Commands (Full Parity)
 
-| Beads Command | Ceads Command | Status | Notes |
+| Beads Command | Tbd Command | Status | Notes |
 | --- | --- | --- | --- |
 | `bd init` | `cead init` | ✅ Full | Identical |
 | `bd doctor` | `cead doctor` | ✅ Full | Health checks |
@@ -3175,12 +3162,12 @@ This is sufficient for the `ready` command algorithm.
 
 #### A.2.6 Global Options (Full Parity)
 
-| Beads Option | Ceads Option | Status | Notes |
+| Beads Option | Tbd Option | Status | Notes |
 | --- | --- | --- | --- |
 | `--json` | `--json` | ✅ Full | JSON output |
 | `--help` | `--help` | ✅ Full | Help text |
 | `--version` | `--version` | ✅ Full | Version info |
-| `--db <path>` | `--db <path>` | ✅ Full | Custom .ceads path |
+| `--db <path>` | `--db <path>` | ✅ Full | Custom .tbd path |
 | `--no-sync` | `--no-sync` | ✅ Full | Skip auto-sync |
 | `--actor <name>` | `--actor <name>` | ✅ Full | Override actor |
 
@@ -3188,7 +3175,7 @@ This is sufficient for the `ready` command algorithm.
 
 #### A.3.1 Issue Schema
 
-| Beads Field | Ceads Field | Status | Notes |
+| Beads Field | Tbd Field | Status | Notes |
 | --- | --- | --- | --- |
 | `id` | `id` | ✅ | `bd-xxxx` → display prefix configurable |
 | `title` | `title` | ✅ | Identical |
@@ -3214,7 +3201,7 @@ This is sufficient for the `ready` command algorithm.
 
 #### A.3.2 Status Values
 
-| Beads Status | Ceads Status | Migration |
+| Beads Status | Tbd Status | Migration |
 | --- | --- | --- |
 | `open` | `open` | ✅ Direct |
 | `in_progress` | `in_progress` | ✅ Direct |
@@ -3227,7 +3214,7 @@ This is sufficient for the `ready` command algorithm.
 
 #### A.3.3 Issue Types/Kinds
 
-| Beads Type | Ceads Kind | Status |
+| Beads Type | Tbd Kind | Status |
 | --- | --- | --- |
 | `bug` | `bug` | ✅ |
 | `feature` | `feature` | ✅ |
@@ -3239,7 +3226,7 @@ This is sufficient for the `ready` command algorithm.
 
 #### A.3.4 Dependency Types
 
-| Beads Type | Ceads Type | Status |
+| Beads Type | Tbd Type | Status |
 | --- | --- | --- |
 | `blocks` | `blocks` | ✅ Phase 1 |
 | `related` | `related` | ⏳ Phase 2 |
@@ -3250,17 +3237,17 @@ This is sufficient for the `ready` command algorithm.
 
 #### A.4.1 Storage
 
-| Aspect | Beads | Ceads V2 Phase 1 |
+| Aspect | Beads | Tbd V2 Phase 1 |
 | --- | --- | --- |
 | Primary store | SQLite | JSON files |
 | Sync format | JSONL | JSON files (same as primary) |
 | File structure | Single `issues.jsonl` | File per entity |
-| Location | `.beads/` on main | `.ceads-sync/` on sync branch |
-| Config | SQLite + various | `.ceads/config.yml` on main |
+| Location | `.beads/` on main | `.tbd-sync/` on sync branch |
+| Config | SQLite + various | `.tbd/config.yml` on main |
 
 #### A.4.2 Sync
 
-| Aspect | Beads | Ceads V2 Phase 1 |
+| Aspect | Beads | Tbd V2 Phase 1 |
 | --- | --- | --- |
 | Mechanism | SQLite ↔ JSONL ↔ git | Files ↔ git |
 | Branch | Main or sync branch | Sync branch only |
@@ -3282,7 +3269,7 @@ bd close <id> --reason "Done"  # Complete
 bd sync                       # Sync
 ```
 
-**Ceads V2 Phase 1:**
+**Tbd V2 Phase 1:**
 ```bash
 cead ready --json            # Find work
 cead update <id> --status in_progress  # Claim (advisory)
@@ -3301,7 +3288,7 @@ Claims are advisory in both (no enforcement).
 bd create "Found bug" -t bug -p 1 --deps discovered-from:<id> --json
 ```
 
-**Ceads V2 Phase 1:**
+**Tbd V2 Phase 1:**
 ```bash
 # Only blocks dependency supported in Phase 1
 cead create "Found bug" -t bug -p 1 --parent <id> --json
@@ -3320,8 +3307,8 @@ bd export -o beads-export.jsonl
 # In target repo
 cead init
 cead import beads-export.jsonl  # Converts format
-git add .ceads/
-git commit -m "Initialize ceads from beads"
+git add .tbd/
+git commit -m "Initialize tbd from beads"
 cead sync
 
 # Configure display prefix for familiarity
@@ -3362,8 +3349,8 @@ cead config display.id_prefix bd
 
 - **Behavior:** Advisory claims, manual sync (no daemon)
 
-**Overall Assessment:** Ceads V2 Phase 1 provides sufficient feature parity for LLM
-agents to migrate from Beads for basic issue tracking workflows.
+**Overall Assessment:** Tbd V2 Phase 1 provides sufficient feature parity for LLM agents
+to migrate from Beads for basic issue tracking workflows.
 The simpler architecture (no SQLite, no daemon, file-per-entity) addresses the key pain
 points identified in the Beads experience.
 
@@ -3372,21 +3359,21 @@ points identified in the Beads experience.
 ## 8. Open Questions
 
 The following items from the GPT-5 Pro design review require further discussion before
-implementation. See `ceads-design-v2-phase1-tracking.md` for full context.
+implementation. See `tbd-design-v2-phase1-tracking.md` for full context.
 
 ### 8.1 Git Operations
 
 **V2-004: Remote vs local branch reference ambiguity**
 
-After `git fetch origin ceads-sync`, should reads use `origin/ceads-sync` (remote
-tracking) or local `ceads-sync`? Current spec uses `ceads-sync:` in examples, which may
-read stale data if not updated after fetch.
+After `git fetch origin tbd-sync`, should reads use `origin/tbd-sync` (remote tracking)
+or local `tbd-sync`? Current spec uses `tbd-sync:` in examples, which may read stale
+data if not updated after fetch.
 
 **Options:**
 
-1. Always read from `origin/ceads-sync` after fetch
+1. Always read from `origin/tbd-sync` after fetch
 
-2. Update local `ceads-sync` ref after fetch, then read from it
+2. Update local `tbd-sync` ref after fetch, then read from it
 
 3. Document both patterns with guidance on when to use each
 
@@ -3410,7 +3397,7 @@ The attic preserves losers, but UX may suffer if the “wrong” version consist
 
 **V2-016: Single mapping file as potential conflict hotspot**
 
-`.ceads-sync/mappings/beads.json` could see conflicts if multiple nodes import
+`.tbd-sync/mappings/beads.json` could see conflicts if multiple nodes import
 concurrently (though this is rare).
 
 **Options:**
@@ -3440,7 +3427,7 @@ we extend to 8 chars (32 bits, 4B possibilities) for future-proofing?
 
 **Idea 7: Reserve directory structure for Phase 2 bridges**
 
-Should Phase 1 reserve `.ceads/cache/outbox/` and `.ceads/cache/inbox/` directories for
+Should Phase 1 reserve `.tbd/cache/outbox/` and `.tbd/cache/inbox/` directories for
 future bridge runtime use?
 
 **Options:**
@@ -3451,4 +3438,4 @@ future bridge runtime use?
 
 * * *
 
-**End of Ceads V2 Phase 1 Design Specification**
+**End of Tbd V2 Phase 1 Design Specification**

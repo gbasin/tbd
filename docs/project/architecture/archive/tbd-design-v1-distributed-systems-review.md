@@ -1,10 +1,10 @@
-# Ceads Design: Distributed Systems Review
+# Tbd Design: Distributed Systems Review
 
 **Reviewer:** Claude (Opus 4.5)
 
 **Date:** January 2025
 
-**Document Reviewed:** [ceads-design.md](ceads-design.md)
+**Document Reviewed:** [tbd-design.md](tbd-design.md)
 
 **Last Updated:** January 2025 (recommendations reviewed; complex items deferred to
 Optional Enhancements appendix)
@@ -13,8 +13,8 @@ Optional Enhancements appendix)
 
 ## Executive Summary
 
-The Ceads design makes a clear and correct choice: **Git is the source of truth**. This
-is the right foundation.
+The Tbd design makes a clear and correct choice: **Git is the source of truth**. This is
+the right foundation.
 However, several areas need deeper specification, particularly around the Bridge Layer’s
 consistency model, clock synchronization, and claim coordination semantics.
 
@@ -27,7 +27,7 @@ The design uses a split directory structure:
 
 **On main branch:**
 ```
-.ceads/
+.tbd/
 ├── config.yml              # Project configuration (tracked)
 ├── .gitignore              # Contains just "local/" (tracked)
 └── local/                  # All gitignored files:
@@ -42,9 +42,9 @@ The design uses a split directory structure:
     └── daemon.log          # Daemon log
 ```
 
-**On ceads-sync branch:**
+**On tbd-sync branch:**
 ```
-.ceads-sync/
+.tbd-sync/
 ├── nodes/                  # Synced entities (is-*, ag-*, ms-*)
 │   ├── issues/
 │   ├── agents/
@@ -196,8 +196,8 @@ function hlcCompare(a: HybridTimestamp, b: HybridTimestamp): number {
 
 - `wall` field still available for human-readable display
 
-**Reference:** [Kulkarni et al., “Logical Physical Clocks and Consistent Snapshots in
-Globally Distributed Databases”](https://cse.buffalo.edu/tech-reports/2014-04.pdf)
+**Reference:**
+[Kulkarni et al., “Logical Physical Clocks and Consistent Snapshots in Globally Distributed Databases”](https://cse.buffalo.edu/tech-reports/2014-04.pdf)
 
 * * *
 
@@ -301,7 +301,7 @@ from the same agent will reflect that write.
 **Eventual Consistency**: All agents will eventually see the same state.
 Convergence time depends on sync frequency and network conditions.
 
-**No Strong Consistency**: Ceads does NOT provide linearizability or
+**No Strong Consistency**: Tbd does NOT provide linearizability or
 serializable transactions. Concurrent writes to the same entity may
 require conflict resolution.
 
@@ -330,13 +330,13 @@ Define expected latencies for different modes:
 
 ### Field Mapping Conflicts
 
-The document shows GitHub ↔ Ceads field mapping (section 5.3), but doesn’t address:
+The document shows GitHub ↔ Tbd field mapping (section 5.3), but doesn’t address:
 
 **Problem:** GitHub Issues have their own versioning (`updated_at`, ETags).
 When both systems change:
 
 ```
-Ceads: status → in_progress (version 5)
+Tbd: status → in_progress (version 5)
 GitHub: User adds comment, closes issue via GitHub UI
 Sync runs:
   → Which state wins?
@@ -349,10 +349,10 @@ Sync runs:
 ```typescript
 const GitHubBridgeConfig = z.object({
   field_sync: z.object({
-    title: z.enum(['ceads_wins', 'github_wins', 'lww']).default('lww'),
-    description: z.enum(['ceads_wins', 'github_wins', 'lww']).default('ceads_wins'),
-    status: z.enum(['ceads_wins', 'github_wins', 'lww']).default('lww'),
-    labels: z.enum(['union', 'ceads_wins', 'github_wins']).default('union'),
+    title: z.enum(['tbd_wins', 'github_wins', 'lww']).default('lww'),
+    description: z.enum(['tbd_wins', 'github_wins', 'lww']).default('tbd_wins'),
+    status: z.enum(['tbd_wins', 'github_wins', 'lww']).default('lww'),
+    labels: z.enum(['union', 'tbd_wins', 'github_wins']).default('union'),
     comments: z.literal('union'),  // Always merge comments from both
   }),
 });
@@ -510,7 +510,7 @@ reconcile if needed.
 ### v1 Design Decision: Simplicity First
 
 After review, these recommendations are **deferred to Optional Enhancements** (see
-[Appendix 7.7](ceads-design.md#77-optional-enhancements) in the design doc).
+[Appendix 7.7](tbd-design.md#77-optional-enhancements) in the design doc).
 The v1 design prioritizes simplicity, with these enhancements available if specific
 problems arise in practice.
 
@@ -625,7 +625,7 @@ considering for future evolution if merge conflicts become a pain point.
 
 ## Conclusion
 
-The Ceads design is well-thought-out and makes correct foundational choices:
+The Tbd design is well-thought-out and makes correct foundational choices:
 
 - Git as source of truth ✓
 
@@ -673,7 +673,7 @@ The following issues were identified in a second review pass:
 The full operational plan with step-by-step edit instructions has been extracted to a
 separate document for easier tracking:
 
-**→ [ceads-design-operational-plan.md](ceads-design-operational-plan.md)**
+**→ [tbd-design-operational-plan.md](tbd-design-operational-plan.md)**
 
 ### Summary of Edits
 

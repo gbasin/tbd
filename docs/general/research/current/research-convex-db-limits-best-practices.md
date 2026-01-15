@@ -220,8 +220,8 @@ For operations that may exceed this limit:
 2. **Resumable Pattern**: Store progress in a database table and resume from last
    checkpoint
 
-   - Use a state table to track: `{ operation: string, lastCursor: string, completed:
-     boolean }`
+   - Use a state table to track:
+     `{ operation: string, lastCursor: string, completed: boolean }`
 
    - Each action invocation processes a batch and updates the state
 
@@ -1200,20 +1200,20 @@ appropriate granularity (minute, hour, day) based on write frequency.
 
 ### Pitfall 9: Dangling Promises in Actions
 
-**Symptom**: Console warnings showing "1 unawaited operation" in Convex logs, or
+**Symptom**: Console warnings showing “1 unawaited operation” in Convex logs, or
 intermittent errors in action invocations that seem unrelated to the current operation.
 
 **Root Cause**: Fire-and-forget async patterns like `void fn()` or `fn().catch()` create
 unawaited promises. When an action returns, any promises still running may or may not
-complete. Since Convex reuses Node.js execution environments between action calls, dangling
-promises can cause errors in subsequent action invocations.
+complete. Since Convex reuses Node.js execution environments between action calls,
+dangling promises can cause errors in subsequent action invocations.
 
 **Convex Documentation Warning**:
 
-> "Make sure to await all promises created within an action. Async tasks still running when
-> the function returns might or might not complete. In addition, since the Node.js execution
-> environment might be reused between action calls, dangling promises might result in errors
-> in subsequent action invocations."
+> “Make sure to await all promises created within an action.
+> Async tasks still running when the function returns might or might not complete.
+> In addition, since the Node.js execution environment might be reused between action
+> calls, dangling promises might result in errors in subsequent action invocations.”
 
 **Example Scenarios**:
 
@@ -1243,7 +1243,7 @@ export const processData = internalAction({
 });
 ```
 
-**Workaround**: Always await async operations, even "fire-and-forget" logging calls.
+**Workaround**: Always await async operations, even “fire-and-forget” logging calls.
 
 ```typescript
 // CORRECT: All promises awaited
@@ -1292,7 +1292,7 @@ export const processData = internalAction({
 
 **Best Practices**:
 
-1. **Always await every async call** in actions, even for "non-critical" operations
+1. **Always await every async call** in actions, even for “non-critical” operations
 
 2. **Use try/catch if the operation can fail** and you want to continue:
    ```typescript

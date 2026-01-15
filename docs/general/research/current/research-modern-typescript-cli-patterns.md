@@ -243,8 +243,9 @@ export class OutputManager {
 | Warnings | stderr | Always |
 | Spinners/progress | stdout | Text mode, not quiet |
 
-**Assessment**: This pattern enables Unix pipeline compatibility (`my-cli list --format
-json | jq '.items[]'`) while providing rich interactive output for terminal users.
+**Assessment**: This pattern enables Unix pipeline compatibility
+(`my-cli list --format json | jq '.items[]'`) while providing rich interactive output
+for terminal users.
 
 * * *
 
@@ -387,7 +388,8 @@ CLI tools should display accurate version information via `--version`. Use the `
 constant injected at build time via dynamic git-based versioning.
 
 For the complete versioning implementation (format, rationale, and `getGitVersion()`
-function), see [Dynamic Git-Based Versioning](research-modern-typescript-monorepo-patterns.md#dynamic-git-based-versioning)
+function), see
+[Dynamic Git-Based Versioning](research-modern-typescript-monorepo-patterns.md#dynamic-git-based-versioning)
 in the monorepo patterns doc.
 
 **CLI integration**:
@@ -408,8 +410,8 @@ const program = new Command()
 - Commander.js reserves `-V` and `--version` by default
 - Avoid `-v` alias for other options (conflicts with version in some setups)
 
-**Assessment**: Centralizing version in the library (injected at build time) ensures
-CLI and programmatic consumers see the same version.
+**Assessment**: Centralizing version in the library (injected at build time) ensures CLI
+and programmatic consumers see the same version.
 
 * * *
 
@@ -513,8 +515,8 @@ to maintain compatibility with existing scripts and muscle memory:
 Document which aliases exist for compatibility vs which are native to your CLI.
 
 **Assessment**: Single-letter aliases seem convenient but cause conflicts as CLIs grow.
-Full names are self-documenting and avoid collisions. However, backward compatibility
-with an existing CLI is a valid reason to use them.
+Full names are self-documenting and avoid collisions.
+However, backward compatibility with an existing CLI is a valid reason to use them.
 
 * * *
 
@@ -694,7 +696,8 @@ which is especially valuable for CLIs with many subcommands.
 
 5. **Pair text and JSON formatters** for each data domain
 
-6. **Use build-time VERSION constant** from library (see [monorepo patterns](research-modern-typescript-monorepo-patterns.md#dynamic-git-based-versioning))
+6. **Use build-time VERSION constant** from library (see
+   [monorepo patterns](research-modern-typescript-monorepo-patterns.md#dynamic-git-based-versioning))
 
 7. **Define global options at program level** only
 
