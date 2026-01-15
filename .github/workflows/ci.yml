@@ -26,14 +26,9 @@ jobs:
         if: runner.os == 'Windows'
         with:
           sparse-checkout: |
-            packages
-            .beads
-            .github
-            *.json
-            *.yaml
-            *.yml
-            *.md
-            *.ts
+            /*
+            !docs/general/agent-shortcuts
+            !docs/general/agent-setup
           sparse-checkout-cone-mode: false
 
       - uses: pnpm/action-setup@v4
