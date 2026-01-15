@@ -388,26 +388,36 @@ This plan is tracked using beads. The master epic is **tbd-100**.
 | tbd-1305 | Manual testing of full workflow | Open   | ✅ Done informally - needs formal check |
 | tbd-1306 | Security review                 | Open   | Not started                             |
 
-**Coverage Strategy:**
+**Coverage Strategy (Recommended Approach):**
 
-The test suite has two coverage domains:
+Following tryscript best practices (same approach as markform repo), use **unit tests + tryscript** with merged lcov coverage:
 
-| Domain                   | Coverage Tool | Current Status            | Notes                           |
-| ------------------------ | ------------- | ------------------------- | ------------------------------- |
-| Core library (`src/lib`) | vitest + v8   | 96.45%                    | Unit tests directly import code |
-| File layer (`src/file`)  | vitest + v8   | 36.57% (excl. git.ts)     | config, hash, parser tested     |
-| CLI commands             | Golden tests  | Functional (not measured) | Subprocess execution            |
-| Git operations           | Golden tests  | Functional (not measured) | Integration tested              |
+| Test Type        | Coverage Tool              | Purpose                         |
+| ---------------- | -------------------------- | ------------------------------- |
+| Unit tests       | vitest + v8 → lcov.info    | Test code imported directly     |
+| Golden/CLI tests | tryscript + c8 → lcov.info | Test CLI via subprocess         |
+| **Merged**       | `--merge-lcov`             | Combined coverage for full view |
 
-**Coverage Improvement Path:**
+**Coverage Collection Process:**
 
-The CLI commands show 0% in vitest coverage because they're tested via subprocess execution in golden tests, which vitest's v8 provider cannot measure. Options to improve measured coverage:
+```bash
+# Step 1: Run vitest unit tests with coverage
+pnpm test:coverage  # produces coverage/lcov.info
 
-1. **Migrate to tryscript**: Use `tryscript run --coverage --merge-lcov` to collect subprocess coverage and merge with vitest unit test coverage
-2. **Add unit tests for command handlers**: Extract testable logic from commands into separate functions
-3. **Accept current state**: Document that golden tests provide functional coverage even if not measured
+# Step 2: Run tryscript golden tests with coverage, merging vitest coverage
+tryscript run 'tests/**/*.tryscript.md' --coverage --merge-lcov coverage/lcov.info
 
-Current approach: Core library has high unit test coverage; CLI commands have functional coverage via golden tests. This provides good regression detection while keeping tests fast.
+# Output: coverage-tryscript/lcov.info (merged from both sources)
+```
+
+**Current Status:**
+
+- Unit tests cover `src/lib` (96.45%) and `src/file` (partial)
+- Golden tests functionally cover CLI commands (not yet using tryscript format)
+- **TODO: Migrate golden tests from custom YAML runner to tryscript markdown format**
+- **TODO: Set up `--merge-lcov` workflow in CI**
+
+**Reference:** See `npx tryscript docs` for detailed coverage documentation.
 
 **Beads Import Validation Plan:**
 
