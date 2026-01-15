@@ -9,19 +9,20 @@
  * See: tbd-design-v3.md §3.3 Sync Operations
  */
 
-import { exec } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { join } from 'node:path';
 
 import type { Issue } from '../lib/types.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 /**
  * Execute a git command and return stdout.
+ * Uses execFile for security - prevents shell injection attacks.
  */
 export async function git(...args: string[]): Promise<string> {
-  const { stdout } = await execAsync(`git ${args.join(' ')}`);
+  const { stdout } = await execFileAsync('git', args);
   return stdout.trim();
 }
 
@@ -81,7 +82,8 @@ export async function commitToSyncBranch(
     }
 
     // Create commit
-    const commitArgs = ['commit-tree', tree, '-m', `"${message}"`];
+    // Note: With execFile, we pass the message directly without shell quoting
+    const commitArgs = ['commit-tree', tree, '-m', message];
     if (parent) {
       commitArgs.push('-p', parent);
     }

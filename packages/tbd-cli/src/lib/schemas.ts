@@ -136,14 +136,42 @@ export const IssueSchema = BaseEntity.extend({
 // =============================================================================
 
 /**
+ * Git branch name - restricted to safe characters.
+ * Allows: alphanumeric, hyphens, underscores, forward slashes, and dots.
+ * Prevents shell injection in git commands.
+ */
+export const GitBranchName = z
+  .string()
+  .min(1)
+  .max(255)
+  .regex(
+    /^[a-zA-Z0-9._/-]+$/,
+    'Invalid branch name: only alphanumeric, dots, underscores, hyphens, and slashes allowed',
+  );
+
+/**
+ * Git remote name - restricted to safe characters.
+ * Allows: alphanumeric, hyphens, underscores, and dots.
+ * Prevents shell injection in git commands.
+ */
+export const GitRemoteName = z
+  .string()
+  .min(1)
+  .max(255)
+  .regex(
+    /^[a-zA-Z0-9._-]+$/,
+    'Invalid remote name: only alphanumeric, dots, underscores, and hyphens allowed',
+  );
+
+/**
  * Project configuration stored in .tbd/config.yml
  */
 export const ConfigSchema = z.object({
   tbd_version: z.string(),
   sync: z
     .object({
-      branch: z.string().default('tbd-sync'),
-      remote: z.string().default('origin'),
+      branch: GitBranchName.default('tbd-sync'),
+      remote: GitRemoteName.default('origin'),
     })
     .default({}),
   display: z
