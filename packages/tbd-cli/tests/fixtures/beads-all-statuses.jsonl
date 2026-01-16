@@ -1,0 +1,7 @@
+{"id":"stat-open","title":"Issue with open status","status":"open","issue_type":"task","priority":2,"created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}
+{"id":"stat-in_progress","title":"Issue with in_progress status","status":"in_progress","issue_type":"task","priority":2,"created_at":"2025-01-01T00:00:01Z","updated_at":"2025-01-01T00:00:01Z"}
+{"id":"stat-done","title":"Issue with done status (should map to closed)","status":"done","issue_type":"task","priority":2,"created_at":"2025-01-01T00:00:02Z","updated_at":"2025-01-01T00:00:02Z"}
+{"id":"stat-closed","title":"Issue with closed status","status":"closed","issue_type":"task","priority":2,"created_at":"2025-01-01T00:00:03Z","updated_at":"2025-01-01T00:00:03Z"}
+{"id":"stat-blocked","title":"Issue with blocked status","status":"blocked","issue_type":"task","priority":2,"created_at":"2025-01-01T00:00:04Z","updated_at":"2025-01-01T00:00:04Z"}
+{"id":"stat-deferred","title":"Issue with deferred status","status":"deferred","issue_type":"task","priority":3,"created_at":"2025-01-01T00:00:05Z","updated_at":"2025-01-01T00:00:05Z"}
+{"id":"stat-tombstone","title":"Issue with tombstone status (should map to closed)","status":"tombstone","issue_type":"task","priority":4,"created_at":"2025-01-01T00:00:06Z","updated_at":"2025-01-01T00:00:06Z","deleted_at":"2025-01-01T00:00:06Z","deleted_by":"test","delete_reason":"deleted"}

@@ -177,6 +177,7 @@ import {
   isCorrectWorktreePath,
   isWrongMainBranchPath,
   hasCorrectFrontmatterFormat,
+  BEADS_TO_TBD_STATUS,
 } from './test-helpers.js';
 
 describe('test helper: isValidShortIdFormat', () => {
@@ -273,5 +274,36 @@ title: Test
 ---
 `;
     expect(hasCorrectFrontmatterFormat(emptyBody)).toBe(true);
+  });
+});
+
+describe('test helper: BEADS_TO_TBD_STATUS', () => {
+  it('maps all beads statuses correctly', () => {
+    expect(BEADS_TO_TBD_STATUS.open).toBe('open');
+    expect(BEADS_TO_TBD_STATUS.in_progress).toBe('in_progress');
+    expect(BEADS_TO_TBD_STATUS.blocked).toBe('blocked');
+    expect(BEADS_TO_TBD_STATUS.deferred).toBe('deferred');
+    expect(BEADS_TO_TBD_STATUS.closed).toBe('closed');
+    expect(BEADS_TO_TBD_STATUS.tombstone).toBe('closed');
+  });
+
+  it('maps done to closed (the bug tbd-1813)', () => {
+    // This is a critical mapping that was missing in import.ts
+    expect(BEADS_TO_TBD_STATUS.done).toBe('closed');
+  });
+
+  it('has all expected beads statuses', () => {
+    const expectedStatuses = [
+      'open',
+      'in_progress',
+      'done',
+      'closed',
+      'tombstone',
+      'blocked',
+      'deferred',
+    ];
+    for (const status of expectedStatuses) {
+      expect(BEADS_TO_TBD_STATUS[status]).toBeDefined();
+    }
   });
 });
