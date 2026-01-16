@@ -11,27 +11,35 @@ import { shouldColorize } from './context.js';
 
 /**
  * Color utilities with conditional colorization.
+ *
+ * Uses picocolors' createColors() for manual color support control,
+ * which is the recommended approach per picocolors documentation.
+ * This allows --color=always to work even when stdout is not a TTY.
  */
 export function createColors(colorOption: ColorOption) {
   const enabled = shouldColorize(colorOption);
 
+  // Use picocolors' createColors() for proper manual control
+  // This overrides picocolors' automatic TTY detection
+  const colors = pc.createColors(enabled);
+
   return {
     // Status colors
-    success: (s: string) => (enabled ? pc.green(s) : s),
-    error: (s: string) => (enabled ? pc.red(s) : s),
-    warn: (s: string) => (enabled ? pc.yellow(s) : s),
-    info: (s: string) => (enabled ? pc.blue(s) : s),
+    success: colors.green,
+    error: colors.red,
+    warn: colors.yellow,
+    info: colors.blue,
 
     // Text formatting
-    bold: (s: string) => (enabled ? pc.bold(s) : s),
-    dim: (s: string) => (enabled ? pc.dim(s) : s),
-    italic: (s: string) => (enabled ? pc.italic(s) : s),
-    underline: (s: string) => (enabled ? pc.underline(s) : s),
+    bold: colors.bold,
+    dim: colors.dim,
+    italic: colors.italic,
+    underline: colors.underline,
 
     // Semantic colors
-    id: (s: string) => (enabled ? pc.cyan(s) : s),
-    label: (s: string) => (enabled ? pc.magenta(s) : s),
-    path: (s: string) => (enabled ? pc.blue(s) : s),
+    id: colors.cyan,
+    label: colors.magenta,
+    path: colors.blue,
   };
 }
 
@@ -156,8 +164,9 @@ export class OutputManager {
     const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
     let currentMessage = message;
 
+    const spinnerColor = this.colors.info;
     const write = () => {
-      process.stderr.write(`\r${this.colors.info(frames[frame]!)} ${currentMessage}`);
+      process.stderr.write(`\r${spinnerColor(frames[frame] ?? '⠋')} ${currentMessage}`);
       frame = (frame + 1) % frames.length;
     };
 

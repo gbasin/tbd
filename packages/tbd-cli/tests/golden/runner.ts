@@ -45,9 +45,17 @@ export interface GoldenScenario {
 /**
  * Normalize unstable fields in output.
  * Replaces ULIDs, timestamps, and temp paths with placeholders.
+ * Filters out environment-specific noise like npm warnings.
  */
 export function normalizeOutput(output: string): string {
   let normalized = output;
+
+  // Filter out npm warnings (environment-specific noise)
+  // These appear when npm config has unknown keys from pnpm
+  normalized = normalized
+    .split('\n')
+    .filter((line) => !line.startsWith('npm warn '))
+    .join('\n');
 
   // Replace ULIDs with placeholder
   // Match both is-[ulid] and bd-[ulid] patterns

@@ -666,6 +666,33 @@ export function shouldColorize(colorOption: 'auto' | 'always' | 'never'): boolea
 }
 ```
 
+**Critical: Use `createColors()` with picocolors**
+
+picocolors detects TTY support at module load time. If `process.stdout.isTTY` is false
+when the module loads (common when running via `pnpm run` or in CI), all color functions
+become no-ops regardless of `--color=always`. Use `pc.createColors(enabled)` to override
+this:
+
+```ts
+import pc from 'picocolors';
+
+export function createColors(colorOption: ColorOption) {
+  const enabled = shouldColorize(colorOption);
+
+  // Use picocolors' createColors() for manual control - this overrides
+  // picocolors' automatic TTY detection at module load time
+  const colors = pc.createColors(enabled);
+
+  return {
+    success: colors.green,
+    error: colors.red,
+    // ... etc
+  };
+}
+```
+
+This ensures `--color=always` works correctly even when stdout is not a TTY.
+
 **Alternative: `--json` flag:**
 
 Some CLIs use a simpler `--json` boolean flag instead of `--format`. This is less
