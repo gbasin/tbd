@@ -447,7 +447,7 @@ The master epic is **tbd-100**.
 
 tbd-208 was incorrectly marked as done without implementing the required worktree
 functions. The entire worktree architecture was bypassed - all commands write to
-`.tbd-sync/` directly instead of `.tbd/.worktree/.tbd-sync/` via git worktree.
+`.tbd-sync/` directly instead of `.tbd/sync-worktree/.tbd-sync/` via git worktree.
 
 See [postmortem](../../retrospectives/retro-2026-01-16-worktree-architecture-not-implemented.md)
 for full analysis.
@@ -455,12 +455,12 @@ for full analysis.
 | Bead ID | Task | Status | Notes |
 | --- | --- | --- | --- |
 | tbd-208 | Worktree management (reopened) | Open | Parent epic - was incorrectly marked done |
-| tbd-208.1 | Implement initWorktree() | Open | Create worktree at `.tbd/.worktree/` |
+| tbd-208.1 | Implement initWorktree() | Open | Create worktree at `.tbd/sync-worktree/` |
 | tbd-208.2 | Implement updateWorktree() | Open | Update worktree after sync |
 | tbd-208.3 | Implement checkWorktreeHealth() | Open | Verify worktree validity |
 | tbd-208.4 | Update init.ts | Open | Create worktree instead of direct `.tbd-sync` |
 | tbd-208.5 | Update 20 command files | Open | Change ISSUES_BASE_DIR to worktree path |
-| tbd-208.6 | Update .gitignore | Open | Add `.worktree/` to `.tbd/.gitignore` |
+| tbd-208.6 | Update .gitignore | Open | Add `sync-worktree/` to `.tbd/.gitignore` |
 | tbd-1810 | Bug: files on main branch | Open | Blocked by tbd-208 |
 
 **Stage 5 Validation Status (⚠️ Partial):**
@@ -711,12 +711,12 @@ async function atomicWrite(path: string, content: string): Promise<void> {
 ```
 .tbd/
 ├── config.yml              # Project configuration (tracked)
-├── .gitignore              # Ignores cache/ and .worktree/ (tracked)
+├── .gitignore              # Ignores cache/ and sync-worktree/ (tracked)
 ├── cache/                  # Gitignored - local state
 │   ├── state.yml           # Per-node sync state
 │   ├── index.json          # Optional query index
 │   └── sync.lock           # Sync coordination
-└── .worktree/              # Gitignored - hidden worktree
+└── sync-worktree/              # Gitignored - hidden worktree
     └── (checkout of tbd-sync branch)
 ```
 
@@ -752,13 +752,13 @@ async function withIsolatedIndex<T>(fn: () => Promise<T>): Promise<T> {
 **Worktree Initialization Decision Tree**:
 
 ```
-Does .tbd/.worktree/ exist and valid?
+Does .tbd/sync-worktree/ exist and valid?
 ├── YES → Worktree ready
 └── NO → Does tbd-sync branch exist?
-    ├── YES (local) → git worktree add .tbd/.worktree tbd-sync --detach
+    ├── YES (local) → git worktree add .tbd/sync-worktree tbd-sync --detach
     ├── YES (remote) → git fetch origin tbd-sync
-    │                  git worktree add .tbd/.worktree origin/tbd-sync --detach
-    └── NO → git worktree add .tbd/.worktree --orphan tbd-sync
+    │                  git worktree add .tbd/sync-worktree origin/tbd-sync --detach
+    └── NO → git worktree add .tbd/sync-worktree --orphan tbd-sync
              Initialize .tbd-sync/ structure
 ```
 
@@ -2003,7 +2003,7 @@ function buildSearchCommand(
   pattern: string,
   options: SearchOptions,
 ): string[] {
-  const issuesPath = '.tbd/.worktree/.tbd-sync/issues';
+  const issuesPath = '.tbd/sync-worktree/.tbd-sync/issues';
 
   if (tool === 'rg') {
     const args = ['rg'];
@@ -2453,7 +2453,7 @@ interface AtticFilter {
 }
 
 async function listAtticEntries(filter: AtticFilter): Promise<AtticEntry[]> {
-  const atticPath = '.tbd/.worktree/.tbd-sync/attic/conflicts';
+  const atticPath = '.tbd/sync-worktree/.tbd-sync/attic/conflicts';
 
   // List all directories (issue IDs)
   const issueDirs = await fs.readdir(atticPath).catch(() => []);
@@ -3107,7 +3107,7 @@ The following gaps in the existing test suite allowed these bugs to slip through
 - The import command (and all storage operations) write directly to `.tbd-sync/` in the
   current working directory
 - According to design, issues should be stored on tbd-sync branch accessed via hidden
-  worktree at `.tbd/.worktree/.tbd-sync/`
+  worktree at `.tbd/sync-worktree/.tbd-sync/`
 - Current behavior: `.tbd-sync/` appears as untracked directory on main branch
 - Root cause: `ISSUES_BASE_DIR = '.tbd-sync'` in multiple command files instead of using
   worktree path

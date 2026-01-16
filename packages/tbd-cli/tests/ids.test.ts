@@ -232,7 +232,7 @@ describe('test helper: isDisplayIdNotInternal', () => {
 
 describe('test helper: isCorrectWorktreePath', () => {
   it('accepts paths in the worktree', () => {
-    expect(isCorrectWorktreePath('.tbd/.worktree/.tbd-sync/issues/is-abc123.md')).toBe(true);
+    expect(isCorrectWorktreePath('.tbd/sync-worktree/.tbd-sync/issues/is-abc123.md')).toBe(true);
   });
 
   it('rejects paths directly on main branch', () => {
@@ -246,7 +246,7 @@ describe('test helper: isWrongMainBranchPath', () => {
   });
 
   it('does not flag correct worktree paths', () => {
-    expect(isWrongMainBranchPath('.tbd/.worktree/.tbd-sync/issues/is-abc123.md')).toBe(false);
+    expect(isWrongMainBranchPath('.tbd/sync-worktree/.tbd-sync/issues/is-abc123.md')).toBe(false);
   });
 });
 

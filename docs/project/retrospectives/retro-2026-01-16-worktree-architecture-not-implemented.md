@@ -14,7 +14,7 @@
 
 The tbd implementation deviated significantly from the design specification.
 The spec called for a hidden git worktree architecture where issue files live on a
-separate `tbd-sync` branch, accessed locally via `.tbd/.worktree/`. Instead, the
+separate `tbd-sync` branch, accessed locally via `.tbd/sync-worktree/`. Instead, the
 implementation writes files directly to `.tbd-sync/` on the main branch, completely
 bypassing the worktree model.
 
@@ -41,7 +41,7 @@ This was discovered on 2026-01-16 when issue files appeared as untracked on main
 | Planning | Created tbd-208: "Implement worktree management" | Bead correctly captured requirement |
 | Phase 2 | Implement `initWorktree`, `updateWorktree`, `checkWorktreeHealth` | **Functions never written; bead marked DONE** |
 | Phase 3 | `tbd init` creates worktree via `git worktree add` | **init.ts creates `.tbd-sync/` directly in cwd** |
-| Phase 4-11 | Commands use `.tbd/.worktree/.tbd-sync/` | **All commands hardcode `.tbd-sync/`** |
+| Phase 4-11 | Commands use `.tbd/sync-worktree/.tbd-sync/` | **All commands hardcode `.tbd-sync/`** |
 | Testing | Tests verify file locations | **No location verification tests** |
 | Discovery | — | Bug found 2026-01-16, logged as tbd-1810 |
 
@@ -75,11 +75,11 @@ specific deliverables were present.
 The spec (plan lines 729-740) shows a decision tree:
 
 ```
-Does .tbd/.worktree/ exist and valid?
+Does .tbd/sync-worktree/ exist and valid?
 ├── YES → Worktree ready
 └── NO → Does tbd-sync branch exist?
-    ├── YES (local) → git worktree add .tbd/.worktree tbd-sync --detach
-    └── NO → git worktree add .tbd/.worktree --orphan tbd-sync
+    ├── YES (local) → git worktree add .tbd/sync-worktree tbd-sync --detach
+    └── NO → git worktree add .tbd/sync-worktree --orphan tbd-sync
 ```
 
 The actual `init.ts` implementation (lines 59-68):
@@ -105,7 +105,7 @@ const ISSUES_BASE_DIR = '.tbd-sync';  // WRONG
 Should be:
 
 ```typescript
-const ISSUES_BASE_DIR = '.tbd/.worktree/.tbd-sync';  // CORRECT per spec
+const ISSUES_BASE_DIR = '.tbd/sync-worktree/.tbd-sync';  // CORRECT per spec
 ```
 
 Files affected:
@@ -187,12 +187,12 @@ Test helpers `isCorrectWorktreePath()` and `isWrongMainBranchPath()` were added
    `checkWorktreeHealth()`
 2. Update `tbd init` to create worktree properly
 3. Change `ISSUES_BASE_DIR` in all commands to use worktree path
-4. Add `.worktree/` to `.tbd/.gitignore`
+4. Add `sync-worktree/` to `.tbd/.gitignore`
 
 ### Process Improvements
 
 1. **Add architectural verification tests** (tbd-1842): Create tryscript tests that
-   verify files are written to `.tbd/.worktree/.tbd-sync/`, not `.tbd-sync/`
+   verify files are written to `.tbd/sync-worktree/.tbd-sync/`, not `.tbd-sync/`
 
 2. **Require bead acceptance criteria**: Implementation beads should list specific
    functions/files that must exist
@@ -214,7 +214,7 @@ The bead description was too vague to verify:
 |  | `[ ] Function updateWorktree() exists in git.ts` |
 |  | `[ ] Function checkWorktreeHealth() exists in git.ts` |
 |  | `[ ] tbd init calls initWorktree()` |
-|  | `[ ] Test verifies files written to .tbd/.worktree/` |
+|  | `[ ] Test verifies files written to .tbd/sync-worktree/` |
 
 With specific acceptance criteria, any validation phase would have caught that 0/5 items
 were done.
@@ -232,7 +232,7 @@ it('writes issues to worktree, not main branch', async () => {
   await run('tbd create "Test"');
 
   // This assertion would FAIL with current implementation
-  expect(await exists('.tbd/.worktree/.tbd-sync/issues/')).toBe(true);
+  expect(await exists('.tbd/sync-worktree/.tbd-sync/issues/')).toBe(true);
   expect(await exists('.tbd-sync/issues/')).toBe(false);
 });
 ```

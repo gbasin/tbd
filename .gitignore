@@ -6,7 +6,7 @@ tmp/
 
 # tbd-specific
 .tbd/cache/
-.tbd/.worktree/
+.tbd/sync-worktree/
 *.tmp.*
 
 attic/

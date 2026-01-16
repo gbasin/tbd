@@ -594,7 +594,7 @@ Tbd uses three directory locations:
 
 - **`.tbd/`** on main branch: Configuration (tracked) + local cache (gitignored)
 
-- **`.tbd/.worktree/`** hidden worktree: Checkout of `tbd-sync` branch for search
+- **`.tbd/sync-worktree/`** hidden worktree: Checkout of `tbd-sync` branch for search
 
 - **`.tbd-sync/`** on `tbd-sync` branch: Synced entities and attic
 
@@ -603,14 +603,14 @@ Tbd uses three directory locations:
 ```
 .tbd/
 ├── config.yml             # Project configuration (tracked)
-├── .gitignore              # Ignores cache/ and .worktree/ (tracked)
+├── .gitignore              # Ignores cache/ and sync-worktree/ (tracked)
 │
 ├── cache/                  # Gitignored - local state
 │   ├── state.yml          # Per-node sync state (last_sync, node_id)
 │   ├── index.json          # Optional query index (rebuildable)
 │   └── sync.lock           # Sync coordination file
 │
-└── .worktree/              # Gitignored - hidden worktree
+└── sync-worktree/              # Gitignored - hidden worktree
     └── (checkout of tbd-sync branch)
         └── .tbd-sync/
             ├── issues/
@@ -650,7 +650,7 @@ Tbd uses three directory locations:
 
 ### 2.3 Hidden Worktree Model
 
-Tbd maintains a **hidden git worktree** at `.tbd/.worktree/` that checks out the
+Tbd maintains a **hidden git worktree** at `.tbd/sync-worktree/` that checks out the
 `tbd-sync` branch. This provides:
 
 1. **Fast search**: ripgrep can search all issues without git plumbing commands
@@ -667,10 +667,10 @@ Created automatically by `tbd init` or first `tbd sync`:
 
 ```bash
 # Create hidden worktree (done by tbd internally)
-git worktree add .tbd/.worktree tbd-sync --detach
+git worktree add .tbd/sync-worktree tbd-sync --detach
 
 # Or if tbd-sync doesn't exist yet
-git worktree add .tbd/.worktree --orphan tbd-sync
+git worktree add .tbd/sync-worktree --orphan tbd-sync
 ```
 
 **Key properties:**
@@ -679,7 +679,7 @@ git worktree add .tbd/.worktree --orphan tbd-sync
 
 - **Hidden location**: Inside `.tbd/` which is partially gitignored
 
-- **Safe updates**: `tbd sync` does `git -C .tbd/.worktree pull` after push
+- **Safe updates**: `tbd sync` does `git -C .tbd/sync-worktree pull` after push
 
 #### Worktree Gitignore
 
@@ -687,20 +687,20 @@ The `.tbd/.gitignore` must include:
 
 ```gitignore
 cache/
-.worktree/
+sync-worktree/
 ```
 
 #### Accessing Issues via Worktree
 
 ```bash
 # Files are directly accessible
-cat .tbd/.worktree/.tbd-sync/issues/is-a1b2c3.md
+cat .tbd/sync-worktree/.tbd-sync/issues/is-a1b2c3.md
 
 # ripgrep search across all issues
-rg "authentication" .tbd/.worktree/.tbd-sync/issues/
+rg "authentication" .tbd/sync-worktree/.tbd-sync/issues/
 
 # List all issues
-ls .tbd/.worktree/.tbd-sync/issues/
+ls .tbd/sync-worktree/.tbd-sync/issues/
 ```
 
 #### Worktree Lifecycle
@@ -708,12 +708,12 @@ ls .tbd/.worktree/.tbd-sync/issues/
 | Operation | Worktree Action |
 | --- | --- |
 | `tbd init` | Create worktree if tbd-sync exists |
-| `tbd sync --pull` | `git -C .worktree pull origin tbd-sync` |
+| `tbd sync --pull` | `git -C sync-worktree pull origin tbd-sync` |
 | `tbd sync --push` | Update worktree after successful push |
 | `tbd doctor` | Verify worktree health, repair if needed |
 | Repo clone | Worktree created on first tbd command |
 
-**Invariant:** The hidden worktree at `.tbd/.worktree/` always reflects the current
+**Invariant:** The hidden worktree at `.tbd/sync-worktree/` always reflects the current
 state of the `tbd-sync` branch after sync operations.
 
 #### Worktree Initialization Decision Tree
@@ -728,16 +728,16 @@ START: Any tbd command
     │   ├─ NO → Run `tbd init` first (error: "Not a tbd repository")
     │   └─ YES ↓
     │
-    ├─ Does .tbd/.worktree/ exist and contain valid checkout?
+    ├─ Does .tbd/sync-worktree/ exist and contain valid checkout?
     │   ├─ YES → Worktree ready, proceed with command
     │   └─ NO ↓
     │
     ├─ Does tbd-sync branch exist (local or remote)?
-    │   ├─ YES (local) → git worktree add .tbd/.worktree tbd-sync --detach
+    │   ├─ YES (local) → git worktree add .tbd/sync-worktree tbd-sync --detach
     │   ├─ YES (remote only) → git fetch origin tbd-sync
-    │   │                      git worktree add .tbd/.worktree origin/tbd-sync --detach
+    │   │                      git worktree add .tbd/sync-worktree origin/tbd-sync --detach
     │   └─ NO → This is a fresh tbd init, create orphan worktree:
-    │           git worktree add .tbd/.worktree --orphan tbd-sync
+    │           git worktree add .tbd/sync-worktree --orphan tbd-sync
     │           (Initialize .tbd-sync/ structure in worktree)
     │
     └─ Worktree ready, proceed with command
@@ -2094,7 +2094,7 @@ Search is implemented by running ripgrep (or grep as fallback) against the hidde
 worktree directory:
 
 ```
-.tbd/.worktree/.tbd-sync/issues/
+.tbd/sync-worktree/.tbd-sync/issues/
 ```
 
 **Tool selection:**
@@ -2176,7 +2176,7 @@ Tbd Version: 3.0.0
 Sync Branch: tbd-sync
 Remote: origin
 Display Prefix: bd
-Worktree: .tbd/.worktree/ (healthy)
+Worktree: .tbd/sync-worktree/ (healthy)
 Last Sync: 2025-01-10T10:00:00Z
 Issue Count: 127
 ```
@@ -2189,7 +2189,7 @@ Issue Count: 127
   "sync_branch": "tbd-sync",
   "remote": "origin",
   "display_prefix": "bd",
-  "worktree_path": ".tbd/.worktree/",
+  "worktree_path": ".tbd/sync-worktree/",
   "worktree_healthy": true,
   "last_sync": "2025-01-10T10:00:00Z",
   "last_synced_commit": "abc123def456",
@@ -3496,7 +3496,7 @@ checkout.
 
    - Con: Pollutes user’s working directory, shows in `git status`
 
-3. **Hidden worktree**: Separate checkout at `.tbd/.worktree/`
+3. **Hidden worktree**: Separate checkout at `.tbd/sync-worktree/`
 
    - Pro: Files accessible for search, isolated from user’s work
 
@@ -3514,7 +3514,7 @@ checkout.
 
 **Implementation Notes**:
 
-- Worktree created at `.tbd/.worktree/`
+- Worktree created at `.tbd/sync-worktree/`
 
 - Worktree directory added to `.tbd/.gitignore`
 
