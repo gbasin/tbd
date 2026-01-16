@@ -7,6 +7,7 @@
 import { Command } from 'commander';
 
 import { VERSION } from '../index.js';
+import { configureColoredHelp } from './lib/output.js';
 import { initCommand } from './commands/init.js';
 import { createCommand } from './commands/create.js';
 import { listCommand } from './commands/list.js';
@@ -38,6 +39,9 @@ function createProgram(): Command {
     .description('Git-native issue tracking for AI agents and humans')
     .version(VERSION, '-V, --version', 'Show version number')
     .showHelpAfterError('(add --help for additional information)');
+
+  // Configure colored help output (respects --color option)
+  configureColoredHelp(program);
 
   // Global options
   program

@@ -5,9 +5,60 @@
  */
 
 import pc from 'picocolors';
+import type { Command } from 'commander';
 
 import type { CommandContext, ColorOption } from './context.js';
 import { shouldColorize } from './context.js';
+
+/**
+ * Pre-parse argv to determine color setting before Commander parses options.
+ * This is needed because help output happens before full option parsing.
+ */
+export function getColorOptionFromArgv(): ColorOption {
+  const colorArg = process.argv.find((arg) => arg.startsWith('--color='));
+  if (colorArg) {
+    const value = colorArg.split('=')[1];
+    if (value === 'always' || value === 'never' || value === 'auto') {
+      return value;
+    }
+  }
+  // Check for --color followed by value
+  const colorIdx = process.argv.indexOf('--color');
+  if (colorIdx !== -1 && process.argv[colorIdx + 1]) {
+    const value = process.argv[colorIdx + 1];
+    if (value === 'always' || value === 'never' || value === 'auto') {
+      return value;
+    }
+  }
+  return 'auto';
+}
+
+/**
+ * Create colored help configuration for Commander.js.
+ * Uses Commander's built-in configureHelp() style functions (requires v14+).
+ *
+ * @param colorOption - Color option to determine if colors should be enabled
+ * @returns Help configuration object for program.configureHelp()
+ */
+export function createColoredHelpConfig(colorOption: ColorOption = 'auto') {
+  const colors = pc.createColors(shouldColorize(colorOption));
+
+  return {
+    styleTitle: (str: string) => colors.bold(colors.cyan(str)),
+    styleCommandText: (str: string) => colors.green(str),
+    styleOptionText: (str: string) => colors.yellow(str),
+    showGlobalOptions: true,
+  };
+}
+
+/**
+ * Configure Commander.js with colored help text.
+ * Call this on the program before adding commands.
+ */
+export function configureColoredHelp(program: Command): Command {
+  const colorOption = getColorOptionFromArgv();
+  return program.configureHelp(createColoredHelpConfig(colorOption));
+}
 
 /**
  * Color utilities with conditional colorization.

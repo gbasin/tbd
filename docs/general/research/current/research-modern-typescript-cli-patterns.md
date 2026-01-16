@@ -442,7 +442,7 @@ class MyFeatureListHandler extends BaseCommand {
 }
 
 // 2. Subcommand definition
-const listCommand = withColoredHelp(new Command('list'))
+const listCommand = new Command('list')
   .description('List resources')
   .option('--limit <number>', 'Maximum results', '20')
   .action(async (options, command) => {
@@ -453,11 +453,14 @@ const listCommand = withColoredHelp(new Command('list'))
   });
 
 // 3. Main command export (aggregates subcommands)
-export const myFeatureCommand = withColoredHelp(new Command('my-feature'))
+export const myFeatureCommand = new Command('my-feature')
   .description('Manage resources')
   .addCommand(listCommand)
   .addCommand(showCommand)
   .addCommand(createCommand);
+
+// Note: Configure colored help on the root program, not individual commands.
+// See "Colored help output" in section 9 for implementation.
 ```
 
 **Assessment**: This separation keeps command registration concise while allowing
@@ -692,6 +695,52 @@ export function createColors(colorOption: ColorOption) {
 ```
 
 This ensures `--color=always` works correctly even when stdout is not a TTY.
+
+**Colored help output**
+
+Commander.js v14+ supports built-in help styling via `configureHelp()`. Create a reusable
+config object that combines picocolors manual color control with Commander's style hooks:
+
+```ts
+// lib/output.ts
+
+/**
+ * Pre-parse argv for --color option (help runs before full parsing).
+ */
+export function getColorOptionFromArgv(): ColorOption {
+  const colorArg = process.argv.find((arg) => arg.startsWith('--color='));
+  if (colorArg) {
+    const value = colorArg.split('=')[1];
+    if (value === 'always' || value === 'never' || value === 'auto') return value;
+  }
+  return 'auto';
+}
+
+/**
+ * Create colored help config for Commander.js (v14+ required).
+ */
+export function createColoredHelpConfig(colorOption: ColorOption = 'auto') {
+  const colors = pc.createColors(shouldColorize(colorOption));
+
+  return {
+    styleTitle: (str: string) => colors.bold(colors.cyan(str)),
+    styleCommandText: (str: string) => colors.green(str),
+    styleOptionText: (str: string) => colors.yellow(str),
+    showGlobalOptions: true,
+  };
+}
+
+// cli.ts - apply to program before adding commands
+const program = new Command().name('my-cli');
+program.configureHelp(createColoredHelpConfig(getColorOptionFromArgv()));
+```
+
+**Key points**:
+
+- Requires Commander.js v14+ for `styleTitle`, `styleCommandText`, `styleOptionText`
+- Use `pc.createColors(enabled)` to respect `--color=always/never/auto`
+- Pre-parse argv since help output happens before Commander parses options
+- Apply `configureHelp()` once on root program (propagates to subcommands)
 
 **Alternative: `--json` flag:**
 
