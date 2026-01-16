@@ -10,6 +10,7 @@ import { BaseCommand } from '../lib/baseCommand.js';
 import { readIssue, writeIssue, listIssues } from '../../file/storage.js';
 import { normalizeIssueId } from '../../lib/ids.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { now } from '../../utils/time.js';
 
 // Add label
 class LabelAddHandler extends BaseCommand {
@@ -47,7 +48,7 @@ class LabelAddHandler extends BaseCommand {
 
     issue.labels = [...labelsSet];
     issue.version += 1;
-    issue.updated_at = new Date().toISOString();
+    issue.updated_at = now();
 
     await this.execute(async () => {
       await writeIssue(dataSyncDir, issue);
@@ -91,7 +92,7 @@ class LabelRemoveHandler extends BaseCommand {
     }
 
     issue.version += 1;
-    issue.updated_at = new Date().toISOString();
+    issue.updated_at = now();
 
     await this.execute(async () => {
       await writeIssue(dataSyncDir, issue);

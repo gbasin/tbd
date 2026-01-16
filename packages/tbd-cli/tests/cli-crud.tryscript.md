@@ -132,18 +132,20 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "JSON test" -t task --json
 
 ## Show Command
 
-First, create an issue to show:
+First, create an issue to show and save its internal ID:
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Issue to show" -t bug -p 1 -d "Detailed description here" -l backend -l critical --json | head -1
-{
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Issue to show" -t bug -p 1 -d "Detailed description here" -l backend -l critical --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); require('fs').writeFileSync('show_id.txt', d.internalId); console.log('Created')"
+Created
 ? 0
 ```
 
-# Test: Show issue by full ID
+# Test: Show issue by internal ID
+
+Use the internal ID to show the issue:
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs list --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.find(i=>i.title==='Issue to show').id)" > /tmp/issue_id.txt && node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show $(cat /tmp/issue_id.txt) | grep -c "title: Issue to show"
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show $(cat show_id.txt) | grep -c "title: Issue to show"
 1
 ? 0
 ```
@@ -151,12 +153,8 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs list --json | node -e "const d=JSON.p
 # Test: Show issue as JSON
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show $(cat /tmp/issue_id.txt) --json
-{
-...
-  "title": "Issue to show",
-...
-}
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show $(cat show_id.txt) --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.title)"
+Issue to show
 ? 0
 ```
 
@@ -274,10 +272,10 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs list --sort updated
 
 ## Update Command
 
-First, create an issue to update:
+First, create an issue to update and save its ID in the sandbox:
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Update me" -t task -p 3 --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.id)" > /tmp/update_id.txt && echo "Created"
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Update me" -t task -p 3 --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); require('fs').writeFileSync('update_id.txt', d.id); console.log('Created')"
 Created
 ? 0
 ```
@@ -285,7 +283,7 @@ Created
 # Test: Update status
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --status in_progress
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --status in_progress
 ✓ Updated [..]
 ? 0
 ```
@@ -293,7 +291,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --st
 # Test: Update priority
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --priority 0
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --priority 0
 ✓ Updated [..]
 ? 0
 ```
@@ -301,7 +299,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --pr
 # Test: Update type
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --type bug
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --type bug
 ✓ Updated [..]
 ? 0
 ```
@@ -309,7 +307,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --ty
 # Test: Update assignee
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --assignee bob
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --assignee bob
 ✓ Updated [..]
 ? 0
 ```
@@ -317,7 +315,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --as
 # Test: Update description
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --description "New description text"
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --description "New description text"
 ✓ Updated [..]
 ? 0
 ```
@@ -325,7 +323,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --de
 # Test: Update notes
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --notes "Working on this task"
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --notes "Working on this task"
 ✓ Updated [..]
 ? 0
 ```
@@ -333,7 +331,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --no
 # Test: Update add label
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --add-label wip
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --add-label wip
 ✓ Updated [..]
 ? 0
 ```
@@ -341,7 +339,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --ad
 # Test: Update remove label
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --remove-label wip
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --remove-label wip
 ✓ Updated [..]
 ? 0
 ```
@@ -349,7 +347,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --re
 # Test: Update due date
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --due 2025-12-31T00:00:00Z
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --due 2025-12-31T00:00:00Z
 ✓ Updated [..]
 ? 0
 ```
@@ -357,7 +355,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --du
 # Test: Update defer date
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --defer 2025-06-15T00:00:00Z
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --defer 2025-06-15T00:00:00Z
 ✓ Updated [..]
 ? 0
 ```
@@ -365,7 +363,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --de
 # Test: Verify updates applied
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show $(cat /tmp/update_id.txt) --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('status:', d.status, 'type:', d.kind, 'assignee:', d.assignee)"
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show $(cat update_id.txt) --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('status:', d.status, 'type:', d.kind, 'assignee:', d.assignee)"
 status: in_progress type: bug assignee: bob
 ? 0
 ```
@@ -373,7 +371,7 @@ status: in_progress type: bug assignee: bob
 # Test: Update with dry-run
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --priority 4 --dry-run
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --priority 4 --dry-run
 [DRY-RUN] Would update [..]
 ? 0
 ```
@@ -393,7 +391,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update is-00000000000000000000000000 
 Create an issue to close:
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Close me" -t task --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.id)" > /tmp/close_id.txt && echo "Created"
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Close me" -t task --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); require('fs').writeFileSync('close_id.txt', d.id); console.log('Created')"
 Created
 ? 0
 ```
@@ -401,7 +399,7 @@ Created
 # Test: Close issue
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat /tmp/close_id.txt)
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat close_id.txt)
 ✓ Closed [..]
 ? 0
 ```
@@ -409,7 +407,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat /tmp/close_id.txt)
 # Test: Verify closed status
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show $(cat /tmp/close_id.txt) --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('status:', d.status)"
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show $(cat close_id.txt) --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('status:', d.status)"
 status: closed
 ? 0
 ```
@@ -419,13 +417,13 @@ status: closed
 Create another issue:
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Close with reason" -t bug --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.id)" > /tmp/close2_id.txt && echo "Created"
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Close with reason" -t bug --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); require('fs').writeFileSync('close2_id.txt', d.id); console.log('Created')"
 Created
 ? 0
 ```
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat /tmp/close2_id.txt) --reason "Fixed in commit abc123"
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat close2_id.txt) --reason "Fixed in commit abc123"
 ✓ Closed [..]
 ? 0
 ```
@@ -433,12 +431,12 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat /tmp/close2_id.txt) --rea
 # Test: Close with dry-run
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Dry close" --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.id)" > /tmp/dryclose_id.txt
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Dry close" --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); require('fs').writeFileSync('dryclose_id.txt', d.id)"
 ? 0
 ```
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat /tmp/dryclose_id.txt) --dry-run
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat dryclose_id.txt) --dry-run
 [DRY-RUN] Would close [..]
 ? 0
 ```
@@ -446,7 +444,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat /tmp/dryclose_id.txt) --d
 # Test: Close already closed issue
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat /tmp/close_id.txt) 2>&1
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat close_id.txt) 2>&1
 ✗ Issue[..]already closed
 ? 0
 ```
@@ -458,7 +456,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat /tmp/close_id.txt) 2>&1
 # Test: Reopen closed issue
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat /tmp/close_id.txt)
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat close_id.txt)
 ✓ Reopened [..]
 ? 0
 ```
@@ -466,7 +464,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat /tmp/close_id.txt)
 # Test: Verify reopened status
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show $(cat /tmp/close_id.txt) --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('status:', d.status)"
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show $(cat close_id.txt) --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('status:', d.status)"
 status: open
 ? 0
 ```
@@ -476,13 +474,13 @@ status: open
 Close and reopen with reason:
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat /tmp/close_id.txt)
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat close_id.txt)
 ✓ Closed [..]
 ? 0
 ```
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat /tmp/close_id.txt) --reason "Fix was incomplete"
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat close_id.txt) --reason "Fix was incomplete"
 ✓ Reopened [..]
 ? 0
 ```
@@ -490,7 +488,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat /tmp/close_id.txt) --rea
 # Test: Reopen with dry-run
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat /tmp/close_id.txt) && node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat /tmp/close_id.txt) --dry-run
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat close_id.txt) && node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat close_id.txt) --dry-run
 ✓ Closed [..]
 [DRY-RUN] Would reopen [..]
 ? 0
@@ -501,7 +499,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs close $(cat /tmp/close_id.txt) && nod
 First reopen it for real:
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat /tmp/close_id.txt) 2>/dev/null; node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat /tmp/close_id.txt) 2>&1
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat close_id.txt) 2>/dev/null; node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs reopen $(cat close_id.txt) 2>&1
 ...
 ✗ Issue[..]not closed[..]
 ? 0
@@ -522,7 +520,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "" 2>&1
 # Test: Update with invalid priority
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat /tmp/update_id.txt) --priority 10 2>&1
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs update $(cat update_id.txt) --priority 10 2>&1
 ✗ Invalid priority[..]
 ? 0
 ```

@@ -32,7 +32,7 @@ Info command should work and tell user to run init.
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs info
-tbd version 0.1.0
+tbd version [..]
 
 Not initialized. Run tbd init to set up.
 ? 0
@@ -42,15 +42,14 @@ Not initialized. Run tbd init to set up.
 
 ## List Command
 
-# Test: List without init shows message
+# Test: List without init returns error
 
-Currently shows "No issues found" but should say "Not initialized".
-Bug: tbd-1809
+List command should fail with helpful error message when tbd is not initialized.
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs list
-No issues found
-? 0
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs list 2>&1
+Error: Not a tbd repository. Run "tbd init" first.
+? 1
 ```
 
 ---
@@ -59,25 +58,11 @@ No issues found
 
 # Test: Show without init gives error
 
-Show command fails gracefully since no .tbd/data-sync directory exists.
+Show command fails gracefully since no .tbd directory exists.
 
 ```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show bd-1234
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs show bd-1234 2>&1
 ✗ Issue not found: bd-1234
-? 0
-```
-
----
-
-## Create Command Works After Bug Is Fixed
-
-Note: Currently create works without init (bug). After fix, should require init.
-
-# Test: Create without init - currently works
-
-```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Test issue"
-✓ Created bd-[ULID]: Test issue
 ? 0
 ```
 
@@ -90,15 +75,10 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Test issue"
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs init
 ✓ Initialized tbd repository
-...
-? 0
-```
 
-# Test: After init, list shows the issue created earlier
-
-```console
-$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs list
-...
+To complete setup, commit the config files:
+  git add .tbd/
+  git commit -m "Initialize tbd"
 ? 0
 ```
 
@@ -114,11 +94,33 @@ $ ls .tbd/config.yml
 ? 0
 ```
 
-# Test: Sync directory exists
+# Test: Sync worktree exists
 
 ```console
-$ ls .tbd/data-sync/
+$ ls .tbd/data-sync-worktree/.tbd/data-sync/
+attic
 issues
+mappings
+meta.yml
+? 0
+```
+
+---
+
+## Commands Work After Init
+
+# Test: Create works after init
+
+```console
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Test issue"
+✓ Created bd-[ULID]: Test issue
+? 0
+```
+
+# Test: List shows the issue
+
+```console
+$ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs list
 ...
 ? 0
 ```

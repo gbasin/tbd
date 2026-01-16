@@ -10,6 +10,7 @@ import { BaseCommand } from '../lib/baseCommand.js';
 import { readIssue, writeIssue } from '../../file/storage.js';
 import { normalizeIssueId } from '../../lib/ids.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { now } from '../../utils/time.js';
 
 interface ReopenOptions {
   reason?: string;
@@ -44,7 +45,7 @@ class ReopenHandler extends BaseCommand {
     issue.closed_at = null;
     issue.close_reason = null;
     issue.version += 1;
-    issue.updated_at = new Date().toISOString();
+    issue.updated_at = now();
 
     // Optionally store reopen reason in notes if provided
     if (options.reason) {

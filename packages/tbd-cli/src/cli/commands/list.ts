@@ -26,6 +26,7 @@ interface ListOptions {
   deferBefore?: string;
   sort?: string;
   limit?: string;
+  count?: boolean;
 }
 
 class ListHandler extends BaseCommand {
@@ -58,6 +59,14 @@ class ListHandler extends BaseCommand {
       if (!isNaN(limit) && limit > 0) {
         issues = issues.slice(0, limit);
       }
+    }
+
+    // Count-only mode for testing
+    if (options.count) {
+      this.output.data({ count: issues.length }, () => {
+        console.log(issues.length);
+      });
+      return;
     }
 
     // Format output - use short display IDs instead of internal ULIDs
@@ -195,6 +204,7 @@ export const listCommand = new Command('list')
   .option('--defer-before <date>', 'Deferred before date')
   .option('--sort <field>', 'Sort by: priority, created, updated', 'priority')
   .option('--limit <n>', 'Limit results')
+  .option('--count', 'Output only the count of matching issues')
   .action(async (options, command) => {
     const handler = new ListHandler(command);
     await handler.run(options);

@@ -13,6 +13,7 @@ import { generateInternalId } from '../../lib/ids.js';
 import { writeIssue } from '../../file/storage.js';
 import { IssueKind, Priority } from '../../lib/schemas.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { now } from '../../utils/time.js';
 
 interface CreateOptions {
   fromFile?: string;
@@ -57,7 +58,7 @@ class CreateHandler extends BaseCommand {
       return;
     }
 
-    const now = new Date().toISOString();
+    const timestamp = now();
     const id = generateInternalId();
 
     const issue: Issue = {
@@ -70,8 +71,8 @@ class CreateHandler extends BaseCommand {
       priority,
       labels: options.label ?? [],
       dependencies: [],
-      created_at: now,
-      updated_at: now,
+      created_at: timestamp,
+      updated_at: timestamp,
       description: description ?? undefined,
       assignee: options.assignee ?? undefined,
       due_date: options.due ?? undefined,

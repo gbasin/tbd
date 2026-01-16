@@ -13,6 +13,7 @@ import { normalizeIssueId } from '../../lib/ids.js';
 import { IssueStatus, IssueKind, Priority } from '../../lib/schemas.js';
 import type { IssueStatusType, IssueKindType, PriorityType } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { now } from '../../utils/time.js';
 
 interface UpdateOptions {
   fromFile?: string;
@@ -78,7 +79,7 @@ class UpdateHandler extends BaseCommand {
 
     // Update metadata
     issue.version += 1;
-    issue.updated_at = new Date().toISOString();
+    issue.updated_at = now();
 
     // Save
     await this.execute(async () => {

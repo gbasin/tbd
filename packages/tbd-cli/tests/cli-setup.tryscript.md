@@ -116,7 +116,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs init
 ✓ Initialized tbd repository
 
 To complete setup, commit the config files:
-  git add .tbd/ .tbd/data-sync/
+  git add .tbd/
   git commit -m "Initialize tbd"
 ? 0
 ```
@@ -183,7 +183,7 @@ $ cd custom-repo && node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs init --sync-branch 
 ✓ Initialized tbd repository
 
 To complete setup, commit the config files:
-  git add .tbd/ .tbd/data-sync/
+  git add .tbd/
   git commit -m "Initialize tbd"
 ? 0
 ```
@@ -212,8 +212,8 @@ Total issues: 0
 ```console
 $ mkdir uninit-repo && cd uninit-repo && git init --initial-branch=main && git config user.email "test@example.com" && git config user.name "Test" && node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs list 2>&1
 Initialized empty Git repository in [..]
-...
-? 0
+Error: Not a tbd repository. Run "tbd init" first.
+? 1
 ```
 
 # Test: Info on uninitialized repo

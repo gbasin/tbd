@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { writeFile } from 'atomically';
 
 import type { Issue } from '../lib/types.js';
+import { now, nowFilenameTimestamp } from '../utils/time.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -330,10 +331,7 @@ function createConflictEntry(
   remoteVersion: number,
   resolution: 'lww' | 'union' | 'manual',
 ): ConflictEntry {
-  const timestamp = new Date()
-    .toISOString()
-    .replace(/:/g, '-')
-    .replace(/\.\d+Z$/, 'Z');
+  const timestamp = nowFilenameTimestamp();
 
   return {
     issue_id: issueId,
@@ -483,7 +481,7 @@ export function mergeIssues(base: Issue | null, local: Issue, remote: Issue): Me
 
   // Always increment version after merge
   merged.version = Math.max(local.version, remote.version) + 1;
-  merged.updated_at = new Date().toISOString();
+  merged.updated_at = now();
 
   return { merged, conflicts };
 }
@@ -749,8 +747,9 @@ export async function initWorktree(
     }
 
     // No branch exists - create orphan worktree (requires Git 2.42+)
+    // Syntax: git worktree add --orphan -b <branch> <path>
     await requireGitVersion();
-    await git('-C', baseDir, 'worktree', 'add', worktreePath, '--orphan', syncBranch);
+    await git('-C', baseDir, 'worktree', 'add', '--orphan', '-b', syncBranch, worktreePath);
 
     // Initialize the data-sync directory structure in the worktree
     const dataSyncPath = join(worktreePath, TBD_DIR, DATA_SYNC_DIR_NAME);

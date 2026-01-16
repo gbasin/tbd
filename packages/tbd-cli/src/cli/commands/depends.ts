@@ -11,6 +11,7 @@ import { readIssue, writeIssue, listIssues } from '../../file/storage.js';
 import { normalizeIssueId } from '../../lib/ids.js';
 import type { Issue } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { now } from '../../utils/time.js';
 
 // Add dependency
 class DependsAddHandler extends BaseCommand {
@@ -58,7 +59,7 @@ class DependsAddHandler extends BaseCommand {
     // Add the dependency
     issue.dependencies.push({ type: 'blocks', target: normalizedTarget });
     issue.version += 1;
-    issue.updated_at = new Date().toISOString();
+    issue.updated_at = now();
 
     await this.execute(async () => {
       await writeIssue(dataSyncDir, issue);
@@ -106,7 +107,7 @@ class DependsRemoveHandler extends BaseCommand {
     }
 
     issue.version += 1;
-    issue.updated_at = new Date().toISOString();
+    issue.updated_at = now();
 
     await this.execute(async () => {
       await writeIssue(dataSyncDir, issue);

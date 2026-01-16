@@ -11,6 +11,7 @@ import { listIssues } from '../../file/storage.js';
 import { IssueStatus } from '../../lib/schemas.js';
 import type { Issue, IssueStatusType } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { nowDate, parseDate } from '../../utils/time.js';
 
 interface StaleOptions {
   days?: string;
@@ -55,7 +56,7 @@ class StaleHandler extends BaseCommand {
       allowedStatuses.add('in_progress');
     }
 
-    const now = new Date();
+    const currentTime = nowDate();
     const msPerDay = 24 * 60 * 60 * 1000;
 
     // Filter stale issues
@@ -66,8 +67,9 @@ class StaleHandler extends BaseCommand {
       if (!allowedStatuses.has(issue.status)) continue;
 
       // Calculate days since last update
-      const updatedAt = new Date(issue.updated_at);
-      const daysSinceUpdate = Math.floor((now.getTime() - updatedAt.getTime()) / msPerDay);
+      const updatedAt = parseDate(issue.updated_at);
+      if (!updatedAt) continue;
+      const daysSinceUpdate = Math.floor((currentTime.getTime() - updatedAt.getTime()) / msPerDay);
 
       if (daysSinceUpdate >= daysThreshold) {
         staleIssues.push({ issue, daysSinceUpdate });

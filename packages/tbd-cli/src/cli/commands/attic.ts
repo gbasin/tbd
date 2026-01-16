@@ -15,6 +15,7 @@ import { BaseCommand } from '../lib/baseCommand.js';
 import { readIssue, writeIssue } from '../../file/storage.js';
 import { normalizeIssueId } from '../../lib/ids.js';
 import { resolveDataSyncDir, resolveAtticDir } from '../../lib/paths.js';
+import { now } from '../../utils/time.js';
 
 /**
  * Attic entry structure for storing lost values during conflicts.
@@ -220,7 +221,7 @@ class AtticRestoreHandler extends BaseCommand {
     }
 
     issue.version += 1;
-    issue.updated_at = new Date().toISOString();
+    issue.updated_at = now();
 
     await this.execute(async () => {
       await writeIssue(dataSyncDir, issue);

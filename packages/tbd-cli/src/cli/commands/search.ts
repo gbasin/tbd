@@ -14,6 +14,7 @@ import { listIssues } from '../../file/storage.js';
 import { IssueStatus } from '../../lib/schemas.js';
 import type { Issue, IssueStatusType } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { now } from '../../utils/time.js';
 
 // Staleness threshold for worktree (5 minutes)
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;
@@ -82,7 +83,7 @@ class SearchHandler extends BaseCommand {
       if (stale) {
         this.output.info('Refreshing worktree...');
         // Update state to mark as fresh (in a full implementation, would actually sync)
-        await updateState({ last_sync_at: new Date().toISOString() });
+        await updateState({ last_sync_at: now() });
       }
     }
 

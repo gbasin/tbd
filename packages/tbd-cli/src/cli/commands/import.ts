@@ -17,6 +17,7 @@ import { generateInternalId } from '../../lib/ids.js';
 import { IssueStatus, IssueKind } from '../../lib/schemas.js';
 import type { Issue, IssueStatusType, IssueKindType, DependencyType } from '../../lib/types.js';
 import { resolveDataSyncDir, resolveMappingsDir } from '../../lib/paths.js';
+import { now, normalizeTimestamp } from '../../utils/time.js';
 
 interface ImportOptions {
   fromBeads?: boolean;
@@ -156,17 +157,17 @@ function convertIssue(beads: BeadsIssue, tbdId: string, depMapping: IdMapping): 
     assignee: beads.assignee,
     labels: beads.labels ?? [],
     dependencies,
-    created_at: beads.created_at,
-    updated_at: beads.updated_at,
-    closed_at: beads.closed_at ?? null,
+    created_at: normalizeTimestamp(beads.created_at) ?? now(),
+    updated_at: normalizeTimestamp(beads.updated_at) ?? now(),
+    closed_at: normalizeTimestamp(beads.closed_at),
     close_reason: beads.close_reason ?? null,
-    due_date: beads.due ?? null,
-    deferred_until: beads.defer ?? null,
+    due_date: normalizeTimestamp(beads.due),
+    deferred_until: normalizeTimestamp(beads.defer),
     parent_id: beads.parent ? depMapping[beads.parent] : null,
     extensions: {
       beads: {
         original_id: beads.id,
-        imported_at: new Date().toISOString(),
+        imported_at: now(),
       },
     },
   };

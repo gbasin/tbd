@@ -10,6 +10,7 @@ import { BaseCommand } from '../lib/baseCommand.js';
 import { readIssue, writeIssue } from '../../file/storage.js';
 import { normalizeIssueId } from '../../lib/ids.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { now } from '../../utils/time.js';
 
 interface CloseOptions {
   reason?: string;
@@ -41,10 +42,10 @@ class CloseHandler extends BaseCommand {
 
     // Update issue
     issue.status = 'closed';
-    issue.closed_at = new Date().toISOString();
+    issue.closed_at = now();
     issue.close_reason = options.reason ?? null;
     issue.version += 1;
-    issue.updated_at = new Date().toISOString();
+    issue.updated_at = now();
 
     // Save
     await this.execute(async () => {
