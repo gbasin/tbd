@@ -158,7 +158,7 @@ IDs is still < 1), but the stated “1% at 13,000” is backwards.
 ☑️ **REVIEWED** - Design doc already specifies hidden worktree approach (Option A).
 
 **Assessment:** The design doc (§2.3 “Hidden Worktree Model”, Decision 7) clearly
-endorses Option A - all sync-branch operations happen inside `.tbd/.worktree/`. The plan
+endorses Option A - all sync-branch operations happen inside `.tbd/sync-worktree/`. The plan
 pseudocode may have mixed approaches that should be clarified to consistently use
 worktree commits.
 
@@ -182,7 +182,7 @@ plan.
 
 #### Option A (recommended for V1): **Do all sync-branch writes inside the hidden worktree**
 
-- Treat `.tbd/.worktree` as the local working copy of the sync branch data.
+- Treat `.tbd/sync-worktree` as the local working copy of the sync branch data.
 - Modify files there, commit there, push `HEAD:refs/heads/tbd-sync`.
 - This naturally avoids touching the user’s main index; `GIT_INDEX_FILE` becomes
   unnecessary.
@@ -466,11 +466,11 @@ Recommendation:
 
 ☑️ **REVIEWED** - Update design doc for consistency.
 
-In one place it ignores only `cache/`, elsewhere it ignores `cache/` and `.worktree/`.
+In one place it ignores only `cache/`, elsewhere it ignores `cache/` and `sync-worktree/`.
 
 Recommendation:
 
-- Standardize `.tbd/.gitignore` to ignore **both** `cache/` and `.worktree/` (and
+- Standardize `.tbd/.gitignore` to ignore **both** `cache/` and `sync-worktree/` (and
   consider ignoring temp files, lock files).
 
 ### P1-5: Canonical serialization rules contain a minor internal contradiction
