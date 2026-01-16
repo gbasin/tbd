@@ -2996,48 +2996,80 @@ jobs:
 
 * * *
 
-## Phase 18: Critical Bug Fixes (🔴 New)
+## Phase 18: Critical Bug Fixes & Testing Strategy Enhancement (🔴 New)
 
-**Epic:** tbd-1800-bugfix (pending)
+**Epic:** tbd-1836 - Phase 18 Testing Strategy Enhancement
 
-**Goal**: Fix critical bugs discovered during initial testing that prevent basic usage.
+**Goal**: Fix critical bugs discovered during initial testing AND systematically enhance testing
+to prevent similar bugs in the future. Uses **test-first (TDD) approach**: write failing tests
+that reproduce bugs BEFORE implementing fixes.
+
+### Testing Gap Analysis
+
+The following gaps in the existing test suite allowed these bugs to slip through:
+
+| Bug | Gap in Testing | Missing Test Type |
+| --- | --- | --- |
+| tbd-1809 (no init prompt) | Tests only cover `init` command, not other commands without init | Uninitialized state tests |
+| tbd-1810 (wrong file location) | Tests check command output, not file system state | File location verification |
+| tbd-1811 (wrong ID format) | Regex `[SHORTID]` too loose, matches anything | Strict ID format validation |
+| tbd-1812 (extra newline) | Tests check content, not exact formatting | Serialization format tests |
+| tbd-1813 (status mapping) | No test with beads 'done' status | Status mapping coverage |
+| tbd-1822 (--help) | Tests use `help <cmd>`, not `<cmd> --help` | Help flag consistency |
+| tbd-1823 (color) | All tests use NO_COLOR=1 | Color mode variations |
 
 ### Phase 18 Tasks
 
-**Bug Fixes:**
+#### 18.1 Testing Infrastructure Improvements
 
-| Bead ID | Task | Priority | Status | Notes |
+| Bead ID | Task | Priority | Notes |
+| --- | --- | --- | --- |
+| tbd-1837 | Add test helper: verify file location after operations | P1 | Check worktree vs main |
+| tbd-1838 | Add test helper: strict ID format validation | P1 | 4-5 char, not 26 char |
+| tbd-1839 | Add test helper: verify serialization format | P2 | Check whitespace, encoding |
+| tbd-1840 | Add test fixture: beads JSONL with all status values | P1 | done, tombstone, etc. |
+
+#### 18.2 New Comprehensive Test Files (Write BEFORE fixes)
+
+| Bead ID | Task | Priority | Catches Bug | Notes |
 | --- | --- | --- | --- | --- |
-| tbd-1809 | Bug: tbd list shows 'no issues' instead of init prompt | P2 | Open | UX issue - should detect uninitialized state |
-| tbd-1810 | Bug: import writes files to main branch instead of tbd-sync worktree | P1 | Open | **CRITICAL** - breaks core architecture |
-| tbd-1811 | Bug: list command shows internal ULID IDs instead of short public IDs | P1 | Open | **CRITICAL** - breaks ID usability |
-| tbd-1812 | Bug: extra newline after YAML frontmatter closing --- | P3 | Open | Minor formatting issue |
-| tbd-1813 | Bug: import status mapping missing 'done' -> 'closed' | P1 | Open | **CRITICAL** - causes 127 issues to import as 'open' instead of 'closed' |
+| tbd-1841 | Create cli-uninitialized.tryscript.md | P1 | tbd-1809 | Test ALL commands without init |
+| tbd-1842 | Create cli-filesystem.tryscript.md | P1 | tbd-1810 | Verify file locations |
+| tbd-1843 | Create cli-id-format.tryscript.md | P1 | tbd-1811 | Strict ID format checks |
+| tbd-1844 | Create cli-import-status.tryscript.md | P1 | tbd-1813 | All status mappings |
+| tbd-1845 | Create cli-help-all.tryscript.md | P2 | tbd-1822 | `<cmd> --help` for all |
+| tbd-1846 | Create cli-color-modes.tryscript.md | P3 | tbd-1823 | Color flag handling |
 
-**Golden Test Coverage (blocked by bug fixes):**
+#### 18.3 Bug Fixes (Blocked by regression tests)
 
 | Bead ID | Task | Priority | Blocked By | Notes |
 | --- | --- | --- | --- | --- |
-| tbd-1814 | Test: golden test for uninitialized tbd list behavior | P2 | tbd-1809 | Verify init prompt shown |
-| tbd-1815 | Test: golden test verifying files written to tbd-sync worktree | P1 | tbd-1810 | Verify worktree used |
-| tbd-1816 | Test: golden test verifying short public IDs in list output | P1 | tbd-1811 | Verify ID format |
-| tbd-1817 | Test: golden test for YAML frontmatter formatting | P3 | tbd-1812 | Verify no extra newline |
-| tbd-1818 | Test: golden test for beads import status mapping | P1 | tbd-1813 | Verify done->closed |
+| tbd-1809 | Bug: no init prompt | P2 | tbd-1841 | Must write test first |
+| tbd-1810 | Bug: wrong file location | P1 | tbd-1842 | Must write test first |
+| tbd-1811 | Bug: wrong ID format | P1 | tbd-1843 | Must write test first |
+| tbd-1812 | Bug: extra newline | P3 | (none) | Minor fix |
+| tbd-1813 | Bug: status mapping | P1 | tbd-1844 | Must write test first |
 
-**New Feature:**
+#### 18.4 Additional Test Coverage (Broader gaps)
 
-| Bead ID | Task | Priority | Status | Notes |
-| --- | --- | --- | --- | --- |
-| tbd-1819 | Feature: Add tbd uninstall command | P2 | Open | Remove .tbd/, delete tbd-sync branch, require --yes, **warn of full data loss** |
-| tbd-1820 | Test: golden test for tbd uninstall command | P2 | tbd-1819 | Verify cleanup and warning behavior |
+| Bead ID | Task | Priority | Notes |
+| --- | --- | --- | --- |
+| tbd-1847 | Sync conflict resolution edge cases | P2 | Concurrent edits, partial syncs |
+| tbd-1848 | Unicode and special characters | P2 | Emoji, CJK, RTL, long strings |
+| tbd-1849 | Error handling edge cases | P2 | Permissions, disk, corruption |
+| tbd-1850 | Attic restore workflows | P2 | Full conflict→restore cycle |
+| tbd-1851 | Performance tests with 1000+ issues | P3 | Verify <50ms targets |
+| tbd-1852 | Document testing strategy in TESTING.md | P2 | Patterns, how to add tests |
 
-**tbd-1819: Uninstall command details**
-- Delete `.tbd/` directory (config, worktree)
-- Delete tbd-sync branch (local, optionally remote with `--remote` flag)
-- Delete `.tbd-sync/` if it exists on main
-- **CRITICAL**: Help text and confirmation prompt must warn about FULL DATA LOSS
-- Require `--yes` flag to skip confirmation
-- Useful for: testing cleanup, round-trip golden tests (import→operate→uninstall→repeat)
+#### 18.5 New Features
+
+| Bead ID | Task | Priority | Notes |
+| --- | --- | --- | --- |
+| tbd-1819 | Feature: Add tbd uninstall command | P2 | **Warn of full data loss** |
+| tbd-1820 | Test: golden test for uninstall | P2 | Verify cleanup behavior |
+| tbd-1821 | Feature: Add tbd docs subcommand | P2 | See sub-tasks tbd-1824→1827 |
+| tbd-1822 | Bug: --help on all subcommands | P2 | See sub-tasks tbd-1828→1830 |
+| tbd-1823 | Bug: Color consistency | P3 | See sub-tasks tbd-1831→1834 |
 
 ### Phase 18 Bug Details
 
@@ -3105,3 +3137,4 @@ jobs:
 | 2026-01-15 | Claude | Implemented Phase 7 (sync: isolated index, merge, retry) and Phase 8 (search: staleness check) |
 | 2026-01-15 | Claude | Added README (tbd-1205), manual validation (tbd-1305), security review (tbd-1306) |
 | 2026-01-16 | Claude | Added Phase 18: Critical Bug Fixes (tbd-1809 through tbd-1818) - worktree usage, ID display, status mapping, serialization |
+| 2026-01-16 | Claude | Enhanced Phase 18 with systematic testing strategy: gap analysis, test infrastructure (tbd-1837→1840), new test files (tbd-1841→1846), broader coverage (tbd-1847→1852), TDD approach |
