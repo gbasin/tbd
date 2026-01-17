@@ -79,7 +79,8 @@ describe('performance tests', () => {
       const issue = generateTestIssue(1);
       const { ms } = await measureTime(() => writeIssue(tempDir, issue));
 
-      expect(ms).toBeLessThan(50);
+      // Allow 100ms on Windows CI (slower file I/O), 50ms elsewhere
+      expect(ms).toBeLessThan(isWindows ? 100 : 50);
     });
 
     it('writes 100 issues in <3000ms (30ms avg)', async () => {
@@ -91,7 +92,8 @@ describe('performance tests', () => {
         }
       });
 
-      expect(ms).toBeLessThan(3000);
+      // Allow 5000ms on Windows CI (slower file I/O), 3000ms elsewhere
+      expect(ms).toBeLessThan(isWindows ? 5000 : 3000);
       const avgMs = ms / 100;
       // Log average for visibility in test output
       console.log(`Average write time: ${avgMs.toFixed(2)}ms per issue`);
