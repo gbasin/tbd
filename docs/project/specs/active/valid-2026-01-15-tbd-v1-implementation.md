@@ -266,14 +266,17 @@ Testing performed manually during development (not automated, but verified worki
 ### 2.5 Phase 22-24 Agent Integration (New)
 
 #### Phase 22: Beads Import with Short ID Preservation
+
 - ✅ `tbd import --from-beads` preserves original beads short IDs
 - ✅ `isShortId()` validates short ID format (1-16 chars, alphanumeric + dashes)
 - ✅ Imported issues accessible by their original beads IDs (e.g., `tbd-1234`)
 
 #### Phase 23: requireInit() Enforcement
+
 - ✅ All commands check for `.tbd/` directory before execution
-- ✅ Clear error message: "Not initialized. Run 'tbd init' first."
-- ✅ Auto-init during import when `.tbd/` doesn't exist
+- ✅ Clear error message: “Not initialized.
+  Run 'tbd init' first.”
+- ✅ Auto-init during import when `.tbd/` doesn’t exist
 - ✅ Commands that work without init: `init`, `info`, `prime`
 
 #### Phase 24: Agent Integration Commands
@@ -298,7 +301,8 @@ Testing performed manually during development (not automated, but verified worki
 
 **`tbd setup codex` command:**
 - ✅ Creates/updates `AGENTS.md` with tbd section (HTML comment markers)
-- ✅ Section managed between `<!-- BEGIN TBD INTEGRATION -->` and `<!-- END TBD INTEGRATION -->`
+- ✅ Section managed between `<!-- BEGIN TBD INTEGRATION -->` and
+  `<!-- END TBD INTEGRATION -->`
 - ✅ `--check` verifies section exists
 - ✅ `--remove` removes tbd section (deletes file if empty)
 

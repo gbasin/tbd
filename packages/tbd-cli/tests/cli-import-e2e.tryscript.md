@@ -21,13 +21,12 @@ before: |
   # Initialize tbd
   tbd init
 ---
-
 # tbd CLI: Import E2E Test (Real Beads Database)
 
 End-to-end test for importing from a real Beads database with 100+ issues.
 This test uses the actual beads database from the tbd repository.
 
----
+* * *
 
 ## Verify Source Beads Repository
 
@@ -39,7 +38,7 @@ $ ls $TRYSCRIPT_TEST_DIR/../../../.beads/issues.jsonl
 ? 0
 ```
 
----
+* * *
 
 ## Import from Real Repository
 
@@ -59,7 +58,7 @@ OK: [..] issues
 ? 0
 ```
 
----
+* * *
 
 ## Validate Import Quality
 
@@ -99,7 +98,7 @@ $ FIRST_ID=$(tbd list --all --limit=1 --json | grep internalId | head -1 | cut -
 ? 0
 ```
 
----
+* * *
 
 ## Validate Timestamps
 
@@ -111,7 +110,7 @@ $ FIRST_ID=$(tbd list --all --limit=1 --json | grep internalId | head -1 | cut -
 ? 0
 ```
 
----
+* * *
 
 ## Re-import Idempotency
 
@@ -131,7 +130,7 @@ Idempotent: YES
 ? 0
 ```
 
----
+* * *
 
 ## Stats Consistency
 
@@ -142,4 +141,3 @@ $ STATS=$(tbd stats --json | grep total | cut -d':' -f2 | tr -d ' ,') && [ "$STA
 OK: [..] total
 ? 0
 ```
-

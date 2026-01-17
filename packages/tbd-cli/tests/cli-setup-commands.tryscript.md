@@ -19,12 +19,11 @@ before: |
   git add README.md
   git commit -m "Initial commit"
 ---
-
 # tbd CLI: Setup Commands
 
 Tests for `tbd setup` subcommands that configure editor integrations.
 
----
+* * *
 
 ## Setup Help
 
@@ -148,7 +147,7 @@ For more on tbd, see: https://github.com/jlevy/tbd
 ? 0
 ```
 
----
+* * *
 
 ## Setup Cursor
 
@@ -239,7 +238,7 @@ Cursor rules file not found
 ? 0
 ```
 
----
+* * *
 
 ## Setup Codex
 
@@ -346,7 +345,7 @@ tbd section removed
 ? 0
 ```
 
----
+* * *
 
 ## Codex with Existing Content
 
@@ -418,20 +417,21 @@ $ grep -c "custom content" AGENTS.md
 ? 0
 ```
 
----
+* * *
 
 ## Setup Claude (Check and Dry-Run Only)
 
-**SAFETY NOTE**: Full claude setup tests are intentionally limited because `tbd setup claude`
-modifies the global ~/.claude/settings.json file.
+**SAFETY NOTE**: Full claude setup tests are intentionally limited because
+`tbd setup claude` modifies the global ~/.claude/settings.json file.
 
 We ONLY test safe operations:
 - `--check` - Read-only verification of installation status
 - `--dry-run` - Shows what would happen without making changes
 
 DO NOT add tests that actually install claude hooks without proper sandboxing.
-A future improvement would be to add a `--config-dir` option to override the config location
-for testing purposes. See: https://github.com/jlevy/tbd/issues/TBD
+A future improvement would be to add a `--config-dir` option to override the config
+location for testing purposes.
+See: https://github.com/jlevy/tbd/issues/TBD
 
 # Test: Claude --check exits successfully
 

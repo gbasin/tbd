@@ -17,13 +17,12 @@ before: |
   git add README.md
   git commit -m "Initial commit"
 ---
-
 # tbd CLI: Help Text Verification
 
 Verifies that --help works correctly on all commands and subcommands.
 Uses simple checks to verify help is displayed without exit errors.
 
----
+* * *
 
 ## Top-Level Help
 
@@ -39,7 +38,7 @@ Options:
 ? 0
 ```
 
----
+* * *
 
 ## Core Commands Help
 
@@ -99,7 +98,7 @@ $ tbd reopen --help | grep -c "\-\-reason"
 ? 0
 ```
 
----
+* * *
 
 ## Workflow Commands Help
 
@@ -127,7 +126,7 @@ $ tbd stale --help | grep -c "\-\-days"
 ? 0
 ```
 
----
+* * *
 
 ## Subcommand Groups Help
 
@@ -163,7 +162,7 @@ $ tbd attic --help | grep -c "restore"
 ? 0
 ```
 
----
+* * *
 
 ## Utility Commands Help
 
@@ -215,7 +214,7 @@ $ tbd import --help | grep -c "\-\-from-beads"
 ? 0
 ```
 
----
+* * *
 
 ## Documentation Command Help
 
@@ -285,7 +284,7 @@ $ tbd docs | grep -c "tbd CLI Documentation"
 ? 0
 ```
 
----
+* * *
 
 ## Uninstall Command Help
 

@@ -11,12 +11,11 @@ patterns:
   SHORTID: '[0-9a-z]{4,5}'
   TIMESTAMP: "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z"
 ---
-
 # tbd CLI: Prime Command
 
 Tests for the `tbd prime` command which outputs workflow context for AI agents.
 
----
+* * *
 
 ## Prime in Uninitialized Directory
 
@@ -43,7 +42,7 @@ $ tbd prime | wc -c | tr -d ' '
 ? 0
 ```
 
----
+* * *
 
 ## Prime in Initialized Project
 
@@ -121,7 +120,7 @@ $ tbd prime | grep -c "Finding Work"
 ? 0
 ```
 
----
+* * *
 
 ## Prime with --export Flag
 
@@ -137,7 +136,7 @@ $ tbd prime --export | head -3
 ? 0
 ```
 
----
+* * *
 
 ## Prime with Custom PRIME.md Override
 
@@ -166,7 +165,7 @@ $ tbd prime --export | head -3
 ? 0
 ```
 
----
+* * *
 
 ## Prime Help
 

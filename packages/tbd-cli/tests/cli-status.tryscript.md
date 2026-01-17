@@ -18,13 +18,12 @@ before: |
   git add README.md
   git commit -m "Initial commit"
 ---
-
 # tbd CLI: Status Command
 
-Tests for the `tbd status` command - the orientation command that works
-regardless of initialization state (like `git status`).
+Tests for the `tbd status` command - the orientation command that works regardless of
+initialization state (like `git status`).
 
----
+* * *
 
 ## Pre-Initialization
 
@@ -63,13 +62,13 @@ $ tbd status --json
 ? 0
 ```
 
----
+* * *
 
 ## With Beads Present
 
 # Test: Status detects beads repository
 
-Create a mock beads directory and verify it's detected.
+Create a mock beads directory and verify it’s detected.
 
 ```console
 $ mkdir -p .beads && echo '{"id":"beads-123","title":"Test issue"}' > .beads/issues.jsonl
@@ -91,7 +90,7 @@ To get started:
 ? 0
 ```
 
----
+* * *
 
 ## Post-Initialization
 
@@ -158,7 +157,7 @@ $ tbd status --json
 ? 0
 ```
 
----
+* * *
 
 ## With Issues
 
@@ -188,7 +187,7 @@ Issues:
 ? 0
 ```
 
----
+* * *
 
 ## Status vs Stats
 

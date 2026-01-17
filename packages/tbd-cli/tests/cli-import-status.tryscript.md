@@ -31,13 +31,12 @@ before: |
   # Initialize tbd
   tbd init
 ---
-
 # tbd CLI: Import Status Mapping Tests
 
 Tests for beads status → tbd status mapping during import.
 Bug: tbd-1813 (done → closed mapping was missing).
 
----
+* * *
 
 ## Import All Status Types
 
@@ -49,7 +48,7 @@ $ tbd import --from-beads
 ? 0
 ```
 
----
+* * *
 
 ## Verify Status Mappings
 
@@ -101,7 +100,7 @@ found
 ? 0
 ```
 
----
+* * *
 
 ## Validate Import
 

@@ -21,12 +21,11 @@ before: |
   # Initialize tbd
   tbd init
 ---
-
 # tbd CLI: Workflow Commands
 
 Tests for ready, blocked, stale, label, and depends commands.
 
----
+* * *
 
 ## Ready Command
 
@@ -108,7 +107,7 @@ OK: no in_progress
 ? 0
 ```
 
----
+* * *
 
 ## Blocked Command
 
@@ -169,7 +168,8 @@ $ tbd blocked --limit=1
 
 # Test: Blocked includes issues with unresolved blockers
 
-The blocked command should show issues that have blocking relationships where the blocker is not closed.
+The blocked command should show issues that have blocking relationships where the
+blocker is not closed.
 
 ```console
 $ tbd blocked --json | node -e "d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('blocked count:', d.length)"
@@ -177,11 +177,11 @@ blocked count: [..]
 ? 0
 ```
 
----
+* * *
 
 ## Stale Command
 
-Create some old issues (we can't actually backdate, so stale may show recent):
+Create some old issues (we can’t actually backdate, so stale may show recent):
 
 # Test: Stale shows not recently updated
 
@@ -223,7 +223,7 @@ $ tbd stale --limit=2
 ? 0
 ```
 
----
+* * *
 
 ## Label Commands
 
@@ -322,7 +322,7 @@ $ tbd label add is-00000000000000000000000000 test-label 2>&1
 ? 0
 ```
 
----
+* * *
 
 ## Depends Commands
 
@@ -412,7 +412,7 @@ $ tbd depends add is-00000000000000000000000000 $(cat /tmp/dep_child.txt) 2>&1
 ? 0
 ```
 
----
+* * *
 
 ## Integration: Ready excludes blocked issues
 

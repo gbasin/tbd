@@ -21,12 +21,11 @@ before: |
   # Initialize tbd
   tbd init
 ---
-
 # tbd CLI: Edge Cases and Error Handling
 
 Tests for unusual inputs, error conditions, and edge cases.
 
----
+* * *
 
 ## Unicode and Special Characters
 
@@ -107,7 +106,7 @@ $ echo -e "Line 1\nLine 2\nLine 3" > /tmp/multi.txt && tbd create "Multi-line" -
 ? 0
 ```
 
----
+* * *
 
 ## Error Handling
 
@@ -180,7 +179,7 @@ $ ID=$(cat /tmp/self_id.txt) && tbd depends add $ID $ID 2>&1 | head -1
 ? 0
 ```
 
----
+* * *
 
 ## Boundary Conditions
 
@@ -216,7 +215,7 @@ $ tbd create "Backlog" --priority=4
 ? 0
 ```
 
----
+* * *
 
 ## List Filtering Edge Cases
 
@@ -244,11 +243,11 @@ $ tbd list --limit=10000 | head -1
 ? 0
 ```
 
----
+* * *
 
 ## Dry Run Mode
 
-# Test: Create with dry-run doesn't create
+# Test: Create with dry-run doesn’t create
 
 ```console
 $ tbd create "DryRun Test" --dry-run
@@ -256,7 +255,7 @@ $ tbd create "DryRun Test" --dry-run
 ? 0
 ```
 
-# Test: Verify dry-run didn't create
+# Test: Verify dry-run didn’t create
 
 ```console
 $ tbd search "DryRun Test" --json
@@ -264,7 +263,7 @@ $ tbd search "DryRun Test" --json
 ? 0
 ```
 
-# Test: Close with dry-run doesn't close
+# Test: Close with dry-run doesn’t close
 
 ```console
 $ ID=$(cat /tmp/self_id.txt) && tbd close $ID --dry-run
@@ -280,7 +279,7 @@ status: open
 ? 0
 ```
 
----
+* * *
 
 ## JSON Output Consistency
 
@@ -316,7 +315,7 @@ valid
 ? 0
 ```
 
----
+* * *
 
 ## Working Notes
 
@@ -344,7 +343,7 @@ $ echo "Notes from file content" > /tmp/notes.txt && ID=$(cat /tmp/self_id.txt) 
 ? 0
 ```
 
----
+* * *
 
 ## Stale Issues
 
@@ -364,7 +363,7 @@ $ tbd stale --days=0 | head -1
 ? 0
 ```
 
----
+* * *
 
 ## Deferred Issues
 

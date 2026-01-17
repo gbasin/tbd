@@ -19,12 +19,11 @@ before: |
   git add README.md
   git commit -m "Initial commit"
 ---
-
 # tbd CLI: Uninstall Command
 
 Tests for `tbd uninstall` which removes tbd from a repository.
 
----
+* * *
 
 ## Uninstall Help
 
@@ -58,7 +57,7 @@ For more on tbd, see: https://github.com/jlevy/tbd
 ? 0
 ```
 
----
+* * *
 
 ## Uninstall When Not Initialized
 
@@ -78,7 +77,7 @@ $ tbd uninstall --confirm
 ? 0
 ```
 
----
+* * *
 
 ## Uninstall Requires Confirmation
 
@@ -130,7 +129,7 @@ $ test -d .tbd && echo ".tbd still exists"
 ? 0
 ```
 
----
+* * *
 
 ## Uninstall with Confirmation
 
@@ -158,7 +157,7 @@ $ git branch --list tbd-sync | wc -l | tr -d ' '
 ? 0
 ```
 
----
+* * *
 
 ## Uninstall with --keep-branch
 
@@ -222,7 +221,7 @@ Deleted branch tbd-sync [..].
 ? 0
 ```
 
----
+* * *
 
 ## Uninstall Dry-Run
 
@@ -262,7 +261,7 @@ $ git branch --list tbd-sync | grep -c tbd-sync
 ? 0
 ```
 
----
+* * *
 
 ## Full Uninstall Cleanup Verification
 

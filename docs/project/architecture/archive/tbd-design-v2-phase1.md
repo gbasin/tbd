@@ -667,8 +667,8 @@ not explicitly covered in the directory structure above.
 
 4. **Matches mental model**: “Sync branch has entities, main branch has config”
 
-**Invariant:** The `.tbd/data-sync/` directory should NEVER exist on a developer’s working
-tree when on main or feature branches.
+**Invariant:** The `.tbd/data-sync/` directory should NEVER exist on a developer’s
+working tree when on main or feature branches.
 It only exists as content on the `tbd-sync` branch, accessed via git plumbing commands.
 
 ### 2.3 Entity Collection Pattern

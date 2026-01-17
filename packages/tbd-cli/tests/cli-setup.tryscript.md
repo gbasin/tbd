@@ -18,12 +18,11 @@ before: |
   git add README.md
   git commit -m "Initial commit"
 ---
-
 # tbd CLI: Setup and Status Commands
 
 This tryscript validates initialization, help, version, and status commands.
 
----
+* * *
 
 ## Help and Version
 
@@ -129,7 +128,7 @@ For more on tbd, see: https://github.com/jlevy/tbd
 ? 0
 ```
 
----
+* * *
 
 ## Initialization
 
@@ -192,7 +191,7 @@ $ tbd status --json
 ? 0
 ```
 
----
+* * *
 
 ## Reinitialization
 
@@ -204,7 +203,7 @@ $ tbd init 2>&1
 ? 0
 ```
 
----
+* * *
 
 ## Init with Custom Options
 
@@ -259,7 +258,7 @@ Use 'tbd stats' for detailed issue statistics.
 ? 0
 ```
 
----
+* * *
 
 ## Error Cases
 

@@ -27,12 +27,11 @@ before: |
   tbd create "Performance optimization" --type=task --description="Improve API response times" --label=backend
   tbd create "Login redirect issue" --type=bug --description="OAuth redirects fail" --label=security
 ---
-
 # tbd CLI: Advanced Commands
 
 Tests for search, sync, doctor, config, attic, and stats commands.
 
----
+* * *
 
 ## Search Command
 
@@ -126,7 +125,7 @@ $ tbd search "nonexistentxyz123" --json
 ? 0
 ```
 
----
+* * *
 
 ## Stats Command
 
@@ -182,7 +181,7 @@ bugs: 2
 ? 0
 ```
 
----
+* * *
 
 ## Doctor Command
 
@@ -220,7 +219,7 @@ $ tbd doctor --fix
 ? 0
 ```
 
----
+* * *
 
 ## Config Command
 
@@ -331,12 +330,12 @@ $ tbd config get nonexistent.key 2>&1
 ? 0
 ```
 
----
+* * *
 
 ## Sync Command
 
-**Note:** Comprehensive sync tests are in `cli-sync.tryscript.md`.
-This section only covers basic smoke tests.
+**Note:** Comprehensive sync tests are in `cli-sync.tryscript.md`. This section only
+covers basic smoke tests.
 
 # Test: Sync status works
 
@@ -356,11 +355,12 @@ $ tbd sync --status --json
 ? 0
 ```
 
----
+* * *
 
 ## Attic Command
 
-The attic stores conflict losers. On a fresh repo, it should be empty.
+The attic stores conflict losers.
+On a fresh repo, it should be empty.
 
 # Test: Attic list (empty)
 
@@ -394,7 +394,7 @@ $ tbd attic show is-00000000000000000000000000 2025-01-01T00:00:00Z 2>&1
 ? 0
 ```
 
----
+* * *
 
 ## Global Flags
 
@@ -421,7 +421,7 @@ $ tbd create "Non-interactive" --non-interactive
 ? 0
 ```
 
----
+* * *
 
 ## Help for Subcommands
 

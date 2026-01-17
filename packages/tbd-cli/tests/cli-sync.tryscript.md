@@ -21,11 +21,11 @@ before: |
   # Initialize tbd
   tbd init
 ---
-
 # tbd CLI: Sync Command
 
-The sync command is core to tbd's multi-machine coordination. These tests verify
-that changes are properly committed to the tbd-sync branch before push operations.
+The sync command is core to tbd’s multi-machine coordination.
+These tests verify that changes are properly committed to the tbd-sync branch before
+push operations.
 
 **Critical behavior being tested:**
 1. Files written to the worktree are committed before push
@@ -33,12 +33,13 @@ that changes are properly committed to the tbd-sync branch before push operation
 3. Sync status accurately reports state
 4. Error handling for missing remotes
 
----
+* * *
 
 ## Core Sync Behavior: Commits Before Push
 
-This is the most important test - verifying that `tbd sync` actually commits
-files to the tbd-sync branch. Without this, changes would never be pushed.
+This is the most important test - verifying that `tbd sync` actually commits files to
+the tbd-sync branch.
+Without this, changes would never be pushed.
 
 # Test: Initial state has one commit (from init)
 
@@ -94,7 +95,7 @@ tbd sync: [..] (2 files)
 ? 0
 ```
 
----
+* * *
 
 ## Multiple Issues and Updates
 
@@ -141,7 +142,7 @@ $ git -C .tbd/data-sync-worktree status --porcelain
 ? 0
 ```
 
----
+* * *
 
 ## Sync Status Command
 
@@ -169,7 +170,7 @@ $ tbd sync --status --json
 ? 0
 ```
 
-# Test: Creating issue doesn't affect sync status (local only)
+# Test: Creating issue doesn’t affect sync status (local only)
 
 After creating an issue, sync status may show local changes.
 
@@ -185,7 +186,7 @@ synced: [..]
 ? 0
 ```
 
----
+* * *
 
 ## Error Handling
 
@@ -216,7 +217,7 @@ $ tbd sync
 ? 0
 ```
 
----
+* * *
 
 ## Idempotent Sync
 

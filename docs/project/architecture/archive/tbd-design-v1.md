@@ -446,7 +446,8 @@ Tbd uses two directories with a clear separation of concerns:
 - **`.tbd/`** on the main branch (and all working branches): Configuration and local
   files
 
-- **`.tbd/data-sync/`** on the `tbd-sync` branch: Synced data (entities, attic, metadata)
+- **`.tbd/data-sync/`** on the `tbd-sync` branch: Synced data (entities, attic,
+  metadata)
 
 #### On Main Branch (all working branches)
 
@@ -3893,8 +3894,8 @@ exclusively on `tbd-sync` branch in `.tbd/data-sync/` directory.
 - Issues shared across all code branches (correct for multi-agent use case)
 
 **Tradeoff**: Two locations to understand (config on main, data on sync branch).
-Mitigated by clear naming (`.tbd/` for config/local, `.tbd/data-sync/` for synced data) and
-`tbd init` setting up both locations.
+Mitigated by clear naming (`.tbd/` for config/local, `.tbd/data-sync/` for synced data)
+and `tbd init` setting up both locations.
 
 #### Decision 2: File-Per-Entity
 
