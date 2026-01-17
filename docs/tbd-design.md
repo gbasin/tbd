@@ -10,6 +10,8 @@ Git-native issue tracking for AI agents and humans.
 
 **Core Philosophy**: Files as truth, git for sync, simplicity over features.
 
+**Intended Scope**: tbd is the **durable persistence layer** for issues: reliable git storage, transparent Markdown+YAML format, simple CLI. It is explicitly *not* a real-time coordination system. Latency is seconds (git operations), not milliseconds. Volume is thousands of issues, not millions. Real-time agent coordination (as Agent Mail or Gas Town attempt) is a separate problem that can be layered on top of tbd or handled by complementary tools.
+
 **Related Projects**:
 - [Beads](https://github.com/steveyegge/beads) - The original git-backed issue tracker tbd is designed to replace
 - [ticket](https://github.com/wedow/ticket) - Elegant bash-based Markdown+YAML tracker (~1900 tickets in production)
@@ -282,14 +284,16 @@ Agents may not know which mode they're in, leading to incorrect behavior.
 
 ### Intentionally Omitted Features
 
+tbd handles durable persistence. Real-time coordination is a separate layer.
+
 | Feature | Why Omitted |
 |---------|-------------|
-| Daemon | Adds complexity; async workflows don't need it |
-| Agent Mail | Adds complexity; issue comments work for coordination |
-| Molecules/Wisps | Workflow templates can be built externally |
-| SQLite indexes | File scan is fast enough for <10K issues |
-| Real-time claims | Advisory claims sufficient; atomic claims add complexity |
-| `bd edit` | Opens $EDITOR which blocks agents |
+| Daemon | Adds failure modes; explicit sync is sufficient for async workflows |
+| Agent Mail | Real-time messaging requires sub-second latency; out of scope |
+| Molecules/Wisps | Workflow orchestration can use tbd as storage backend |
+| SQLite indexes | File scan handles <10K issues; optional index layer planned for larger scale |
+| Real-time claims | Atomic claims require coordination service; advisory claims work for async |
+| `bd edit` | Opens $EDITOR; blocks non-interactive agents |
 
 ### Migration Path
 
