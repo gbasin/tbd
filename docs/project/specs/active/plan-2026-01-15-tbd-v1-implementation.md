@@ -805,6 +805,10 @@ Implement agent integration commands: `tbd prime` and `tbd setup` commands for v
 - `tests/cli-prime.tryscript.md` - Prime golden tests
 - `tests/cli-setup.tryscript.md` - Setup golden tests
 
+---
+
+**Current Validation & Coverage Status**
+
 **Stage 5 Validation Status (⚠️ Partial):**
 
 | Bead ID | Task | Status | Notes |
@@ -3477,7 +3481,7 @@ The following gaps in the existing test suite allowed these bugs to slip through
 
 * * *
 
-## Phase 20: Code Quality Improvements
+### Phase 20: Code Quality Improvements
 
 **Goal**: Align implementation with documented best practices and improve code maintainability.
 
@@ -3517,4 +3521,5 @@ The following gaps in the existing test suite allowed these bugs to slip through
 | 2026-01-16 | Claude | Enhanced Phase 18 with systematic testing strategy: gap analysis, test infrastructure (tbd-1837→1840), new test files (tbd-1841→1846), broader coverage (tbd-1847→1852), TDD approach |
 | 2026-01-16 | Claude | Added Phase 20: Code Quality Improvements - tbd-1853 (replace custom atomicWriteFile with `atomically` library per typescript-rules.md) |
 | 2026-01-16 | Claude | ✅ Completed tbd-1853: replaced custom atomicWriteFile with atomically library, fixed dynamic imports in git.ts |
-| 2026-01-16 | Claude | Added Phase 24: Installation and Agent Integration (tbd-1875→1881) - tbd prime, setup claude/cursor/aider commands |
+| 2026-01-16 | Claude | Added Phase 24: Installation and Agent Integration (tbd-1875→1881) - tbd prime, setup claude/cursor commands |
+| 2026-01-16 | Claude | Removed Aider from Phase 24 scope (Claude Code and Cursor only), fixed heading levels (### for consistency), added section separator between Phase 24 and validation status |
