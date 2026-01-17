@@ -85,6 +85,7 @@ Implement Tbd V1 as a TypeScript CLI application following the design specificat
   - `sync`, `sync --pull`, `sync --push`, `sync --status`
   - `search`
   - `info`, `stats`, `doctor`, `config`
+  - `prime` (agent context/workflow priming)
   - `attic list/show/restore`
   - `import` (Beads JSONL and `--from-beads`)
 - Dual output modes (human-readable + JSON)
@@ -461,6 +462,7 @@ The master epic is **tbd-100**.
 | 21 | tbd-2100 | Consistent Atomic File Operations | tbd-2101 through tbd-2103 | ✅ Complete |
 | 22 | tbd-1868 | Import ID Preservation | tbd-1869 through tbd-1873 | 🔴 New |
 | 23 | tbd-1874 | Initialization Behavior | tbd-1874.1 through tbd-1874.5 | 🔴 New |
+| 24 | tbd-1875 | Installation and Agent Integration | tbd-1876 through tbd-1881 | 🔴 New |
 | Validation | tbd-1300 | Stage 5 Validation | tbd-1301 through tbd-1306 | ⚠️ Partial |
 
 **Status Legend:** ✅ Complete | ⚠️ Partial (needs review) | 🔲 Pending | 🔴 New
@@ -756,6 +758,52 @@ export function requireInit(cwd: string = process.cwd()): void {
 - `src/cli/commands/attic.ts` - Add requireInit() call
 - `src/cli/commands/import.ts` - Add auto-init logic for --from-beads
 - `tests/cli-*.tryscript.md` - Add init error tests
+
+**Phase 24: Installation and Agent Integration (🔴 New)**
+
+Implement agent integration commands: `tbd prime` and `tbd setup` commands for various editors.
+
+**Motivation:**
+- Agents lose workflow instructions after context compaction
+- Session start needs to prime agents with tbd commands and workflow
+- Matches `bd prime` functionality from Beads for migration compatibility
+- Editor integrations needed for Claude Code and Cursor
+
+**Design Reference:** See tbd-design-v3.md §6.4 for full specification, including:
+- §6.4.2 Claude Code Integration (`tbd setup claude`)
+- §6.4.3 The `tbd prime` Command
+- §6.4.4 Other Editor Integrations (`tbd setup cursor`)
+- §6.4.5 Cloud Environment Bootstrapping
+
+| Bead ID | Task | Status | Notes |
+| --- | --- | --- | --- |
+| tbd-1875 | Phase 24 Epic | Open | Installation and Agent Integration |
+| tbd-1876 | Implement tbd prime command | Open | Core priming command with MCP detection |
+| tbd-1877 | Implement tbd setup claude command | Open | Claude Code hooks configuration |
+| tbd-1878 | Implement tbd setup cursor command | Open | Cursor IDE rules file |
+| tbd-1880 | Golden tests for tbd prime | Open | Test all modes and edge cases |
+| tbd-1881 | Golden tests for tbd setup commands | Open | Test setup for each editor |
+
+**Key Commands:**
+
+1. `tbd prime` - Output workflow context for AI agents
+   - `--full` - Force full CLI output
+   - `--mcp` - Force MCP mode (minimal output)
+   - `--export` - Output default (ignores `.tbd/PRIME.md` override)
+
+2. `tbd setup claude` - Configure Claude Code hooks
+   - `--global` - Install to `~/.claude/settings.json`
+   - `--check` - Verify installation
+   - `--remove` - Remove hooks
+
+3. `tbd setup cursor` - Create `.cursor/rules/tbd.mdc`
+
+**Files to Create/Update:**
+- `src/cli/commands/prime.ts` - Prime command
+- `src/cli/commands/setup.ts` - Setup subcommands
+- `src/cli/cli.ts` - Register new commands
+- `tests/cli-prime.tryscript.md` - Prime golden tests
+- `tests/cli-setup.tryscript.md` - Setup golden tests
 
 **Stage 5 Validation Status (⚠️ Partial):**
 
@@ -3469,3 +3517,4 @@ The following gaps in the existing test suite allowed these bugs to slip through
 | 2026-01-16 | Claude | Enhanced Phase 18 with systematic testing strategy: gap analysis, test infrastructure (tbd-1837→1840), new test files (tbd-1841→1846), broader coverage (tbd-1847→1852), TDD approach |
 | 2026-01-16 | Claude | Added Phase 20: Code Quality Improvements - tbd-1853 (replace custom atomicWriteFile with `atomically` library per typescript-rules.md) |
 | 2026-01-16 | Claude | ✅ Completed tbd-1853: replaced custom atomicWriteFile with atomically library, fixed dynamic imports in git.ts |
+| 2026-01-16 | Claude | Added Phase 24: Installation and Agent Integration (tbd-1875→1881) - tbd prime, setup claude/cursor/aider commands |

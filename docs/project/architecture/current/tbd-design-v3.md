@@ -125,6 +125,12 @@
       - [File I/O Optimization](#file-io-optimization)
     - [6.2 Testing Strategy](#62-testing-strategy)
     - [6.3 Migration Path](#63-migration-path)
+    - [6.4 Installation and Agent Integration](#64-installation-and-agent-integration)
+      - [6.4.1 Installation Methods](#641-installation-methods)
+      - [6.4.2 Claude Code Integration](#642-claude-code-integration)
+      - [6.4.3 The tbd prime Command](#643-the-tbd-prime-command)
+      - [6.4.4 Other Editor Integrations](#644-other-editor-integrations)
+      - [6.4.5 Cloud Environment Bootstrapping](#645-cloud-environment-bootstrapping)
   - [7. Appendices](#7-appendices)
     - [7.1 Design Decisions](#71-design-decisions)
       - [Decision 1: File-per-entity vs JSONL](#decision-1-file-per-entity-vs-jsonl)
@@ -3109,7 +3115,7 @@ tbd sync
 | `bd info` | `tbd info` | ✅ Full | System status |
 | `bd config` | `tbd config` | ✅ Full | YAML not SQLite |
 | `bd compact` | `tbd compact` | 🔄 Future | Deferred |
-| `bd prime` | *(none)* | ❌ Not planned | Beads-specific feature |
+| `bd prime` | `tbd prime` | ✅ Full | Agent context/workflow priming |
 | `bd diagnose` | `tbd doctor` | ✅ Partial | Subset of diagnostics |
 | `bd import` | `tbd import` | ✅ Full | Beads JSONL import |
 | `bd export` | `tbd export` | 🔄 Future | Can export as JSON |
@@ -3439,6 +3445,268 @@ even at scale.
 - Migrate one team/agent at a time
 
 - Full cutover when confident
+
+### 6.4 Installation and Agent Integration
+
+Tbd is distributed as an npm package (`tbd-cli`), enabling simple installation across all
+environments including cloud sandboxes.
+
+#### 6.4.1 Installation Methods
+
+| Method | Command | Best For |
+|--------|---------|----------|
+| **npm** (primary) | `npm install -g tbd-cli` | Most users, cloud environments |
+| **npx** (no install) | `npx tbd-cli <command>` | One-off usage, testing |
+| **From source** | `pnpm install && pnpm build` | Contributors |
+
+**npm is the recommended approach** because:
+
+- Works in all environments (local, CI, Claude Code Cloud)
+- Cross-platform (macOS, Linux, Windows)
+- Version management via package.json
+- No compilation required
+
+#### 6.4.2 Claude Code Integration
+
+Claude Code supports two hook mechanisms for automatic tool integration:
+
+**A. JSON Settings Hooks** (for context injection on existing installs)
+
+Location: `~/.claude/settings.json` (global) or `.claude/settings.local.json` (project)
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{
+      "matcher": "",
+      "hooks": [{ "type": "command", "command": "tbd prime" }]
+    }],
+    "PreCompact": [{
+      "matcher": "",
+      "hooks": [{ "type": "command", "command": "tbd prime" }]
+    }]
+  }
+}
+```
+
+- **SessionStart**: Runs `tbd prime` when a Claude Code session starts
+- **PreCompact**: Runs `tbd prime` before context compaction (preserves workflow instructions)
+
+**B. Shell Hooks** (for cloud environments that need installation)
+
+Location: `.claude/hooks/session-start.sh` (committed to repo)
+
+```bash
+#!/bin/bash
+# Minimal cloud bootstrap (2 lines)
+command -v tbd &>/dev/null || npm install -g tbd-cli --quiet
+[ -d ".tbd" ] && tbd prime
+```
+
+This script:
+
+1. Checks if `tbd` is already installed (avoids reinstalling each session)
+2. Installs via npm if missing
+3. Runs `tbd prime` if the project has a `.tbd/` directory
+
+**Setup command:**
+
+```bash
+tbd setup claude [options]
+
+Options:
+  --project       Install to .claude/settings.local.json (project-specific)
+  --global        Install to ~/.claude/settings.json (user-wide)
+  --check         Verify installation status
+  --remove        Remove tbd hooks
+```
+
+#### 6.4.3 The `tbd prime` Command
+
+The `tbd prime` command outputs workflow context for AI agents. It's designed to be called
+by hooks at session start and before context compaction to ensure agents remember the tbd
+workflow.
+
+```bash
+tbd prime [options]
+
+Options:
+  --full          Force full CLI output (ignore MCP detection)
+  --mcp           Force MCP mode (minimal output, ~50 tokens)
+  --export        Output default content (ignores PRIME.md override)
+```
+
+**Behavior:**
+
+- **Silent exit** (code 0, no stderr) if not in a tbd project
+- **Auto-detects MCP mode** by checking `~/.claude/settings.json` for tbd MCP server
+- **Custom override**: Users can place `.tbd/PRIME.md` to fully customize output
+- **Adaptive git workflow**: Adjusts session close protocol based on branch state
+
+**MCP Mode Output** (~50 tokens, when MCP server detected):
+
+```markdown
+# Tbd Issue Tracker Active
+
+# 🚨 SESSION CLOSE PROTOCOL 🚨
+
+Before saying "done": git status → git add → tbd sync → git commit → tbd sync → git push
+
+## Core Rules
+- Track strategic work in tbd (multi-session, dependencies, discovered work)
+- TodoWrite is fine for simple single-session linear tasks
+
+Start: Check `tbd ready` for available work.
+```
+
+**CLI Mode Output** (~1-2k tokens, full reference):
+
+```markdown
+# Tbd Workflow Context
+
+> **Context Recovery**: Run `tbd prime` after compaction, clear, or new session
+> Hooks auto-call this in Claude Code when .tbd/ detected
+
+# 🚨 SESSION CLOSE PROTOCOL 🚨
+
+**CRITICAL**: Before saying "done" or "complete", you MUST run this checklist:
+
+[ ] 1. git status              (check what changed)
+[ ] 2. git add <files>         (stage code changes)
+[ ] 3. tbd sync                (commit tbd changes)
+[ ] 4. git commit -m "..."     (commit code)
+[ ] 5. tbd sync                (commit any new tbd changes)
+[ ] 6. git push                (push to remote)
+
+**NEVER skip this.** Work is not done until pushed.
+
+## Core Rules
+- Track strategic work in tbd (multi-session, dependencies, discovered work)
+- Use `tbd create` for issues, TodoWrite for simple single-session execution
+- When in doubt, prefer tbd—persistence you don't need beats lost context
+- Git workflow: run `tbd sync` at session end
+- Session management: check `tbd ready` for available work
+
+## Essential Commands
+
+### Finding Work
+- `tbd ready` - Show issues ready to work (no blockers)
+- `tbd list --status open` - All open issues
+- `tbd list --status in_progress` - Your active work
+- `tbd show <id>` - Detailed issue view with dependencies
+
+### Creating & Updating
+- `tbd create "title" --type task|bug|feature --priority 2` - New issue
+  - Priority: 0-4 (0=critical, 2=medium, 4=backlog)
+- `tbd update <id> --status in_progress` - Claim work
+- `tbd update <id> --assignee username` - Assign to someone
+- `tbd close <id>` - Mark complete
+- `tbd close <id> --reason "explanation"` - Close with reason
+
+### Dependencies & Blocking
+- `tbd dep add <issue> <depends-on>` - Add dependency
+- `tbd blocked` - Show all blocked issues
+- `tbd show <id>` - See what's blocking/blocked by this issue
+
+### Sync & Collaboration
+- `tbd sync` - Sync with git remote (run at session end)
+- `tbd sync --status` - Check sync status without syncing
+
+### Project Health
+- `tbd stats` - Project statistics (open/closed/blocked counts)
+- `tbd doctor` - Check for issues (sync problems, health checks)
+
+## Common Workflows
+
+**Starting work:**
+tbd ready           # Find available work
+tbd show <id>       # Review issue details
+tbd update <id> --status in_progress  # Claim it
+
+**Completing work:**
+tbd close <id>      # Mark complete
+tbd sync            # Push to remote
+
+**Creating dependent work:**
+tbd create "Implement feature X" --type feature
+tbd create "Write tests for X" --type task
+tbd dep add <tests-id> <feature-id>  # Tests depend on feature
+```
+
+**Custom Override:**
+
+Users can place a `.tbd/PRIME.md` file to fully customize the output. When this file
+exists, `tbd prime` outputs its contents instead of the default. Use `--export` to see
+the default content for customization:
+
+```bash
+# Export default content to customize
+tbd prime --export > .tbd/PRIME.md
+# Edit .tbd/PRIME.md to add project-specific instructions
+```
+
+**Key design principle:** Global hooks + project-aware logic. The hooks run on every
+session, but `tbd prime` only outputs context when `.tbd/` exists. This creates a
+"just works" experience without breaking non-tbd projects.
+
+#### 6.4.4 Other Editor Integrations
+
+**Cursor IDE:**
+
+```bash
+tbd setup cursor
+```
+
+Creates `.cursor/rules/tbd.mdc` with workflow instructions that Cursor loads automatically.
+
+**Generic (any editor):**
+
+For editors without specific integration, add to your project's `AGENTS.md`:
+
+```markdown
+## Issue Tracking
+
+This project uses tbd for issue tracking:
+
+- Find work: `tbd ready`
+- Create issues: `tbd create "title" --type task`
+- Claim work: `tbd update <id> --status in_progress`
+- Complete: `tbd close <id>`
+- Sync: `tbd sync`
+```
+
+#### 6.4.5 Cloud Environment Bootstrapping
+
+For fresh cloud environments (Claude Code Cloud, GitHub Codespaces, etc.), commit the
+bootstrap script to your repository:
+
+```bash
+# .claude/hooks/session-start.sh
+#!/bin/bash
+command -v tbd &>/dev/null || npm install -g tbd-cli --quiet
+[ -d ".tbd" ] && tbd prime
+```
+
+Make it executable:
+
+```bash
+chmod +x .claude/hooks/session-start.sh
+git add .claude/hooks/session-start.sh
+git commit -m "Add tbd bootstrap for cloud environments"
+```
+
+**Why npm over direct binary download?**
+
+| Criterion | npm | Direct Download |
+|-----------|-----|-----------------|
+| Lines of code | 2 | 25+ |
+| Dependencies | npm (always present) | curl, tar |
+| Version management | Automatic | Manual |
+| Error handling | Built-in | Must implement |
+| Cross-platform | Automatic | Must detect OS/arch |
+
+Direct binary download is faster (~3s vs ~5-10s) but adds complexity. Use npm unless
+you have specific requirements.
 
 * * *
 
@@ -4247,7 +4515,6 @@ Currently only `blocks` is supported:
 
 | Beads Command | Why Not Included |
 | --- | --- |
-| `bd prime` | Beads-specific priming - not applicable |
 | `bd audit` | Audit trail command - use git log |
 | `bd activity` | Activity feed - not planned |
 | `bd context` | Context management - not planned |
