@@ -5,19 +5,22 @@
  */
 
 import { Command } from 'commander';
-import { readFile, access, mkdir } from 'node:fs/promises';
+import { readFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-
-import { writeFile } from 'atomically';
 
 import { BaseCommand } from '../lib/baseCommand.js';
 import { writeIssue, listIssues } from '../../file/storage.js';
-import { generateInternalId } from '../../lib/ids.js';
-import { loadIdMapping, saveIdMapping, createShortIdMapping } from '../../file/idMapping.js';
+import { generateInternalId, extractShortId } from '../../lib/ids.js';
+import {
+  loadIdMapping,
+  saveIdMapping,
+  addIdMapping,
+  hasShortId,
+  type IdMapping as ShortIdMapping,
+} from '../../file/idMapping.js';
 import { IssueStatus, IssueKind } from '../../lib/schemas.js';
 import type { Issue, IssueStatusType, IssueKindType, DependencyType } from '../../lib/types.js';
-import { resolveDataSyncDir, resolveMappingsDir } from '../../lib/paths.js';
+import { resolveDataSyncDir } from '../../lib/paths.js';
 import { now, normalizeTimestamp } from '../../utils/timeUtils.js';
 
 interface ImportOptions {
@@ -60,34 +63,10 @@ interface BeadsIssue {
 }
 
 /**
- * ID mapping file structure.
+ * BeadsToTbd mapping: maps beads external ID to tbd internal ID.
+ * This is a local structure used during import processing.
  */
-type IdMapping = Record<string, string>;
-
-/**
- * Load existing ID mapping.
- */
-async function loadMapping(): Promise<IdMapping> {
-  const mappingsDir = await resolveMappingsDir();
-  const mappingPath = join(mappingsDir, 'beads.yml');
-  try {
-    const content = await readFile(mappingPath, 'utf-8');
-    return (parseYaml(content) as IdMapping) ?? {};
-  } catch {
-    return {};
-  }
-}
-
-/**
- * Save ID mapping.
- */
-async function saveMapping(mapping: IdMapping): Promise<void> {
-  const mappingsDir = await resolveMappingsDir();
-  await mkdir(mappingsDir, { recursive: true });
-  const mappingPath = join(mappingsDir, 'beads.yml');
-  const content = stringifyYaml(mapping, { sortMapEntries: true });
-  await writeFile(mappingPath, content);
-}
+type BeadsToTbdMapping = Record<string, string>;
 
 /**
  * Map Beads status to Tbd status.
@@ -125,7 +104,7 @@ function mapKind(beadsType?: string): IssueKindType {
 /**
  * Convert Beads issue to Tbd issue.
  */
-function convertIssue(beads: BeadsIssue, tbdId: string, depMapping: IdMapping): Issue {
+function convertIssue(beads: BeadsIssue, tbdId: string, depMapping: BeadsToTbdMapping): Issue {
   // Convert dependencies, translating IDs
   const dependencies: DependencyType[] = [];
   if (beads.dependencies) {
@@ -236,12 +215,23 @@ class ImportHandler extends BaseCommand {
       }
     }
 
-    // Load tbd issues
+    // Load tbd issues and short ID mapping
     const tbdIssues = await this.loadExistingIssues();
-    const mapping = await loadMapping();
+    const shortIdMapping = await loadIdMapping(this.dataSyncDir);
+
+    // Build mapping from beads ID to tbd internal ID using preserved short IDs
+    // e.g., "tbd-100" -> extract "100" -> lookup in shortIdMapping -> "is-{ulid}"
+    const beadsToTbd: BeadsToTbdMapping = {};
     const reverseMapping: Record<string, string> = {};
-    for (const [beadsId, tbdId] of Object.entries(mapping)) {
-      reverseMapping[tbdId] = beadsId;
+
+    for (const beads of beadsIssues) {
+      const shortId = extractShortId(beads.id);
+      const ulid = shortIdMapping.shortToUlid.get(shortId);
+      if (ulid) {
+        const internalId = `is-${ulid}`;
+        beadsToTbd[beads.id] = internalId;
+        reverseMapping[internalId] = beads.id;
+      }
     }
 
     // Build lookup by tbd ID
@@ -255,7 +245,7 @@ class ImportHandler extends BaseCommand {
     let validCount = 0;
 
     for (const beads of beadsIssues) {
-      const tbdId = mapping[beads.id];
+      const tbdId = beadsToTbd[beads.id];
 
       if (!tbdId) {
         issues.push({
@@ -428,34 +418,71 @@ class ImportHandler extends BaseCommand {
       return;
     }
 
-    // Load existing mapping and issues
-    const mapping = await loadMapping();
+    // Load existing issues and short ID mapping
     const existingIssues = await this.loadExistingIssues();
-    const existingByBeadsId = new Map<string, Issue>();
+    const shortIdMapping = await loadIdMapping(this.dataSyncDir);
 
-    // Build reverse lookup from extensions
+    // Build lookup maps
+    const existingByBeadsId = new Map<string, Issue>();
+    const existingByShortId = new Map<string, Issue>();
+
+    // Build reverse lookup from extensions and from short ID mapping
     for (const issue of existingIssues) {
       const beadsExt = issue.extensions?.beads as { original_id?: string } | undefined;
       if (beadsExt?.original_id) {
         existingByBeadsId.set(beadsExt.original_id, issue);
       }
+      // Also track by short ID
+      const ulid = issue.id.replace(/^is-/, '');
+      const shortId = shortIdMapping.ulidToShort.get(ulid);
+      if (shortId) {
+        existingByShortId.set(shortId, issue);
+      }
     }
 
-    // Load short ID mapping for display IDs
-    const shortIdMapping = await loadIdMapping(this.dataSyncDir);
+    // Build beads-to-tbd mapping, preserving original short IDs
+    // e.g., "tbd-100" preserves "100" as the short ID
+    const beadsToTbd: BeadsToTbdMapping = {};
 
     // First pass: assign IDs to all issues (needed for dependency translation)
     for (const beads of beadsIssues) {
-      if (!mapping[beads.id]) {
-        const existing = existingByBeadsId.get(beads.id);
-        if (existing) {
-          mapping[beads.id] = existing.id;
-        } else {
-          const internalId = generateInternalId();
-          mapping[beads.id] = internalId;
-          // Create short ID mapping for new issues
-          createShortIdMapping(internalId, shortIdMapping);
+      // Extract the short ID from beads ID (e.g., "tbd-100" -> "100")
+      const shortId = extractShortId(beads.id);
+
+      // Check if we already have this issue by beads ID (from previous import)
+      const existingByBeads = existingByBeadsId.get(beads.id);
+      if (existingByBeads) {
+        beadsToTbd[beads.id] = existingByBeads.id;
+        continue;
+      }
+
+      // Check if we already have a mapping for this short ID
+      const existingByShort = existingByShortId.get(shortId);
+      if (existingByShort) {
+        beadsToTbd[beads.id] = existingByShort.id;
+        continue;
+      }
+
+      // Check if the short ID is already in the mapping (collision check)
+      if (hasShortId(shortIdMapping, shortId)) {
+        // Short ID already exists but for a different issue - generate a new one
+        if (options.verbose) {
+          this.output.warn(
+            `Short ID "${shortId}" already exists, generating new ID for ${beads.id}`,
+          );
         }
+        const internalId = generateInternalId();
+        beadsToTbd[beads.id] = internalId;
+        // Generate a random short ID since the original is taken
+        const ulid = internalId.replace(/^is-/, '');
+        const newShortId = this.generateUniqueShortId(shortIdMapping);
+        addIdMapping(shortIdMapping, ulid, newShortId);
+      } else {
+        // Create new mapping, preserving the original short ID
+        const internalId = generateInternalId();
+        beadsToTbd[beads.id] = internalId;
+        const ulid = internalId.replace(/^is-/, '');
+        addIdMapping(shortIdMapping, ulid, shortId);
       }
     }
 
@@ -465,7 +492,7 @@ class ImportHandler extends BaseCommand {
     let merged = 0;
 
     for (const beads of beadsIssues) {
-      const tbdId = mapping[beads.id]!;
+      const tbdId = beadsToTbd[beads.id]!;
       const existing = existingByBeadsId.get(beads.id);
 
       if (existing && !options.merge) {
@@ -476,7 +503,7 @@ class ImportHandler extends BaseCommand {
         }
       }
 
-      const issue = convertIssue(beads, tbdId, mapping);
+      const issue = convertIssue(beads, tbdId, beadsToTbd);
 
       if (existing) {
         // Merge: keep higher version, update fields
@@ -495,8 +522,7 @@ class ImportHandler extends BaseCommand {
       }
     }
 
-    // Save updated mappings (beads ID mapping and short ID mapping)
-    await saveMapping(mapping);
+    // Save updated short ID mapping (no separate beads.yml needed - IDs are preserved)
     await saveIdMapping(this.dataSyncDir, shortIdMapping);
 
     const result = { imported, skipped, merged, total: beadsIssues.length };
@@ -530,6 +556,26 @@ class ImportHandler extends BaseCommand {
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Generate a unique short ID that doesn't collide with existing ones.
+   */
+  private generateUniqueShortId(mapping: ShortIdMapping): string {
+    const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
+    const MAX_ATTEMPTS = 20;
+
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
+      let result = '';
+      for (let j = 0; j < 4; j++) {
+        result += chars[Math.floor(Math.random() * 36)];
+      }
+      if (!mapping.shortToUlid.has(result)) {
+        return result;
+      }
+    }
+
+    throw new Error('Failed to generate unique short ID after maximum attempts');
   }
 }
 
