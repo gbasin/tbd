@@ -232,7 +232,7 @@ sync:
   branch: tbd-sync
   remote: origin
 display:
-  id_prefix: bd
+  id_prefix: test
 settings:
   auto_sync: false
   index_enabled: true
@@ -250,7 +250,7 @@ $ tbd config show --json
     "remote": "origin"
   },
   "display": {
-    "id_prefix": "bd"
+    "id_prefix": "test"
   },
   "settings": {
     "auto_sync": false,
@@ -272,7 +272,7 @@ tbd-sync
 
 ```console
 $ tbd config get display.id_prefix
-bd
+test
 ? 0
 ```
 

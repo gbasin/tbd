@@ -222,7 +222,7 @@ $ tbd create "Backlog" --priority=4
 # Test: List with multiple filters
 
 ```console
-$ tbd list --status=open --type=task --priority=2 | grep -c "^bd-" || echo "0"
+$ tbd list --status=open --type=task --priority=2 | grep -c "^test-" || echo "0"
 [..]
 ? 0
 ```

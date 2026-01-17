@@ -97,7 +97,7 @@ To get started:
 # Test: Initialize tbd
 
 ```console
-$ tbd init
+$ tbd init --prefix=bd
 ✓ Initialized tbd repository
 
 To complete setup, commit the config files:
@@ -165,13 +165,13 @@ $ tbd status --json
 
 ```console
 $ tbd create "First issue" --type=task
-✓ Created test-[SHORTID]: First issue
+✓ Created bd-[SHORTID]: First issue
 ? 0
 ```
 
 ```console
 $ tbd create "Second issue" --type=bug
-✓ Created test-[SHORTID]: Second issue
+✓ Created bd-[SHORTID]: Second issue
 ? 0
 ```
 
