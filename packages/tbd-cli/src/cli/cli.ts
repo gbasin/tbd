@@ -47,7 +47,8 @@ function createProgram(): Command {
   const program = new Command()
     .name('tbd')
     .description('Git-native issue tracking for AI agents and humans')
-    .version(VERSION, '-V, --version', 'Show version number')
+    .version(VERSION, '--version', 'Show version number')
+    .helpOption('--help', 'Display help for command')
     .showHelpAfterError('(add --help for additional information)');
 
   // Configure colored help output (respects --color option)
