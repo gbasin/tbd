@@ -26,7 +26,7 @@ const PRIME_OUTPUT = `# tbd Workflow Context
 > **Context Recovery**: Run \`tbd prime\` after compaction, clear, or new session
 > Hooks auto-call this in Claude Code when .tbd/ detected
 
-# 🚨 SESSION CLOSE PROTOCOL 🚨
+# SESSION CLOSE PROTOCOL
 
 **CRITICAL**: Before saying "done" or "complete", you MUST run this checklist:
 
