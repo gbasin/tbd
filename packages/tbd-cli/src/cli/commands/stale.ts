@@ -12,6 +12,8 @@ import { IssueStatus } from '../../lib/schemas.js';
 import type { Issue, IssueStatusType } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
 import { nowDate, parseDate } from '../../utils/timeUtils.js';
+import { formatDisplayId, formatDebugId } from '../../lib/ids.js';
+import { loadIdMapping } from '../../file/idMapping.js';
 
 interface StaleOptions {
   days?: string;
@@ -23,8 +25,9 @@ class StaleHandler extends BaseCommand {
   async run(options: StaleOptions): Promise<void> {
     // Load all issues
     let issues: Issue[];
+    let dataSyncDir: string;
     try {
-      const dataSyncDir = await resolveDataSyncDir();
+      dataSyncDir = await resolveDataSyncDir();
       issues = await listIssues(dataSyncDir);
     } catch {
       this.output.error('No issue store found. Run `tbd init` first.');
@@ -87,9 +90,13 @@ class StaleHandler extends BaseCommand {
       }
     }
 
+    // Load ID mapping for display
+    const mapping = await loadIdMapping(dataSyncDir);
+    const showDebug = this.ctx.debug;
+
     // Format output
     const outputIssues = staleIssues.map((s) => ({
-      id: `bd-${s.issue.id.slice(3)}`,
+      id: showDebug ? formatDebugId(s.issue.id, mapping) : formatDisplayId(s.issue.id, mapping),
       days: s.daysSinceUpdate,
       status: s.issue.status,
       title: s.issue.title,

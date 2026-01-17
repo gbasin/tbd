@@ -9,11 +9,12 @@ import { readFile } from 'node:fs/promises';
 
 import { BaseCommand } from '../lib/baseCommand.js';
 import { readIssue, writeIssue } from '../../file/storage.js';
-import { normalizeIssueId } from '../../lib/ids.js';
+import { normalizeIssueId, formatDisplayId, formatDebugId } from '../../lib/ids.js';
 import { IssueStatus, IssueKind, Priority } from '../../lib/schemas.js';
 import type { IssueStatusType, IssueKindType, PriorityType } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
 import { now } from '../../utils/timeUtils.js';
+import { loadIdMapping, resolveToInternalId } from '../../file/idMapping.js';
 
 interface UpdateOptions {
   fromFile?: string;
@@ -33,13 +34,24 @@ interface UpdateOptions {
 
 class UpdateHandler extends BaseCommand {
   async run(id: string, options: UpdateOptions): Promise<void> {
-    const normalizedId = normalizeIssueId(id);
     const dataSyncDir = await resolveDataSyncDir();
+
+    // Load ID mapping for resolution
+    const mapping = await loadIdMapping(dataSyncDir);
+
+    // Resolve input ID to internal ID
+    let internalId: string;
+    try {
+      internalId = resolveToInternalId(id, mapping);
+    } catch {
+      this.output.error(`Issue not found: ${id}`);
+      return;
+    }
 
     // Load existing issue
     let issue;
     try {
-      issue = await readIssue(dataSyncDir, normalizedId);
+      issue = await readIssue(dataSyncDir, internalId);
     } catch {
       this.output.error(`Issue not found: ${id}`);
       return;
@@ -49,7 +61,7 @@ class UpdateHandler extends BaseCommand {
     const updates = await this.parseUpdates(options);
     if (updates === null) return;
 
-    if (this.checkDryRun('Would update issue', { id: normalizedId, ...updates })) {
+    if (this.checkDryRun('Would update issue', { id: internalId, ...updates })) {
       return;
     }
 
@@ -86,7 +98,12 @@ class UpdateHandler extends BaseCommand {
       await writeIssue(dataSyncDir, issue);
     }, 'Failed to update issue');
 
-    const displayId = `bd-${issue.id.slice(3)}`;
+    // Use already loaded mapping for display
+    const showDebug = this.ctx.debug;
+    const displayId = showDebug
+      ? formatDebugId(issue.id, mapping)
+      : formatDisplayId(issue.id, mapping);
+
     this.output.data({ id: displayId, updated: true }, () => {
       this.output.success(`Updated ${displayId}`);
     });

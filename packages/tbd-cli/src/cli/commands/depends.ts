@@ -8,22 +8,40 @@ import { Command } from 'commander';
 
 import { BaseCommand } from '../lib/baseCommand.js';
 import { readIssue, writeIssue, listIssues } from '../../file/storage.js';
-import { normalizeIssueId } from '../../lib/ids.js';
+import { formatDisplayId, formatDebugId } from '../../lib/ids.js';
 import type { Issue } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
 import { now } from '../../utils/timeUtils.js';
+import { loadIdMapping, resolveToInternalId } from '../../file/idMapping.js';
 
 // Add dependency
 class DependsAddHandler extends BaseCommand {
   async run(id: string, targetId: string): Promise<void> {
-    const normalizedId = normalizeIssueId(id);
-    const normalizedTarget = normalizeIssueId(targetId);
     const dataSyncDir = await resolveDataSyncDir();
+
+    // Load ID mapping for resolution
+    const mapping = await loadIdMapping(dataSyncDir);
+
+    // Resolve both IDs to internal IDs
+    let internalId: string;
+    let internalTarget: string;
+    try {
+      internalId = resolveToInternalId(id, mapping);
+    } catch {
+      this.output.error(`Issue not found: ${id}`);
+      return;
+    }
+    try {
+      internalTarget = resolveToInternalId(targetId, mapping);
+    } catch {
+      this.output.error(`Target issue not found: ${targetId}`);
+      return;
+    }
 
     // Load the blocking issue
     let issue;
     try {
-      issue = await readIssue(dataSyncDir, normalizedId);
+      issue = await readIssue(dataSyncDir, internalId);
     } catch {
       this.output.error(`Issue not found: ${id}`);
       return;
@@ -31,25 +49,25 @@ class DependsAddHandler extends BaseCommand {
 
     // Verify target issue exists
     try {
-      await readIssue(dataSyncDir, normalizedTarget);
+      await readIssue(dataSyncDir, internalTarget);
     } catch {
       this.output.error(`Target issue not found: ${targetId}`);
       return;
     }
 
     // Check for self-reference
-    if (normalizedId === normalizedTarget) {
+    if (internalId === internalTarget) {
       this.output.error('Issue cannot block itself');
       return;
     }
 
-    if (this.checkDryRun('Would add dependency', { id: normalizedId, target: normalizedTarget })) {
+    if (this.checkDryRun('Would add dependency', { id: internalId, target: internalTarget })) {
       return;
     }
 
     // Check if dependency already exists
     const exists = issue.dependencies.some(
-      (dep) => dep.type === 'blocks' && dep.target === normalizedTarget,
+      (dep) => dep.type === 'blocks' && dep.target === internalTarget,
     );
     if (exists) {
       this.output.info('Dependency already exists');
@@ -57,7 +75,7 @@ class DependsAddHandler extends BaseCommand {
     }
 
     // Add the dependency
-    issue.dependencies.push({ type: 'blocks', target: normalizedTarget });
+    issue.dependencies.push({ type: 'blocks', target: internalTarget });
     issue.version += 1;
     issue.updated_at = now();
 
@@ -65,8 +83,15 @@ class DependsAddHandler extends BaseCommand {
       await writeIssue(dataSyncDir, issue);
     }, 'Failed to update issue');
 
-    const displayId = `bd-${normalizedId.slice(3)}`;
-    const displayTarget = `bd-${normalizedTarget.slice(3)}`;
+    // Use already loaded mapping for display
+    const showDebug = this.ctx.debug;
+    const displayId = showDebug
+      ? formatDebugId(internalId, mapping)
+      : formatDisplayId(internalId, mapping);
+    const displayTarget = showDebug
+      ? formatDebugId(internalTarget, mapping)
+      : formatDisplayId(internalTarget, mapping);
+
     this.output.data({ id: displayId, blocks: displayTarget }, () => {
       this.output.success(`${displayId} now blocks ${displayTarget}`);
     });
@@ -76,29 +101,44 @@ class DependsAddHandler extends BaseCommand {
 // Remove dependency
 class DependsRemoveHandler extends BaseCommand {
   async run(id: string, targetId: string): Promise<void> {
-    const normalizedId = normalizeIssueId(id);
-    const normalizedTarget = normalizeIssueId(targetId);
     const dataSyncDir = await resolveDataSyncDir();
+
+    // Load ID mapping for resolution
+    const mapping = await loadIdMapping(dataSyncDir);
+
+    // Resolve both IDs to internal IDs
+    let internalId: string;
+    let internalTarget: string;
+    try {
+      internalId = resolveToInternalId(id, mapping);
+    } catch {
+      this.output.error(`Issue not found: ${id}`);
+      return;
+    }
+    try {
+      internalTarget = resolveToInternalId(targetId, mapping);
+    } catch {
+      this.output.error(`Target issue not found: ${targetId}`);
+      return;
+    }
 
     // Load the blocking issue
     let issue;
     try {
-      issue = await readIssue(dataSyncDir, normalizedId);
+      issue = await readIssue(dataSyncDir, internalId);
     } catch {
       this.output.error(`Issue not found: ${id}`);
       return;
     }
 
-    if (
-      this.checkDryRun('Would remove dependency', { id: normalizedId, target: normalizedTarget })
-    ) {
+    if (this.checkDryRun('Would remove dependency', { id: internalId, target: internalTarget })) {
       return;
     }
 
     // Find and remove the dependency
     const initialLength = issue.dependencies.length;
     issue.dependencies = issue.dependencies.filter(
-      (dep) => !(dep.type === 'blocks' && dep.target === normalizedTarget),
+      (dep) => !(dep.type === 'blocks' && dep.target === internalTarget),
     );
 
     if (issue.dependencies.length === initialLength) {
@@ -113,8 +153,15 @@ class DependsRemoveHandler extends BaseCommand {
       await writeIssue(dataSyncDir, issue);
     }, 'Failed to update issue');
 
-    const displayId = `bd-${normalizedId.slice(3)}`;
-    const displayTarget = `bd-${normalizedTarget.slice(3)}`;
+    // Use already loaded mapping for display
+    const showDebug = this.ctx.debug;
+    const displayId = showDebug
+      ? formatDebugId(internalId, mapping)
+      : formatDisplayId(internalId, mapping);
+    const displayTarget = showDebug
+      ? formatDebugId(internalTarget, mapping)
+      : formatDisplayId(internalTarget, mapping);
+
     this.output.data({ id: displayId, removed: displayTarget }, () => {
       this.output.success(`Removed dependency: ${displayId} no longer blocks ${displayTarget}`);
     });
@@ -124,13 +171,24 @@ class DependsRemoveHandler extends BaseCommand {
 // List dependencies
 class DependsListHandler extends BaseCommand {
   async run(id: string): Promise<void> {
-    const normalizedId = normalizeIssueId(id);
     const dataSyncDir = await resolveDataSyncDir();
+
+    // Load ID mapping for resolution and display
+    const mapping = await loadIdMapping(dataSyncDir);
+
+    // Resolve input ID to internal ID
+    let internalId: string;
+    try {
+      internalId = resolveToInternalId(id, mapping);
+    } catch {
+      this.output.error(`Issue not found: ${id}`);
+      return;
+    }
 
     // Load the issue
     let issue;
     try {
-      issue = await readIssue(dataSyncDir, normalizedId);
+      issue = await readIssue(dataSyncDir, internalId);
     } catch {
       this.output.error(`Issue not found: ${id}`);
       return;
@@ -144,17 +202,23 @@ class DependsListHandler extends BaseCommand {
       allIssues = [];
     }
 
+    const showDebug = this.ctx.debug;
+
     // Find what this issue blocks (from its dependencies)
     const blocks = issue.dependencies
       .filter((dep) => dep.type === 'blocks')
-      .map((dep) => `bd-${dep.target.slice(3)}`);
+      .map((dep) =>
+        showDebug ? formatDebugId(dep.target, mapping) : formatDisplayId(dep.target, mapping),
+      );
 
     // Find what blocks this issue (reverse lookup)
     const blockedBy: string[] = [];
     for (const other of allIssues) {
       for (const dep of other.dependencies) {
-        if (dep.type === 'blocks' && dep.target === normalizedId) {
-          blockedBy.push(`bd-${other.id.slice(3)}`);
+        if (dep.type === 'blocks' && dep.target === internalId) {
+          blockedBy.push(
+            showDebug ? formatDebugId(other.id, mapping) : formatDisplayId(other.id, mapping),
+          );
         }
       }
     }

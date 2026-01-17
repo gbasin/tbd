@@ -32,7 +32,7 @@ Comprehensive tests for create, show, update, list, close, and reopen commands.
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Minimal task"
-✓ Created bd-[ULID]: Minimal task
+✓ Created bd-[SHORTID]: Minimal task
 ? 0
 ```
 
@@ -40,7 +40,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Minimal task"
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "A bug report" -t bug
-✓ Created bd-[ULID]: A bug report
+✓ Created bd-[SHORTID]: A bug report
 ? 0
 ```
 
@@ -48,7 +48,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "A bug report" -t bug
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "High priority feature" -t feature -p 0
-✓ Created bd-[ULID]: High priority feature
+✓ Created bd-[SHORTID]: High priority feature
 ? 0
 ```
 
@@ -56,7 +56,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "High priority feature" -t fea
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Task with desc" -d "This is a detailed description"
-✓ Created bd-[ULID]: Task with desc
+✓ Created bd-[SHORTID]: Task with desc
 ? 0
 ```
 
@@ -64,7 +64,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Task with desc" -d "This is a
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Assigned task" --assignee alice
-✓ Created bd-[ULID]: Assigned task
+✓ Created bd-[SHORTID]: Assigned task
 ? 0
 ```
 
@@ -72,7 +72,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Assigned task" --assignee ali
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Labeled task" -l frontend -l urgent -l needs-review
-✓ Created bd-[ULID]: Labeled task
+✓ Created bd-[SHORTID]: Labeled task
 ? 0
 ```
 
@@ -80,7 +80,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Labeled task" -l frontend -l 
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Epic project" -t epic -p 1
-✓ Created bd-[ULID]: Epic project
+✓ Created bd-[SHORTID]: Epic project
 ? 0
 ```
 
@@ -88,7 +88,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Epic project" -t epic -p 1
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Cleanup task" -t chore
-✓ Created bd-[ULID]: Cleanup task
+✓ Created bd-[SHORTID]: Cleanup task
 ? 0
 ```
 
@@ -96,7 +96,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Cleanup task" -t chore
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Due task" --due 2025-12-31T23:59:59Z
-✓ Created bd-[ULID]: Due task
+✓ Created bd-[SHORTID]: Due task
 ? 0
 ```
 
@@ -104,7 +104,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Due task" --due 2025-12-31T23
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Deferred work" --defer 2025-06-01T00:00:00Z
-✓ Created bd-[ULID]: Deferred work
+✓ Created bd-[SHORTID]: Deferred work
 ? 0
 ```
 
@@ -121,7 +121,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Dry run only" -t bug --dry-ru
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "JSON test" -t task --json
 {
-  "id": "bd-[ULID]",
+  "id": "bd-[SHORTID]",
   "internalId": "is-[ULID]",
   "title": "JSON test"
 }

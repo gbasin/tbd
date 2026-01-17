@@ -148,24 +148,47 @@ describe('normalizeIssueId', () => {
 });
 
 describe('formatDisplayId', () => {
+  // Create a mock mapping for tests
+  const createMockMapping = () => ({
+    shortToUlid: new Map([
+      ['a7k2', VALID_ULID],
+      ['xyz1', 'abcdef123456789012345678'],
+    ]),
+    ulidToShort: new Map([
+      [VALID_ULID, 'a7k2'],
+      ['abcdef123456789012345678', 'xyz1'],
+    ]),
+  });
+
   it('formats internal ID with default bd- prefix', () => {
-    const displayId = formatDisplayId(`is-${VALID_ULID}`);
-    expect(displayId).toBe('bd-01hx5z');
+    const mapping = createMockMapping();
+    const displayId = formatDisplayId(`is-${VALID_ULID}`, mapping);
+    expect(displayId).toBe('bd-a7k2');
   });
 
   it('uses custom prefix when provided', () => {
-    const displayId = formatDisplayId(`is-${VALID_ULID}`, 'issue');
-    expect(displayId).toBe('issue-01hx5z');
+    const mapping = createMockMapping();
+    const displayId = formatDisplayId(`is-${VALID_ULID}`, mapping, 'issue');
+    expect(displayId).toBe('issue-a7k2');
   });
 
   it('handles IDs without is- prefix', () => {
-    const displayId = formatDisplayId(VALID_ULID);
-    expect(displayId).toBe('bd-01hx5z');
+    const mapping = createMockMapping();
+    const displayId = formatDisplayId(VALID_ULID, mapping);
+    expect(displayId).toBe('bd-a7k2');
   });
 
-  it('truncates to first 6 chars of ULID', () => {
-    const displayId = formatDisplayId('is-abcdef123456789012345678');
-    expect(displayId).toBe('bd-abcdef');
+  it('returns short ID from mapping', () => {
+    const mapping = createMockMapping();
+    const displayId = formatDisplayId('is-abcdef123456789012345678', mapping);
+    expect(displayId).toBe('bd-xyz1');
+  });
+
+  it('throws error when ID not in mapping', () => {
+    const mapping = createMockMapping();
+    expect(() => formatDisplayId('is-notinmapping00000000000', mapping)).toThrow(
+      'No short ID mapping found',
+    );
   });
 });
 

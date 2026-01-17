@@ -113,7 +113,7 @@ meta.yml
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Test issue"
-✓ Created bd-[ULID]: Test issue
+✓ Created bd-[SHORTID]: Test issue
 ? 0
 ```
 

@@ -125,15 +125,46 @@ export function normalizeIssueId(input: string): string {
   return lower;
 }
 
+import type { IdMapping } from '../file/idMapping.js';
+
 /**
  * Format an internal ID for display with the configured prefix.
- * Note: This requires access to the short ID mapping.
- * For now, returns the internal ID with bd- prefix for compatibility.
+ *
+ * Uses the short ID (4 chars) from the mapping.
+ * Throws an error if the mapping is missing or doesn't contain the ID.
+ *
+ * IMPORTANT: All user-facing output MUST use short IDs, never internal ULIDs.
+ * If you see a ULID in user output, it's a bug.
+ *
+ * @param internalId - The internal ID (is-{ulid})
+ * @param mapping - ID mapping for short ID lookup (required)
+ * @param prefix - Display prefix (default: 'bd')
+ * @throws Error if mapping is missing or ID not found in mapping
  */
-export function formatDisplayId(internalId: string, prefix = 'bd'): string {
+export function formatDisplayId(internalId: string, mapping: IdMapping, prefix = 'bd'): string {
   // Extract the ULID portion
   const ulidPart = internalId.replace(/^is-/, '');
-  // For display, we'd normally use the short ID mapping
-  // For now, truncate to show a readable portion
-  return `${prefix}-${ulidPart.slice(0, 6)}`;
+
+  // Get short ID from mapping
+  const shortId = mapping.ulidToShort.get(ulidPart);
+  if (!shortId) {
+    throw new Error(
+      `No short ID mapping found for internal ID: ${internalId}. ` +
+        `This is a bug - all issues must have a short ID mapping.`,
+    );
+  }
+
+  return `${prefix}-${shortId}`;
+}
+
+/**
+ * Format an ID for debug output, showing both public and internal IDs.
+ *
+ * @param internalId - The internal ID (is-{ulid})
+ * @param mapping - ID mapping for short ID lookup
+ * @param prefix - Display prefix (default: 'bd')
+ */
+export function formatDebugId(internalId: string, mapping: IdMapping, prefix = 'bd'): string {
+  const displayId = formatDisplayId(internalId, mapping, prefix);
+  return `${displayId} (${internalId})`;
 }

@@ -11,6 +11,8 @@ import { listIssues } from '../../file/storage.js';
 import { IssueKind } from '../../lib/schemas.js';
 import type { Issue, IssueKindType } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { formatDisplayId, formatDebugId } from '../../lib/ids.js';
+import { loadIdMapping } from '../../file/idMapping.js';
 
 interface ReadyOptions {
   type?: string;
@@ -21,8 +23,9 @@ class ReadyHandler extends BaseCommand {
   async run(options: ReadyOptions): Promise<void> {
     // Load all issues
     let issues: Issue[];
+    let dataSyncDir: string;
     try {
-      const dataSyncDir = await resolveDataSyncDir();
+      dataSyncDir = await resolveDataSyncDir();
       issues = await listIssues(dataSyncDir);
     } catch {
       this.output.error('No issue store found. Run `tbd init` first.');
@@ -86,9 +89,13 @@ class ReadyHandler extends BaseCommand {
       }
     }
 
+    // Load ID mapping for display
+    const mapping = await loadIdMapping(dataSyncDir);
+    const showDebug = this.ctx.debug;
+
     // Format output
     const outputIssues = readyIssues.map((i) => ({
-      id: `bd-${i.id.slice(3)}`,
+      id: showDebug ? formatDebugId(i.id, mapping) : formatDisplayId(i.id, mapping),
       priority: i.priority,
       title: i.title,
     }));

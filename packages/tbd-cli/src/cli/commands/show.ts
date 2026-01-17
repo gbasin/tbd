@@ -9,27 +9,42 @@ import { Command } from 'commander';
 import { BaseCommand } from '../lib/baseCommand.js';
 import { readIssue } from '../../file/storage.js';
 import { serializeIssue } from '../../file/parser.js';
-import { normalizeIssueId } from '../../lib/ids.js';
+import { formatDisplayId, formatDebugId } from '../../lib/ids.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { loadIdMapping, resolveToInternalId } from '../../file/idMapping.js';
 
 class ShowHandler extends BaseCommand {
   async run(id: string): Promise<void> {
-    // Normalize the input ID
-    const normalizedId = normalizeIssueId(id);
+    const dataSyncDir = await resolveDataSyncDir();
 
-    let issue;
+    // Load ID mapping for resolution and display
+    const mapping = await loadIdMapping(dataSyncDir);
+
+    // Resolve input ID to internal ID
+    let internalId: string;
     try {
-      const dataSyncDir = await resolveDataSyncDir();
-      issue = await readIssue(dataSyncDir, normalizedId);
+      internalId = resolveToInternalId(id, mapping);
     } catch {
       this.output.error(`Issue not found: ${id}`);
       return;
     }
 
-    // Create display version with bd- prefix for Beads compatibility
+    let issue;
+    try {
+      issue = await readIssue(dataSyncDir, internalId);
+    } catch {
+      this.output.error(`Issue not found: ${id}`);
+      return;
+    }
+    const showDebug = this.ctx.debug;
+    const displayId = showDebug
+      ? formatDebugId(issue.id, mapping)
+      : formatDisplayId(issue.id, mapping);
+
+    // Create display version with short display ID
     const displayIssue = {
       ...issue,
-      displayId: `bd-${issue.id.slice(3)}`,
+      displayId,
     };
 
     this.output.data(displayIssue, () => {

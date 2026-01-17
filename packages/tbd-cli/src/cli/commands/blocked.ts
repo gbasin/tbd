@@ -10,6 +10,8 @@ import { BaseCommand } from '../lib/baseCommand.js';
 import { listIssues } from '../../file/storage.js';
 import type { Issue } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { formatDisplayId, formatDebugId } from '../../lib/ids.js';
+import { loadIdMapping } from '../../file/idMapping.js';
 
 interface BlockedOptions {
   limit?: string;
@@ -19,13 +21,18 @@ class BlockedHandler extends BaseCommand {
   async run(options: BlockedOptions): Promise<void> {
     // Load all issues
     let issues: Issue[];
+    let dataSyncDir: string;
     try {
-      const dataSyncDir = await resolveDataSyncDir();
+      dataSyncDir = await resolveDataSyncDir();
       issues = await listIssues(dataSyncDir);
     } catch {
       this.output.error('No issue store found. Run `tbd init` first.');
       return;
     }
+
+    // Load ID mapping for display
+    const mapping = await loadIdMapping(dataSyncDir);
+    const showDebug = this.ctx.debug;
 
     // Build lookup map for dependency resolution
     const issueMap = new Map(issues.map((i) => [i.id, i]));
@@ -60,7 +67,9 @@ class BlockedHandler extends BaseCommand {
       for (const blockerId of blockerIds) {
         const blocker = issueMap.get(blockerId);
         if (blocker && blocker.status !== 'closed') {
-          const blockerDisplayId = `bd-${blockerId.slice(3)}`;
+          const blockerDisplayId = showDebug
+            ? formatDebugId(blockerId, mapping)
+            : formatDisplayId(blockerId, mapping);
           unresolvedBlockers.push(`${blockerDisplayId} (${blocker.title.slice(0, 20)})`);
         }
       }
@@ -86,7 +95,7 @@ class BlockedHandler extends BaseCommand {
 
     // Format output
     const outputIssues = blockedIssues.map((b) => ({
-      id: `bd-${b.issue.id.slice(3)}`,
+      id: showDebug ? formatDebugId(b.issue.id, mapping) : formatDisplayId(b.issue.id, mapping),
       title: b.issue.title,
       blockedBy: b.blockedBy,
     }));

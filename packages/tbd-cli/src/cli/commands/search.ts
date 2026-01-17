@@ -15,6 +15,8 @@ import { IssueStatus } from '../../lib/schemas.js';
 import type { Issue, IssueStatusType } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
 import { now } from '../../utils/timeUtils.js';
+import { formatDisplayId, formatDebugId } from '../../lib/ids.js';
+import { loadIdMapping } from '../../file/idMapping.js';
 
 // Staleness threshold for worktree (5 minutes)
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;
@@ -89,8 +91,9 @@ class SearchHandler extends BaseCommand {
 
     // Load all issues
     let issues: Issue[];
+    let dataSyncDir: string;
     try {
-      const dataSyncDir = await resolveDataSyncDir();
+      dataSyncDir = await resolveDataSyncDir();
       issues = await listIssues(dataSyncDir);
     } catch {
       this.output.error('No issue store found. Run `tbd init` first.');
@@ -139,9 +142,13 @@ class SearchHandler extends BaseCommand {
       }
     }
 
+    // Load ID mapping for display
+    const mapping = await loadIdMapping(dataSyncDir);
+    const showDebug = this.ctx.debug;
+
     // Format output
     const output = results.map((r) => ({
-      id: `bd-${r.issue.id.slice(3)}`,
+      id: showDebug ? formatDebugId(r.issue.id, mapping) : formatDisplayId(r.issue.id, mapping),
       title: r.issue.title,
       status: r.issue.status,
       matchField: r.matchField,

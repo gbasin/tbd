@@ -124,7 +124,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Blocked by other" -t task --j
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs depends add $(cat /tmp/blocker.txt) $(cat /tmp/blocked_by.txt)
-✓ bd-[ULID] now blocks bd-[ULID]
+✓ bd-[SHORTID] now blocks bd-[SHORTID]
 ? 0
 ```
 
@@ -236,7 +236,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Label test issue" -t task --j
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs label add $(cat /tmp/label_issue.txt) frontend
-✓ Added labels to bd-[ULID]: frontend
+✓ Added labels to bd-[SHORTID]: frontend
 ? 0
 ```
 
@@ -244,7 +244,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs label add $(cat /tmp/label_issue.txt)
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs label add $(cat /tmp/label_issue.txt) backend urgent
-✓ Added labels to bd-[ULID]: backend, urgent
+✓ Added labels to bd-[SHORTID]: backend, urgent
 ? 0
 ```
 
@@ -268,7 +268,7 @@ All labels already present
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs label remove $(cat /tmp/label_issue.txt) urgent
-✓ Removed labels from bd-[ULID]: urgent
+✓ Removed labels from bd-[SHORTID]: urgent
 ? 0
 ```
 
@@ -284,7 +284,7 @@ OK: urgent removed
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs label remove $(cat /tmp/label_issue.txt) frontend backend
-✓ Removed labels from bd-[ULID]: frontend, backend
+✓ Removed labels from bd-[SHORTID]: frontend, backend
 ? 0
 ```
 
@@ -340,7 +340,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs create "Child task" -t task --json | 
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs depends add $(cat /tmp/dep_parent.txt) $(cat /tmp/dep_child.txt)
-✓ bd-[ULID] now blocks bd-[ULID]
+✓ bd-[SHORTID] now blocks bd-[SHORTID]
 ? 0
 ```
 
@@ -348,7 +348,7 @@ $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs depends add $(cat /tmp/dep_parent.txt
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs depends list $(cat /tmp/dep_parent.txt)
-Blocks: bd-[ULID]
+Blocks: bd-[SHORTID]
 ? 0
 ```
 
@@ -356,7 +356,7 @@ Blocks: bd-[ULID]
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs depends list $(cat /tmp/dep_child.txt)
-Blocked by: bd-[ULID]
+Blocked by: bd-[SHORTID]
 ? 0
 ```
 
@@ -418,7 +418,7 @@ Add a dependency to make an issue blocked:
 
 ```console
 $ node $TRYSCRIPT_TEST_DIR/../dist/bin.mjs depends add $(cat /tmp/blocker.txt) $(cat /tmp/ready1.txt)
-✓ bd-[ULID] now blocks bd-[ULID]
+✓ bd-[SHORTID] now blocks bd-[SHORTID]
 ? 0
 ```
 

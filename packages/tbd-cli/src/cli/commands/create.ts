@@ -11,6 +11,12 @@ import { BaseCommand } from '../lib/baseCommand.js';
 import type { Issue, IssueKindType, PriorityType } from '../../lib/types.js';
 import { generateInternalId } from '../../lib/ids.js';
 import { writeIssue } from '../../file/storage.js';
+import {
+  loadIdMapping,
+  saveIdMapping,
+  generateUniqueShortId,
+  addIdMapping,
+} from '../../file/idMapping.js';
 import { IssueKind, Priority } from '../../lib/schemas.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
 import { now } from '../../utils/timeUtils.js';
@@ -60,6 +66,7 @@ class CreateHandler extends BaseCommand {
 
     const timestamp = now();
     const id = generateInternalId();
+    const ulid = id.slice(3); // Remove 'is-' prefix
 
     const issue: Issue = {
       type: 'is',
@@ -80,13 +87,22 @@ class CreateHandler extends BaseCommand {
       parent_id: options.parent ?? undefined,
     };
 
+    let shortId: string;
     await this.execute(async () => {
       const dataSyncDir = await resolveDataSyncDir();
+
+      // Load mapping, generate unique short ID, and save
+      const mapping = await loadIdMapping(dataSyncDir);
+      shortId = generateUniqueShortId(mapping);
+      addIdMapping(mapping, ulid, shortId);
+
+      // Write both the issue and the mapping
       await writeIssue(dataSyncDir, issue);
+      await saveIdMapping(dataSyncDir, mapping);
     }, 'Failed to create issue');
 
-    // Output with display ID (bd- prefix for Beads compatibility)
-    const displayId = `bd-${id.slice(3)}`;
+    // Output with display ID (bd- prefix + 4-char short ID)
+    const displayId = `bd-${shortId!}`;
     this.output.data({ id: displayId, internalId: id, title }, () => {
       this.output.success(`Created ${displayId}: ${title}`);
     });

@@ -8,9 +8,10 @@ import { Command } from 'commander';
 
 import { BaseCommand } from '../lib/baseCommand.js';
 import { readIssue, writeIssue } from '../../file/storage.js';
-import { normalizeIssueId } from '../../lib/ids.js';
+import { formatDisplayId, formatDebugId } from '../../lib/ids.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
 import { now } from '../../utils/timeUtils.js';
+import { loadIdMapping, resolveToInternalId } from '../../file/idMapping.js';
 
 interface ReopenOptions {
   reason?: string;
@@ -18,13 +19,24 @@ interface ReopenOptions {
 
 class ReopenHandler extends BaseCommand {
   async run(id: string, options: ReopenOptions): Promise<void> {
-    const normalizedId = normalizeIssueId(id);
     const dataSyncDir = await resolveDataSyncDir();
+
+    // Load ID mapping for resolution
+    const mapping = await loadIdMapping(dataSyncDir);
+
+    // Resolve input ID to internal ID
+    let internalId: string;
+    try {
+      internalId = resolveToInternalId(id, mapping);
+    } catch {
+      this.output.error(`Issue not found: ${id}`);
+      return;
+    }
 
     // Load existing issue
     let issue;
     try {
-      issue = await readIssue(dataSyncDir, normalizedId);
+      issue = await readIssue(dataSyncDir, internalId);
     } catch {
       this.output.error(`Issue not found: ${id}`);
       return;
@@ -36,7 +48,7 @@ class ReopenHandler extends BaseCommand {
       return;
     }
 
-    if (this.checkDryRun('Would reopen issue', { id: normalizedId, reason: options.reason })) {
+    if (this.checkDryRun('Would reopen issue', { id: internalId, reason: options.reason })) {
       return;
     }
 
@@ -58,7 +70,12 @@ class ReopenHandler extends BaseCommand {
       await writeIssue(dataSyncDir, issue);
     }, 'Failed to reopen issue');
 
-    const displayId = `bd-${issue.id.slice(3)}`;
+    // Use already loaded mapping for display
+    const showDebug = this.ctx.debug;
+    const displayId = showDebug
+      ? formatDebugId(issue.id, mapping)
+      : formatDisplayId(issue.id, mapping);
+
     this.output.data({ id: displayId, reopened: true }, () => {
       this.output.success(`Reopened ${displayId}`);
     });

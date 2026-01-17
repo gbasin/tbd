@@ -13,9 +13,10 @@ import { writeFile } from 'atomically';
 
 import { BaseCommand } from '../lib/baseCommand.js';
 import { readIssue, writeIssue } from '../../file/storage.js';
-import { normalizeIssueId } from '../../lib/ids.js';
+import { normalizeIssueId, formatDisplayId, formatDebugId } from '../../lib/ids.js';
 import { resolveDataSyncDir, resolveAtticDir } from '../../lib/paths.js';
 import { now } from '../../utils/timeUtils.js';
+import { loadIdMapping } from '../../file/idMapping.js';
 
 /**
  * Attic entry structure for storing lost values during conflicts.
@@ -119,8 +120,13 @@ class AtticListHandler extends BaseCommand {
     const filterId = id ? normalizeIssueId(id) : undefined;
     const entries = await listAtticEntries(filterId);
 
+    // Load ID mapping for display
+    const dataSyncDir = await resolveDataSyncDir();
+    const mapping = await loadIdMapping(dataSyncDir);
+    const showDebug = this.ctx.debug;
+
     const output = entries.map((e) => ({
-      id: `bd-${e.entity_id.slice(3)}`,
+      id: showDebug ? formatDebugId(e.entity_id, mapping) : formatDisplayId(e.entity_id, mapping),
       timestamp: e.timestamp,
       field: e.field,
       winner: e.winner_source,
@@ -160,9 +166,16 @@ class AtticShowHandler extends BaseCommand {
       return;
     }
 
+    // Load ID mapping for display
+    const dataSyncDir = await resolveDataSyncDir();
+    const mapping = await loadIdMapping(dataSyncDir);
+    const showDebug = this.ctx.debug;
+    const displayId = showDebug
+      ? formatDebugId(entry.entity_id, mapping)
+      : formatDisplayId(entry.entity_id, mapping);
+
     this.output.data(entry, () => {
       const colors = this.output.getColors();
-      const displayId = `bd-${entry.entity_id.slice(3)}`;
       console.log(`${colors.bold('Entity:')} ${displayId}`);
       console.log(`${colors.bold('Timestamp:')} ${entry.timestamp}`);
       console.log(`${colors.bold('Field:')} ${entry.field}`);
@@ -227,7 +240,13 @@ class AtticRestoreHandler extends BaseCommand {
       await writeIssue(dataSyncDir, issue);
     }, 'Failed to restore from attic');
 
-    const displayId = `bd-${normalizedId.slice(3)}`;
+    // Load ID mapping for display
+    const mapping = await loadIdMapping(dataSyncDir);
+    const showDebug = this.ctx.debug;
+    const displayId = showDebug
+      ? formatDebugId(normalizedId, mapping)
+      : formatDisplayId(normalizedId, mapping);
+
     this.output.success(`Restored ${entry.field} for ${displayId} from attic entry ${timestamp}`);
   }
 }

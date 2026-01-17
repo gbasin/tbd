@@ -8,26 +8,38 @@ import { Command } from 'commander';
 
 import { BaseCommand } from '../lib/baseCommand.js';
 import { readIssue, writeIssue, listIssues } from '../../file/storage.js';
-import { normalizeIssueId } from '../../lib/ids.js';
+import { formatDisplayId, formatDebugId } from '../../lib/ids.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
 import { now } from '../../utils/timeUtils.js';
+import { loadIdMapping, resolveToInternalId } from '../../file/idMapping.js';
 
 // Add label
 class LabelAddHandler extends BaseCommand {
   async run(id: string, labels: string[]): Promise<void> {
-    const normalizedId = normalizeIssueId(id);
     const dataSyncDir = await resolveDataSyncDir();
 
-    // Load existing issue
-    let issue;
+    // Load ID mapping for resolution
+    const mapping = await loadIdMapping(dataSyncDir);
+
+    // Resolve input ID to internal ID
+    let internalId: string;
     try {
-      issue = await readIssue(dataSyncDir, normalizedId);
+      internalId = resolveToInternalId(id, mapping);
     } catch {
       this.output.error(`Issue not found: ${id}`);
       return;
     }
 
-    if (this.checkDryRun('Would add labels', { id: normalizedId, labels })) {
+    // Load existing issue
+    let issue;
+    try {
+      issue = await readIssue(dataSyncDir, internalId);
+    } catch {
+      this.output.error(`Issue not found: ${id}`);
+      return;
+    }
+
+    if (this.checkDryRun('Would add labels', { id: internalId, labels })) {
       return;
     }
 
@@ -54,7 +66,12 @@ class LabelAddHandler extends BaseCommand {
       await writeIssue(dataSyncDir, issue);
     }, 'Failed to update issue');
 
-    const displayId = `bd-${issue.id.slice(3)}`;
+    // Use already loaded mapping for display
+    const showDebug = this.ctx.debug;
+    const displayId = showDebug
+      ? formatDebugId(issue.id, mapping)
+      : formatDisplayId(issue.id, mapping);
+
     this.output.data({ id: displayId, addedLabels: labels }, () => {
       this.output.success(`Added labels to ${displayId}: ${labels.join(', ')}`);
     });
@@ -64,19 +81,30 @@ class LabelAddHandler extends BaseCommand {
 // Remove label
 class LabelRemoveHandler extends BaseCommand {
   async run(id: string, labels: string[]): Promise<void> {
-    const normalizedId = normalizeIssueId(id);
     const dataSyncDir = await resolveDataSyncDir();
 
-    // Load existing issue
-    let issue;
+    // Load ID mapping for resolution
+    const mapping = await loadIdMapping(dataSyncDir);
+
+    // Resolve input ID to internal ID
+    let internalId: string;
     try {
-      issue = await readIssue(dataSyncDir, normalizedId);
+      internalId = resolveToInternalId(id, mapping);
     } catch {
       this.output.error(`Issue not found: ${id}`);
       return;
     }
 
-    if (this.checkDryRun('Would remove labels', { id: normalizedId, labels })) {
+    // Load existing issue
+    let issue;
+    try {
+      issue = await readIssue(dataSyncDir, internalId);
+    } catch {
+      this.output.error(`Issue not found: ${id}`);
+      return;
+    }
+
+    if (this.checkDryRun('Would remove labels', { id: internalId, labels })) {
       return;
     }
 
@@ -98,7 +126,12 @@ class LabelRemoveHandler extends BaseCommand {
       await writeIssue(dataSyncDir, issue);
     }, 'Failed to update issue');
 
-    const displayId = `bd-${issue.id.slice(3)}`;
+    // Use already loaded mapping for display
+    const showDebug = this.ctx.debug;
+    const displayId = showDebug
+      ? formatDebugId(issue.id, mapping)
+      : formatDisplayId(issue.id, mapping);
+
     this.output.data({ id: displayId, removedLabels: labels }, () => {
       this.output.success(`Removed labels from ${displayId}: ${labels.join(', ')}`);
     });

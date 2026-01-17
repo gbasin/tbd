@@ -44,6 +44,7 @@ Options:
   --non-interactive         Disable all prompts, fail if input required
   --yes                     Assume yes to confirmation prompts
   --no-sync                 Skip automatic sync after write operations
+  --debug                   Show internal IDs alongside public IDs for debugging
   -h, --help                display help for command
 
 Commands:

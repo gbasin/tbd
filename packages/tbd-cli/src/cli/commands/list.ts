@@ -11,8 +11,9 @@ import { NotInitializedError } from '../lib/errors.js';
 import type { Issue, IssueStatusType, IssueKindType } from '../../lib/types.js';
 import { listIssues } from '../../file/storage.js';
 import { isInitialized } from '../../file/config.js';
-import { formatDisplayId } from '../../lib/ids.js';
+import { formatDisplayId, formatDebugId } from '../../lib/ids.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { loadIdMapping } from '../../file/idMapping.js';
 
 interface ListOptions {
   status?: IssueStatusType;
@@ -37,10 +38,11 @@ class ListHandler extends BaseCommand {
     }
 
     let issues: Issue[];
+    let dataSyncDir: string;
 
     try {
       // Resolve the correct data sync directory (worktree or direct)
-      const dataSyncDir = await resolveDataSyncDir();
+      dataSyncDir = await resolveDataSyncDir();
       issues = await listIssues(dataSyncDir);
     } catch {
       this.output.error('Failed to read issues');
@@ -69,9 +71,13 @@ class ListHandler extends BaseCommand {
       return;
     }
 
+    // Load ID mapping for display
+    const mapping = await loadIdMapping(dataSyncDir);
+    const showDebug = this.ctx.debug;
+
     // Format output - use short display IDs instead of internal ULIDs
     const displayIssues = issues.map((i) => ({
-      id: formatDisplayId(i.id),
+      id: showDebug ? formatDebugId(i.id, mapping) : formatDisplayId(i.id, mapping),
       internalId: i.id,
       priority: i.priority,
       status: i.status,

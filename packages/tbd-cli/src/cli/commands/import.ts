@@ -14,6 +14,7 @@ import { writeFile } from 'atomically';
 import { BaseCommand } from '../lib/baseCommand.js';
 import { writeIssue, listIssues } from '../../file/storage.js';
 import { generateInternalId } from '../../lib/ids.js';
+import { loadIdMapping, saveIdMapping, createShortIdMapping } from '../../file/idMapping.js';
 import { IssueStatus, IssueKind } from '../../lib/schemas.js';
 import type { Issue, IssueStatusType, IssueKindType, DependencyType } from '../../lib/types.js';
 import { resolveDataSyncDir, resolveMappingsDir } from '../../lib/paths.js';
@@ -440,6 +441,9 @@ class ImportHandler extends BaseCommand {
       }
     }
 
+    // Load short ID mapping for display IDs
+    const shortIdMapping = await loadIdMapping(this.dataSyncDir);
+
     // First pass: assign IDs to all issues (needed for dependency translation)
     for (const beads of beadsIssues) {
       if (!mapping[beads.id]) {
@@ -447,7 +451,10 @@ class ImportHandler extends BaseCommand {
         if (existing) {
           mapping[beads.id] = existing.id;
         } else {
-          mapping[beads.id] = generateInternalId();
+          const internalId = generateInternalId();
+          mapping[beads.id] = internalId;
+          // Create short ID mapping for new issues
+          createShortIdMapping(internalId, shortIdMapping);
         }
       }
     }
@@ -488,8 +495,9 @@ class ImportHandler extends BaseCommand {
       }
     }
 
-    // Save updated mapping
+    // Save updated mappings (beads ID mapping and short ID mapping)
     await saveMapping(mapping);
+    await saveIdMapping(this.dataSyncDir, shortIdMapping);
 
     const result = { imported, skipped, merged, total: beadsIssues.length };
 

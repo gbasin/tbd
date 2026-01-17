@@ -28,6 +28,8 @@ export interface CommandContext {
   nonInteractive: boolean;
   yes: boolean;
   sync: boolean;
+  /** Debug mode: shows internal IDs alongside public IDs */
+  debug: boolean;
 }
 
 /**
@@ -47,6 +49,7 @@ export function getCommandContext(command: Command): CommandContext {
     nonInteractive: opts.nonInteractive ?? (!process.stdin.isTTY || isCI),
     yes: opts.yes ?? false,
     sync: opts.sync !== false, // --no-sync sets this to false
+    debug: opts.debug ?? false,
   };
 }
 
