@@ -497,7 +497,7 @@ $ mkdir -p .claude/skills/tbd && echo "---" > .claude/skills/tbd/SKILL.md
 
 ```console
 $ tbd doctor | grep "Claude Code skill"
-✓ Claude Code skill
+✓ Claude Code skill (.claude/skills/tbd/SKILL.md)
 ? 0
 ```
 

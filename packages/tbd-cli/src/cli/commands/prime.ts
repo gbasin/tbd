@@ -20,25 +20,25 @@ interface PrimeOptions {
 }
 
 /**
- * Get the path to the bundled tbd-prime.md file.
+ * Get the path to the bundled SKILL.md file.
  * Similar to how docs.ts locates tbd-docs.md.
  */
-function getPrimePath(): string {
+function getSkillPath(): string {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
   // When bundled, runs from dist/bin.mjs or dist/cli.mjs
-  // Docs are at dist/docs/tbd-prime.md (same level as the bundle)
-  return join(__dirname, 'docs', 'tbd-prime.md');
+  // Docs are at dist/docs/SKILL.md (same level as the bundle)
+  return join(__dirname, 'docs', 'SKILL.md');
 }
 
 /**
- * Load the prime content from the bundled file with fallbacks.
+ * Load the prime content from the bundled SKILL.md file with fallbacks.
  * This is also exported for use by setup.ts for skill installation.
  */
 export async function loadPrimeContent(): Promise<string> {
   // Try bundled location first
   try {
-    return await readFile(getPrimePath(), 'utf-8');
+    return await readFile(getSkillPath(), 'utf-8');
   } catch {
     // Fallback: try to read from source location during development
   }
@@ -47,7 +47,7 @@ export async function loadPrimeContent(): Promise<string> {
   try {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    const devPath = join(__dirname, '..', '..', 'docs', 'tbd-prime.md');
+    const devPath = join(__dirname, '..', '..', 'docs', 'SKILL.md');
     return await readFile(devPath, 'utf-8');
   } catch {
     // Fallback: try repo-level docs
@@ -57,11 +57,11 @@ export async function loadPrimeContent(): Promise<string> {
   try {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    const repoPath = join(__dirname, '..', '..', '..', '..', '..', 'docs', 'tbd-prime.md');
+    const repoPath = join(__dirname, '..', '..', '..', '..', '..', 'docs', 'SKILL.md');
     return await readFile(repoPath, 'utf-8');
   } catch {
     // If all else fails, throw an error
-    throw new Error('Prime content file not found. Please rebuild the CLI.');
+    throw new Error('SKILL.md content file not found. Please rebuild the CLI.');
   }
 }
 

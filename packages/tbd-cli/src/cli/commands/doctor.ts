@@ -27,6 +27,7 @@ interface CheckResult {
   name: string;
   status: 'ok' | 'warn' | 'error';
   message?: string;
+  path?: string;
   fixable?: boolean;
 }
 
@@ -94,8 +95,9 @@ class DoctorHandler extends BaseCommand {
               ? colors.warn('⚠')
               : colors.error('✗');
         const msg = check.message ? ` - ${check.message}` : '';
+        const pathInfo = check.path ? colors.dim(` (${check.path})`) : '';
         const fixNote = check.fixable && check.status !== 'ok' ? ' [fixable]' : '';
-        console.log(`${icon} ${check.name}${msg}${colors.dim(fixNote)}`);
+        console.log(`${icon} ${check.name}${msg}${pathInfo}${colors.dim(fixNote)}`);
       }
       console.log('');
       if (allOk) {
@@ -147,17 +149,19 @@ class DoctorHandler extends BaseCommand {
   }
 
   private async checkConfig(): Promise<CheckResult> {
+    const configPath = join(CONFIG_DIR, 'config.yml');
     try {
-      await access(join(process.cwd(), CONFIG_DIR, 'config.yml'));
+      await access(join(process.cwd(), configPath));
       await readConfig(process.cwd());
-      return { name: 'Config file', status: 'ok' };
+      return { name: 'Config file', status: 'ok', path: configPath };
     } catch (error) {
       const msg = (error as Error).message;
       if (msg.includes('ENOENT')) {
         return {
           name: 'Config file',
           status: 'error',
-          message: 'config.yml not found',
+          message: 'not found',
+          path: configPath,
           fixable: false,
         };
       }
@@ -165,20 +169,23 @@ class DoctorHandler extends BaseCommand {
         name: 'Config file',
         status: 'error',
         message: 'Invalid config file',
+        path: configPath,
         fixable: false,
       };
     }
   }
 
   private async checkIssuesDirectory(): Promise<CheckResult> {
+    const issuesPath = join(CONFIG_DIR, 'issues');
     try {
       await access(join(this.dataSyncDir, 'issues'));
-      return { name: 'Issues directory', status: 'ok' };
+      return { name: 'Issues directory', status: 'ok', path: issuesPath };
     } catch {
       return {
         name: 'Issues directory',
         status: 'warn',
-        message: 'Issues directory not found (may be empty)',
+        message: 'not found (may be empty)',
+        path: issuesPath,
         fixable: false,
       };
     }
@@ -232,6 +239,7 @@ class DoctorHandler extends BaseCommand {
   }
 
   private async checkTempFiles(fix?: boolean): Promise<CheckResult> {
+    const issuesPath = join(CONFIG_DIR, 'issues');
     const issuesDir = join(this.dataSyncDir, 'issues');
     let tempFiles: string[] = [];
 
@@ -240,11 +248,11 @@ class DoctorHandler extends BaseCommand {
       tempFiles = files.filter((f) => f.endsWith('.tmp'));
     } catch {
       // Directory doesn't exist - no temp files
-      return { name: 'Temp files', status: 'ok' };
+      return { name: 'Temp files', status: 'ok', path: issuesPath };
     }
 
     if (tempFiles.length === 0) {
-      return { name: 'Temp files', status: 'ok' };
+      return { name: 'Temp files', status: 'ok', path: issuesPath };
     }
 
     if (fix) {
@@ -260,6 +268,7 @@ class DoctorHandler extends BaseCommand {
         name: 'Temp files',
         status: 'ok',
         message: `Cleaned ${tempFiles.length} temp file(s)`,
+        path: issuesPath,
       };
     }
 
@@ -267,6 +276,7 @@ class DoctorHandler extends BaseCommand {
       name: 'Temp files',
       status: 'warn',
       message: `${tempFiles.length} orphaned temp file(s)`,
+      path: issuesPath,
       fixable: true,
     };
   }
@@ -302,15 +312,17 @@ class DoctorHandler extends BaseCommand {
   }
 
   private async checkClaudeSkill(): Promise<CheckResult> {
-    const skillPath = join(process.cwd(), '.claude', 'skills', 'tbd', 'SKILL.md');
+    const skillRelPath = join('.claude', 'skills', 'tbd', 'SKILL.md');
+    const skillPath = join(process.cwd(), skillRelPath);
     try {
       await access(skillPath);
-      return { name: 'Claude Code skill', status: 'ok' };
+      return { name: 'Claude Code skill', status: 'ok', path: skillRelPath };
     } catch {
       return {
         name: 'Claude Code skill',
         status: 'warn',
         message: 'Not installed (run: tbd setup claude)',
+        path: skillRelPath,
         fixable: false,
       };
     }
