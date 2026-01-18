@@ -4,7 +4,7 @@
  * Designed to be called by hooks at session start and before context compaction
  * to ensure agents remember the tbd workflow.
  *
- * See: tbd-design-v3.md §6.4.3 The tbd prime Command
+ * See: tbd-full-design.md §6.4.3 The tbd prime Command
  */
 
 import { Command } from 'commander';
@@ -123,7 +123,7 @@ class PrimeHandler extends BaseCommand {
 }
 
 export const primeCommand = new Command('prime')
-  .description('Output workflow context for AI agents')
+  .description('Context-efficient instructions for agents, for use in every session')
   .option('--export', 'Output default content (ignores PRIME.md override)')
   .action(async (options, command) => {
     const handler = new PrimeHandler(command);

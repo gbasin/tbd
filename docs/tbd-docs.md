@@ -765,7 +765,7 @@ version: 1
 
 User reports intermittent login failures.
 
-## Working Notes
+## Notes
 
 Found the issue in auth.ts - race condition in token refresh.
 ```
@@ -910,4 +910,4 @@ tbd <command> --help          # Command-specific help
 tbd help <command>            # Alternative help syntax
 ```
 
-Report issues: https://github.com/jlevy/tbd
+**Project Repo**: https://github.com/jlevy/tbd
