@@ -14,11 +14,22 @@ Before the first release, complete these steps:
 ### 1. Manual First Publish
 
 The package must exist on npm before automated releases can work.
-Run from the package directory:
+
+**IMPORTANT**: Create the git tag FIRST, then build.
+The version is baked in at build time from git tags.
+If you build before tagging, you’ll get a `-dev.N.hash` version suffix.
 
 ```bash
 cd packages/tbd
+
+# 1. Create and push the tag FIRST (so build sees the correct version)
+git tag v0.1.0
+git push --tags
+
+# 2. Build (now getGitVersion() will return "0.1.0" not "0.1.0-dev.N.hash")
 pnpm build
+
+# 3. Publish
 npm publish --access public
 ```
 
