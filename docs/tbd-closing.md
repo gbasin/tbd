@@ -28,4 +28,4 @@ Every session must end with tbd in a clean state:
 
 **Work is not done until pushed, CI passes, and tbd is synced.**
 
-> **Tip**: Run `tbd close-protocol` anytime for this checklist.
+> **Tip**: Run `tbd closing` anytime for this checklist.

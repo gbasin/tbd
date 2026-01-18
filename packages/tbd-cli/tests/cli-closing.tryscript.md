@@ -9,7 +9,7 @@ timeout: 30000
 ---
 # tbd CLI: Close Protocol Command
 
-Tests for the `tbd close-protocol` command which displays the session close checklist.
+Tests for the `tbd closing` command which displays the session close checklist.
 
 * * *
 
@@ -18,7 +18,7 @@ Tests for the `tbd close-protocol` command which displays the session close chec
 # Test: Close protocol outputs checklist header
 
 ```console
-$ tbd close-protocol | head -1
+$ tbd closing | head -1
 # Session Close Protocol
 ? 0
 ```
@@ -26,7 +26,7 @@ $ tbd close-protocol | head -1
 # Test: Close protocol contains CRITICAL warning
 
 ```console
-$ tbd close-protocol | grep -c "CRITICAL"
+$ tbd closing | grep -c "CRITICAL"
 1
 ? 0
 ```
@@ -34,7 +34,7 @@ $ tbd close-protocol | grep -c "CRITICAL"
 # Test: Close protocol contains all 7 checklist steps
 
 ```console
-$ tbd close-protocol | grep -c "^\[ \]"
+$ tbd closing | grep -c "^\[ \]"
 7
 ? 0
 ```
@@ -42,7 +42,7 @@ $ tbd close-protocol | grep -c "^\[ \]"
 # Test: Close protocol contains git commit step
 
 ```console
-$ tbd close-protocol | grep -c "git add"
+$ tbd closing | grep -c "git add"
 1
 ? 0
 ```
@@ -50,7 +50,7 @@ $ tbd close-protocol | grep -c "git add"
 # Test: Close protocol contains git push step
 
 ```console
-$ tbd close-protocol | grep -c "git push"
+$ tbd closing | grep -c "git push"
 1
 ? 0
 ```
@@ -58,7 +58,7 @@ $ tbd close-protocol | grep -c "git push"
 # Test: Close protocol contains CI check step
 
 ```console
-$ tbd close-protocol | grep -c "gh pr checks"
+$ tbd closing | grep -c "gh pr checks"
 1
 ? 0
 ```
@@ -66,7 +66,7 @@ $ tbd close-protocol | grep -c "gh pr checks"
 # Test: Close protocol contains tbd update step
 
 ```console
-$ tbd close-protocol | grep -c "tbd close/update"
+$ tbd closing | grep -c "tbd close/update"
 1
 ? 0
 ```
@@ -74,7 +74,7 @@ $ tbd close-protocol | grep -c "tbd close/update"
 # Test: Close protocol contains tbd sync step
 
 ```console
-$ tbd close-protocol | grep -c "tbd sync"
+$ tbd closing | grep -c "tbd sync"
 2
 ? 0
 ```
@@ -82,7 +82,7 @@ $ tbd close-protocol | grep -c "tbd sync"
 # Test: Close protocol contains tip about command
 
 ```console
-$ tbd close-protocol | grep -c "tbd close-protocol"
+$ tbd closing | grep -c "tbd closing"
 1
 ? 0
 ```
@@ -94,8 +94,8 @@ $ tbd close-protocol | grep -c "tbd close-protocol"
 # Test: Close protocol --help shows description
 
 ```console
-$ tbd close-protocol --help
-Usage: tbd close-protocol [options]
+$ tbd closing --help
+Usage: tbd closing [options]
 
 Display the session close protocol reminder
 

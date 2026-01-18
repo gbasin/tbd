@@ -53,7 +53,7 @@ Documentation:
   prime [options]           Context-efficient instructions for agents, for use
                             in every session
   docs [options] [topic]    Display CLI documentation
-  close-protocol            Display the session close protocol reminder
+  closing            Display the session close protocol reminder
   design [options] [topic]  Display design documentation and Beads comparison
 
 Setup & Configuration:

@@ -1,5 +1,5 @@
 /**
- * `tbd close-protocol` - Display the session close protocol reminder.
+ * `tbd closing` - Display the session close protocol reminder.
  *
  * Shows the close protocol checklist for completing work.
  * Used by the Claude Code PostToolUse hook after git push.
@@ -15,13 +15,13 @@ import { CLIError } from '../lib/errors.js';
 import { renderMarkdown } from '../lib/output.js';
 
 /**
- * Get the path to the bundled close-protocol file.
+ * Get the path to the bundled closing file.
  * The file is copied to dist/docs/ during build.
  */
 function getCloseProtocolPath(): string {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
-  return join(__dirname, 'docs', 'tbd-close-protocol.md');
+  return join(__dirname, 'docs', 'tbd-closing.md');
 }
 
 class CloseProtocolHandler extends BaseCommand {
@@ -34,14 +34,14 @@ class CloseProtocolHandler extends BaseCommand {
       try {
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = dirname(__filename);
-        const devPath = join(__dirname, '..', '..', 'docs', 'tbd-close-protocol.md');
+        const devPath = join(__dirname, '..', '..', 'docs', 'tbd-closing.md');
         content = await readFile(devPath, 'utf-8');
       } catch {
         // Last fallback: repo-level docs
         try {
           const __filename = fileURLToPath(import.meta.url);
           const __dirname = dirname(__filename);
-          const repoPath = join(__dirname, '..', '..', '..', 'docs', 'tbd-close-protocol.md');
+          const repoPath = join(__dirname, '..', '..', '..', 'docs', 'tbd-closing.md');
           content = await readFile(repoPath, 'utf-8');
         } catch {
           throw new CLIError('Close protocol file not found. Please rebuild the CLI.');
@@ -53,7 +53,7 @@ class CloseProtocolHandler extends BaseCommand {
   }
 }
 
-export const closeProtocolCommand = new Command('close-protocol')
+export const closeProtocolCommand = new Command('closing')
   .description('Display the session close protocol reminder')
   .action(async (_options: unknown, command: Command) => {
     const handler = new CloseProtocolHandler(command);
