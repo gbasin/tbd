@@ -1,15 +1,17 @@
 ---
+close_reason: "Implemented: YAML frontmatter now in source docs/SKILL.md"
+closed_at: 2026-01-18T06:03:30.230Z
 created_at: 2026-01-18T03:21:55.197Z
 dependencies: []
 id: is-01kf7hz87yd3k6c41n47pyjtzx
 kind: task
 labels: []
 priority: 2
-status: in_progress
+status: closed
 title: Include YAML frontmatter in source SKILL.md file
 type: is
-updated_at: 2026-01-18T05:57:08.586Z
-version: 3
+updated_at: 2026-01-18T06:03:30.231Z
+version: 4
 ---
 Move the YAML frontmatter from setup.ts into the source docs/SKILL.md file.
 
