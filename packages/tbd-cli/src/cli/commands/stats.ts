@@ -11,6 +11,7 @@ import { requireInit, NotInitializedError } from '../lib/errors.js';
 import { listIssues } from '../../file/storage.js';
 import type { Issue, IssueStatusType, IssueKindType } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
+import { formatPriority } from '../../lib/priority.js';
 
 class StatsHandler extends BaseCommand {
   async run(): Promise<void> {
@@ -132,7 +133,7 @@ class StatsHandler extends BaseCommand {
       for (let i = 0; i <= 4; i++) {
         const count = stats.byPriority[i];
         if (count !== undefined && count > 0) {
-          console.log(`  ${i} (${priorityLabels[i]!.padEnd(8)}) ${count}`);
+          console.log(`  ${formatPriority(i)} (${priorityLabels[i]!.padEnd(8)}) ${count}`);
         }
       }
 
