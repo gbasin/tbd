@@ -1195,6 +1195,7 @@ display:
 # Runtime settings
 settings:
   auto_sync: false # Auto-sync after write operations
+  index_enabled: true # Enable search indexing
 ```
 
 ```typescript
@@ -1213,6 +1214,7 @@ const ConfigSchema = z.object({
   settings: z
     .object({
       auto_sync: z.boolean().default(false),
+      index_enabled: z.boolean().default(true),
     })
     .default({}),
 });
@@ -1238,6 +1240,9 @@ const MetaSchema = z.object({
 
 Per-node state stored in `.tbd/cache/state.yml` (gitignored, never synced).
 Each machine maintains its own local state:
+
+> **Implementation note:** Current implementation uses `state.json` for simplicity.
+> Migration to YAML planned for consistency with other config files.
 
 ```typescript
 const LocalStateSchema = z.object({
@@ -1336,7 +1341,7 @@ main branch:                    tbd-sync branch:
 
 ```
 .tbd/config.yml       # Project configuration (YAML)
-.tbd/.gitignore       # Ignores cache/ directory
+.tbd/.gitignore       # Ignores cache/, data-sync-worktree/, data-sync/
 ```
 
 #### .tbd/.gitignore Contents
@@ -1344,6 +1349,10 @@ main branch:                    tbd-sync branch:
 ```gitignore
 # Local cache (rebuildable)
 cache/
+# Hidden worktree for search access
+data-sync-worktree/
+# Reserved for potential future "simple mode" (issues on main branch)
+data-sync/
 ```
 
 #### Files Tracked on tbd-sync Branch
@@ -1351,7 +1360,9 @@ cache/
 ```
 .tbd/data-sync/issues/     # Issue entities
 .tbd/data-sync/attic/      # Conflict archive
-.tbd/data-sync/meta.yml   # Metadata
+.tbd/data-sync/mappings/   # ID mappings
+  ids.yml                  # Short ID → ULID mapping (includes preserved import IDs)
+.tbd/data-sync/meta.yml    # Metadata
 ```
 
 ### 3.3 Sync Operations
