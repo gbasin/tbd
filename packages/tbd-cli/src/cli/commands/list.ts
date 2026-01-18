@@ -21,6 +21,8 @@ import {
   formatIssueHeader,
   type IssueForDisplay,
 } from '../lib/issueFormat.js';
+import { parsePriority } from '../../lib/priority.js';
+import { buildIssueTree, renderIssueTree } from '../lib/treeView.js';
 
 interface ListOptions {
   status?: IssueStatusType;
@@ -36,6 +38,7 @@ interface ListOptions {
   limit?: string;
   count?: boolean;
   long?: boolean;
+  pretty?: boolean;
 }
 
 class ListHandler extends BaseCommand {
@@ -82,6 +85,11 @@ class ListHandler extends BaseCommand {
     const displayIssues = issues.map((i) => ({
       id: showDebug ? formatDebugId(i.id, mapping, prefix) : formatDisplayId(i.id, mapping, prefix),
       internalId: i.id,
+      parentId: i.parent_id
+        ? showDebug
+          ? formatDebugId(i.parent_id, mapping, prefix)
+          : formatDisplayId(i.parent_id, mapping, prefix)
+        : undefined,
       priority: i.priority,
       status: i.status,
       kind: i.kind,
@@ -93,19 +101,33 @@ class ListHandler extends BaseCommand {
 
     this.output.data(displayIssues, () => {
       if (issues.length === 0) {
-        this.output.info('No issues found');
+        console.log('No issues found');
         return;
       }
 
       const colors = this.output.getColors();
-      console.log(formatIssueHeader(colors));
-      for (const issue of displayIssues) {
-        if (options.long) {
-          console.log(formatIssueLong(issue as IssueForDisplay, colors));
-        } else {
-          console.log(formatIssueLine(issue as IssueForDisplay, colors));
+
+      if (options.pretty) {
+        // Tree view: show parent-child relationships
+        const tree = buildIssueTree(
+          displayIssues as (IssueForDisplay & { parentId?: string })[],
+        );
+        const lines = renderIssueTree(tree, colors);
+        for (const line of lines) {
+          console.log(line);
+        }
+      } else {
+        // Table view: standard tabular format
+        console.log(formatIssueHeader(colors));
+        for (const issue of displayIssues) {
+          if (options.long) {
+            console.log(formatIssueLong(issue as IssueForDisplay, colors));
+          } else {
+            console.log(formatIssueLine(issue as IssueForDisplay, colors));
+          }
         }
       }
+
       console.log('');
       console.log(colors.dim(`${issues.length} issue(s)`));
     });
@@ -139,10 +161,10 @@ class ListHandler extends BaseCommand {
         return false;
       }
 
-      // Priority filter
+      // Priority filter - supports both numeric (1) and prefixed (P1) formats
       if (options.priority !== undefined) {
-        const priority = parseInt(options.priority, 10);
-        if (!isNaN(priority) && issue.priority !== priority) {
+        const priority = parsePriority(options.priority);
+        if (priority !== undefined && issue.priority !== priority) {
           return false;
         }
       }
@@ -225,6 +247,7 @@ export const listCommand = new Command('list')
   .option('--limit <n>', 'Limit results')
   .option('--count', 'Output only the count of matching issues')
   .option('--long', 'Show descriptions')
+  .option('--pretty', 'Show tree view with parent-child relationships')
   .action(async (options, command) => {
     const handler = new ListHandler(command);
     await handler.run(options);
