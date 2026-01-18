@@ -9,8 +9,15 @@ pre-commit:
   commands:
     # Auto-format with prettier (~500ms)
     format:
-      glob: '*.{js,ts,tsx,json,yaml,yml,md}'
+      glob: '*.{js,ts,tsx,json,yaml,yml}'
       run: npx prettier --write --log-level warn {staged_files}
+      stage_fixed: true
+      priority: 1
+
+    # Format markdown with flowmark (~500ms)
+    format-md:
+      glob: '*.md'
+      run: npx prettier --write --log-level warn {staged_files} && uvx flowmark@latest --auto {staged_files}
       stage_fixed: true
       priority: 1
 

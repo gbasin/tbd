@@ -10,7 +10,7 @@ allowed-tools: Bash(tbd:*), Read, Write
 If `tbd` is not installed, install it globally:
 
 ```bash
-npm install -g tbd-cli@latest
+npm install -g @jlevy/tbd@latest
 ```
 
 Confirm it is initialized in this repository:
