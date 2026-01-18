@@ -10,7 +10,7 @@
  */
 
 import { Command } from 'commander';
-import { readFile, mkdir, access, rm, rename, readdir, stat } from 'node:fs/promises';
+import { readFile, mkdir, access, rm, rename, readdir, stat, chmod } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
@@ -55,9 +55,9 @@ async function generateSkillContent(): Promise<string> {
 }
 
 /**
- * Claude Code hooks configuration
+ * Claude Code global hooks configuration (installed to ~/.claude/settings.json)
  */
-const CLAUDE_HOOKS = {
+const CLAUDE_GLOBAL_HOOKS = {
   hooks: {
     SessionStart: [
       {
@@ -73,6 +73,46 @@ const CLAUDE_HOOKS = {
     ],
   },
 };
+
+/**
+ * Claude Code project-local hooks configuration (installed to .claude/settings.json)
+ * PostToolUse hook reminds about tbd sync after git push
+ */
+const CLAUDE_PROJECT_HOOKS = {
+  hooks: {
+    PostToolUse: [
+      {
+        matcher: 'Bash',
+        hooks: [
+          {
+            type: 'command',
+            command: '"$CLAUDE_PROJECT_DIR"/.claude/hooks/tbd-sync-reminder.sh',
+          },
+        ],
+      },
+    ],
+  },
+};
+
+/**
+ * Script to remind about tbd sync after git push
+ */
+const TBD_SYNC_REMINDER_SCRIPT = `#!/bin/bash
+# Remind about tbd sync after git push
+# Installed by: tbd setup claude
+
+input=$(cat)
+command=$(echo "$input" | jq -r '.tool_input.command // empty')
+
+# Check if this is a git push command and .tbd exists
+if [[ "$command" == git\\ push* ]] || [[ "$command" == *"&& git push"* ]] || [[ "$command" == *"; git push"* ]]; then
+  if [ -d ".tbd" ]; then
+    echo "Reminder: Run 'tbd sync' to sync any issue changes to remote."
+  fi
+fi
+
+exit 0
+`;
 
 /**
  * Cursor IDE rules content
@@ -221,10 +261,14 @@ class SetupClaudeHandler extends BaseCommand {
   }
 
   private async checkClaudeSetup(settingsPath: string, skillPath: string): Promise<void> {
-    let hooksInstalled = false;
+    const cwd = process.cwd();
+    let globalHooksInstalled = false;
+    let projectHooksInstalled = false;
     let skillInstalled = false;
     let sessionStartHook = false;
     let preCompactHook = false;
+    let postToolUseHook = false;
+    let hookScriptInstalled = false;
 
     // Check hooks in global settings
     try {
@@ -244,11 +288,40 @@ class SetupClaudeHandler extends BaseCommand {
           h.hooks?.some((hook) => hook.command?.includes('tbd prime')),
         );
 
-        hooksInstalled = sessionStartHook && preCompactHook;
+        globalHooksInstalled = sessionStartHook && preCompactHook;
       }
     } catch {
       // Settings file doesn't exist
     }
+
+    // Check project-local hooks
+    const projectSettingsPath = join(cwd, '.claude', 'settings.json');
+    const hookScriptPath = join(cwd, '.claude', 'hooks', 'tbd-sync-reminder.sh');
+
+    try {
+      await access(projectSettingsPath);
+      const content = await readFile(projectSettingsPath, 'utf-8');
+      const settings = JSON.parse(content) as Record<string, unknown>;
+
+      const hooks = settings.hooks as Record<string, unknown> | undefined;
+      if (hooks) {
+        const postToolUse = hooks.PostToolUse as { hooks?: { command?: string }[] }[];
+        postToolUseHook = postToolUse?.some((h) =>
+          h.hooks?.some((hook) => hook.command?.includes('tbd-sync-reminder')),
+        );
+      }
+    } catch {
+      // Project settings file doesn't exist
+    }
+
+    try {
+      await access(hookScriptPath);
+      hookScriptInstalled = true;
+    } catch {
+      // Hook script doesn't exist
+    }
+
+    projectHooksInstalled = postToolUseHook && hookScriptInstalled;
 
     // Check skill file in project
     try {
@@ -259,25 +332,38 @@ class SetupClaudeHandler extends BaseCommand {
     }
 
     // Report status
-    const fullyInstalled = hooksInstalled && skillInstalled;
+    const fullyInstalled = globalHooksInstalled && projectHooksInstalled && skillInstalled;
 
     this.output.data(
       {
         installed: fullyInstalled,
-        hooks: {
-          installed: hooksInstalled,
+        globalHooks: {
+          installed: globalHooksInstalled,
           sessionStart: sessionStartHook,
           preCompact: preCompactHook,
+        },
+        projectHooks: {
+          installed: projectHooksInstalled,
+          postToolUse: postToolUseHook,
+          hookScript: hookScriptInstalled,
         },
         skill: { installed: skillInstalled, path: skillPath },
       },
       () => {
-        if (hooksInstalled) {
-          this.output.success('Claude Code hooks installed');
+        if (globalHooksInstalled) {
+          this.output.success('Global hooks installed (SessionStart, PreCompact)');
         } else if (sessionStartHook || preCompactHook) {
-          this.output.warn('Claude Code hooks partially configured');
+          this.output.warn('Global hooks partially configured');
         } else {
-          this.output.info('Claude Code hooks not configured');
+          this.output.info('Global hooks not configured');
+        }
+
+        if (projectHooksInstalled) {
+          this.output.success('Project hooks installed (PostToolUse sync reminder)');
+        } else if (postToolUseHook || hookScriptInstalled) {
+          this.output.warn('Project hooks partially configured');
+        } else {
+          this.output.info('Project hooks not configured');
         }
 
         if (skillInstalled) {
@@ -290,7 +376,10 @@ class SetupClaudeHandler extends BaseCommand {
   }
 
   private async removeClaudeSetup(settingsPath: string, skillPath: string): Promise<void> {
-    let removedHooks = false;
+    const cwd = process.cwd();
+    let removedGlobalHooks = false;
+    let removedProjectHooks = false;
+    let removedHookScript = false;
     let removedSkill = false;
 
     // Remove hooks from global settings
@@ -324,10 +413,58 @@ class SetupClaudeHandler extends BaseCommand {
         }
 
         await writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n');
-        removedHooks = true;
+        removedGlobalHooks = true;
       }
     } catch {
       // Settings file doesn't exist
+    }
+
+    // Remove project-local hooks
+    const projectSettingsPath = join(cwd, '.claude', 'settings.json');
+    const hookScriptPath = join(cwd, '.claude', 'hooks', 'tbd-sync-reminder.sh');
+
+    try {
+      await access(projectSettingsPath);
+      const content = await readFile(projectSettingsPath, 'utf-8');
+      const settings = JSON.parse(content) as Record<string, unknown>;
+
+      if (settings.hooks) {
+        const hooks = settings.hooks as Record<string, unknown>;
+
+        // Remove tbd PostToolUse hooks
+        const filterPostToolUse = (arr: { hooks?: { command?: string }[] }[] | undefined) => {
+          if (!arr) return undefined;
+          return arr.filter(
+            (h) => !h.hooks?.some((hook) => hook.command?.includes('tbd-sync-reminder')),
+          );
+        };
+
+        const postToolUse = filterPostToolUse(
+          hooks.PostToolUse as { hooks?: { command?: string }[] }[],
+        );
+
+        if (postToolUse?.length === 0) delete hooks.PostToolUse;
+        else if (postToolUse) hooks.PostToolUse = postToolUse;
+
+        if (Object.keys(hooks).length === 0) {
+          delete settings.hooks;
+        }
+
+        // If settings is now empty (only had hooks), we could remove the file
+        // but it's safer to keep it with empty object
+        await writeFile(projectSettingsPath, JSON.stringify(settings, null, 2) + '\n');
+        removedProjectHooks = true;
+      }
+    } catch {
+      // Project settings file doesn't exist
+    }
+
+    // Remove hook script
+    try {
+      await rm(hookScriptPath);
+      removedHookScript = true;
+    } catch {
+      // Hook script doesn't exist
     }
 
     // Remove skill file from project
@@ -339,10 +476,16 @@ class SetupClaudeHandler extends BaseCommand {
     }
 
     // Report what was removed
-    if (removedHooks) {
-      this.output.success('Removed tbd hooks from Claude Code');
+    if (removedGlobalHooks) {
+      this.output.success('Removed global hooks from Claude Code');
     } else {
-      this.output.info('No hooks to remove');
+      this.output.info('No global hooks to remove');
+    }
+
+    if (removedProjectHooks || removedHookScript) {
+      this.output.success('Removed project hooks and script');
+    } else {
+      this.output.info('No project hooks to remove');
     }
 
     if (removedSkill) {
@@ -378,11 +521,45 @@ class SetupClaudeHandler extends BaseCommand {
       const existingHooks = (settings.hooks as Record<string, unknown>) || {};
       settings.hooks = {
         ...existingHooks,
-        ...CLAUDE_HOOKS.hooks,
+        ...CLAUDE_GLOBAL_HOOKS.hooks,
       };
 
       await writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n');
-      this.output.success('Installed tbd hooks for Claude Code');
+      this.output.success('Installed global hooks for Claude Code');
+
+      // Install project-local hooks in .claude/settings.json
+      const cwd = process.cwd();
+      const projectSettingsPath = join(cwd, '.claude', 'settings.json');
+      const hookScriptPath = join(cwd, '.claude', 'hooks', 'tbd-sync-reminder.sh');
+
+      // Read existing project settings if present
+      let projectSettings: Record<string, unknown> = {};
+      try {
+        await access(projectSettingsPath);
+        const content = await readFile(projectSettingsPath, 'utf-8');
+        projectSettings = JSON.parse(content) as Record<string, unknown>;
+        // Backup existing settings
+        await writeFile(projectSettingsPath + '.bak', content);
+      } catch {
+        // File doesn't exist, start fresh
+      }
+
+      // Merge project hooks
+      const existingProjectHooks = (projectSettings.hooks as Record<string, unknown>) || {};
+      projectSettings.hooks = {
+        ...existingProjectHooks,
+        ...CLAUDE_PROJECT_HOOKS.hooks,
+      };
+
+      await mkdir(dirname(projectSettingsPath), { recursive: true });
+      await writeFile(projectSettingsPath, JSON.stringify(projectSettings, null, 2) + '\n');
+      this.output.success('Installed project hooks');
+
+      // Install hook script
+      await mkdir(dirname(hookScriptPath), { recursive: true });
+      await writeFile(hookScriptPath, TBD_SYNC_REMINDER_SCRIPT);
+      await chmod(hookScriptPath, 0o755);
+      this.output.success('Installed sync reminder hook script');
 
       // Install skill file in project
       await mkdir(dirname(skillPath), { recursive: true });
@@ -394,6 +571,7 @@ class SetupClaudeHandler extends BaseCommand {
       this.output.info('');
       this.output.info('What was installed:');
       this.output.info('  - Global hooks: SessionStart and PreCompact run `tbd prime`');
+      this.output.info('  - Project hooks: PostToolUse reminds about `tbd sync` after git push');
       this.output.info('  - Project skill: .claude/skills/tbd/SKILL.md');
       this.output.info('');
       this.output.info('Use `tbd setup claude --check` to verify installation');

@@ -82,10 +82,6 @@ Error: Not a tbd repository (run 'tbd init' or 'tbd import --from-beads' first)
 ```console
 $ tbd init --prefix=test
 ✓ Initialized tbd repository
-
-To complete setup, commit the config files:
-  git add .tbd/
-  git commit -m "Initialize tbd"
 ? 0
 ```
 

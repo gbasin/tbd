@@ -86,10 +86,6 @@ Error: No .tbd directory found. Nothing to uninstall.
 ```console
 $ tbd init --prefix=test
 ✓ Initialized tbd repository
-
-To complete setup, commit the config files:
-  git add .tbd/
-  git commit -m "Initialize tbd"
 ? 0
 ```
 
@@ -166,10 +162,6 @@ $ git branch --list tbd-sync | wc -l | tr -d ' '
 ```console
 $ tbd init --prefix=test
 ✓ Initialized tbd repository
-
-To complete setup, commit the config files:
-  git add .tbd/
-  git commit -m "Initialize tbd"
 ? 0
 ```
 

@@ -71,10 +71,6 @@ $ tbd --color=never --version
 ```console
 $ tbd --color=never init --prefix=bd
 [..] Initialized tbd repository
-
-To complete setup, commit the config files:
-  git add .tbd/
-  git commit -m "Initialize tbd"
 ? 0
 ```
 

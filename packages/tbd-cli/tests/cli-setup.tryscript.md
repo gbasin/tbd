@@ -146,10 +146,6 @@ For more on tbd, see: https://github.com/jlevy/tbd
 ```console
 $ tbd init --prefix=bd
 ✓ Initialized tbd repository
-
-To complete setup, commit the config files:
-  git add .tbd/
-  git commit -m "Initialize tbd"
 ? 0
 ```
 
@@ -229,10 +225,6 @@ Initialized empty Git repository in [..]
 ```console
 $ cd custom-repo && tbd init --prefix=bd --sync-branch custom-sync --remote upstream
 ✓ Initialized tbd repository
-
-To complete setup, commit the config files:
-  git add .tbd/
-  git commit -m "Initialize tbd"
 ? 0
 ```
 
