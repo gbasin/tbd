@@ -432,7 +432,7 @@ Examples:
 The canonical format for displaying issues in lists and tables:
 
 ```
-{ID}  {PRI}  {STATUS}  {TITLE}
+{ID}  {PRI}  {STATUS}  {KIND} {TITLE}
 ```
 
 **Column specifications:**
@@ -442,15 +442,44 @@ The canonical format for displaying issues in lists and tables:
 | ID | 12 chars | Left | Display ID | Cyan (`id`) |
 | PRI | 5 chars | Left | P-prefixed | P0=red, P1=yellow, P2+=default |
 | STATUS | 16 chars | Left | Icon + word | Per status color |
-| TITLE | Remaining | Left | Plain text | Default |
+| KIND+TITLE | Remaining | Left | `[type]` prefix + title | Kind=dim, title=default |
 
 **Example:**
 ```
 ID          PRI  STATUS           TITLE
-bd-a1b2     P0   ● blocked        Fix authentication timeout
-bd-c3d4     P1   ◐ in_progress    Add dark mode support
-bd-e5f6     P2   ○ open           Update documentation
-bd-g7h8     P3   ✓ closed         Initial setup
+bd-a1b2     P0   ● blocked        [bug] Fix authentication timeout
+bd-c3d4     P1   ◐ in_progress    [feature] Add dark mode support
+bd-e5f6     P2   ○ open           [task] Update documentation
+bd-g7h8     P3   ✓ closed         [epic] Initial setup
+```
+
+**Note:** KIND is displayed as a bracketed prefix to the title in the same column, not a
+separate column. This is more space-efficient while still clearly showing the issue type.
+
+#### Kind Display Format
+
+**Rule**: Always display kind/type in square brackets with dim color.
+
+| Kind | Display | Color |
+| --- | --- | --- |
+| `bug` | `[bug]` | Dim |
+| `feature` | `[feature]` | Dim |
+| `task` | `[task]` | Dim |
+| `epic` | `[epic]` | Dim |
+| `chore` | `[chore]` | Dim |
+
+**Rationale:**
+- Brackets visually distinguish kind from other fields
+- Dim color keeps focus on title while still showing type
+- Consistent with label display style `[label1, label2]`
+- Matches familiar patterns from other issue trackers
+
+**Implementation:**
+```typescript
+/** Format kind for display - always in brackets, dim color */
+export function formatKind(kind: string): string {
+  return `[${kind}]`;
+}
 ```
 
 #### Compact Issue Line (References)
@@ -476,29 +505,29 @@ Blocks:
 - ID in cyan
 - Status icon only (no word) - colored per status
 - Single space between elements
+- Kind NOT shown in compact format (space-limited context)
 - Used for secondary/nested issue references
 
-#### Extended Issue Line (Verbose)
+#### Extended Issue Line (with Assignee)
 
-For `--verbose` mode or detailed views showing additional metadata:
+For detailed views showing assignee information:
 
 ```
-{ID}  {PRI}  {STATUS}  {KIND}  {ASSIGNEE}  {TITLE}
+{ID}  {PRI}  {STATUS}  {ASSIGNEE}  {KIND} {TITLE}
 ```
 
-**Additional columns:**
+**Additional column:**
 
 | Column | Width | Alignment | Format | Color |
 | --- | --- | --- | --- | --- |
-| KIND | 9 chars | Left | Issue type | Dim |
 | ASSIGNEE | 10 chars | Left | @username or - | Default |
 
 **Example:**
 ```
-ID          PRI  STATUS           KIND      ASSIGNEE    TITLE
-bd-a1b2     P0   ● blocked        bug       @alice      Fix authentication timeout
-bd-c3d4     P1   ◐ in_progress    feature   @bob        Add dark mode support
-bd-e5f6     P2   ○ open           task      -           Update documentation
+ID          PRI  STATUS           ASSIGNEE    TITLE
+bd-a1b2     P0   ● blocked        @alice      [bug] Fix authentication timeout
+bd-c3d4     P1   ◐ in_progress    @bob        [feature] Add dark mode support
+bd-e5f6     P2   ○ open           -           [task] Update documentation
 ```
 
 #### Issue Line with Labels
@@ -506,19 +535,123 @@ bd-e5f6     P2   ○ open           task      -           Update documentation
 When labels are relevant (search results, filtered views):
 
 ```
-{ID}  {PRI}  {STATUS}  {TITLE}  [{LABELS}]
+{ID}  {PRI}  {STATUS}  {KIND} {TITLE}  [{LABELS}]
 ```
 
 **Example:**
 ```
-bd-a1b2     P0   ● blocked        Fix authentication timeout  [urgent, security]
-bd-c3d4     P1   ◐ in_progress    Add dark mode support       [ui]
+bd-a1b2     P0   ● blocked        [bug] Fix auth timeout  [urgent, security]
+bd-c3d4     P1   ◐ in_progress    [feature] Add dark mode  [ui]
 ```
 
 **Rules:**
 - Labels in square brackets, comma-separated
 - Labels in magenta (`label`) color
 - Only show if issue has labels
+- Labels appear AFTER title (kind prefix appears BEFORE title)
+
+#### Long Format (`--long`)
+
+The `--long` flag shows the first part of the issue description on a second line,
+providing more context without requiring `tbd show`.
+
+```
+{ID}  {PRI}  {STATUS}  {KIND} {TITLE}
+      {DESCRIPTION_EXCERPT}…
+```
+
+**Example:**
+```
+bd-a1b2     P0   ● blocked        [bug] Fix authentication timeout
+      Users report 30s delays when logging in. Investigate connection
+      pooling and add retry logic with exponential backoff…
+
+bd-c3d4     P1   ◐ in_progress    [feature] Add dark mode support
+      Implement system-preference-aware dark mode toggle. Should persist
+      user choice in localStorage and sync across devices…
+
+bd-e5f6     P2   ○ open           [task] Update documentation
+      Add examples for new CLI commands and update screenshots for v2…
+```
+
+**Rules:**
+- Description starts on second line, indented 6 spaces (aligns under title start)
+- Description in dim color
+- Text wraps at terminal width with consistent indentation
+- Maximum 2 lines for description (truncate with `…` U+2026 if longer)
+- If no description, show only the single issue line (no blank line)
+- Word-wrap on word boundaries, never mid-word
+- Works with both table format and `--pretty` tree format
+
+**Word Wrapping Algorithm:**
+```typescript
+/** Wrap text to fit within width, with indentation for continuation lines */
+export function wrapDescription(
+  description: string,
+  maxWidth: number,
+  indent: number = 6,
+): string[] {
+  const firstLineWidth = maxWidth;
+  const continuationWidth = maxWidth - indent;
+  const indentStr = ' '.repeat(indent);
+
+  // Clean and truncate description
+  const cleaned = description
+    .replace(/\n+/g, ' ')  // Replace newlines with spaces
+    .replace(/\s+/g, ' ')  // Collapse whitespace
+    .trim();
+
+  const words = cleaned.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+  let isFirstLine = true;
+
+  for (const word of words) {
+    const lineWidth = isFirstLine ? firstLineWidth : continuationWidth;
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+
+    if (testLine.length <= lineWidth) {
+      currentLine = testLine;
+    } else {
+      if (currentLine) {
+        lines.push(isFirstLine ? indentStr + currentLine : indentStr + currentLine);
+        isFirstLine = false;
+      }
+      currentLine = word;
+    }
+
+    // Stop at 2 lines
+    if (lines.length >= 2) break;
+  }
+
+  // Add final line (use truncate() utility for ellipsis)
+  if (currentLine && lines.length < 2) {
+    const needsTruncation = words.length > lines.length;
+    lines.push(indentStr + (needsTruncation ? truncate(currentLine, lineWidth) : currentLine));
+  }
+
+  return lines;
+}
+```
+
+**Long Format with Labels:**
+```
+bd-a1b2     P0   ● blocked        [bug] Fix auth timeout  [urgent, security]
+      Users report 30s delays when logging in. Investigate connection…
+```
+
+**Long Format with `--pretty` (Tree View):**
+```
+bd-f14c  P2  ○ open  [feature] Add OAuth support
+      Implement OAuth 2.0 flow with support for Google, GitHub, and
+      custom OIDC providers. Should handle token refresh…
+├── bd-c3d4  P2  ● blocked  [task] Write OAuth tests
+│       Need comprehensive test coverage for token exchange, refresh,
+│       and error handling scenarios…
+└── bd-e5f6  P2  ○ open  [task] Update OAuth docs
+        Document OAuth configuration options and provide examples for
+        each supported provider…
+```
 
 #### Single Issue Reference (Inline)
 
@@ -535,6 +668,10 @@ For mentioning an issue inline in messages or logs:
 • Skipped bd-e5f6 (Update documentation) - already up to date
 ```
 
+**Rules:**
+- Kind NOT shown in inline references (keep concise)
+- Used in success/notice/error messages
+
 #### Formatting Utility Functions
 
 **File(s)**: `packages/tbd-cli/src/cli/lib/issueFormat.ts`
@@ -547,13 +684,16 @@ export const ISSUE_COLUMNS = {
   ID: 12,
   PRIORITY: 5,
   STATUS: 16,
-  KIND: 9,
-  ASSIGNEE: 10,
+  ASSIGNEE: 10,  // Only used in extended format
 } as const;
+// Note: KIND is not a separate column - it's a prefix to TITLE
 
-/** Format a standard issue line for list/table view */
+/** Format kind for display - always in brackets */
+export function formatKind(kind: string): string;
+
+/** Format a standard issue line for list/table view (includes kind) */
 export function formatIssueLine(
-  issue: { id: string; priority: number; status: string; title: string },
+  issue: { id: string; priority: number; status: string; kind: string; title: string },
   colors: ColorFunctions,
 ): string;
 
@@ -572,11 +712,25 @@ export function formatIssueInline(
 /** Format table header row */
 export function formatIssueHeader(colors: ColorFunctions): string;
 
-/** Format extended issue line with kind and assignee */
+/** Format extended issue line with assignee */
 export function formatIssueLineExtended(
   issue: { id: string; priority: number; status: string; kind: string; assignee?: string; title: string },
   colors: ColorFunctions,
 ): string;
+
+/** Format issue line with description for --long mode */
+export function formatIssueLong(
+  issue: { id: string; priority: number; status: string; kind: string; title: string; description?: string },
+  colors: ColorFunctions,
+  terminalWidth: number,
+): string[];
+
+/** Wrap description text for --long mode */
+export function wrapDescription(
+  description: string,
+  maxWidth: number,
+  indent?: number,
+): string[];
 ```
 
 **Usage example:**
@@ -586,12 +740,20 @@ import {
   formatIssueHeader,
   formatIssueCompact,
   formatIssueInline,
+  formatIssueLong,
 } from '../lib/issueFormat.js';
 
-// List view
+// List view (standard)
 console.log(formatIssueHeader(colors));
 for (const issue of issues) {
   console.log(formatIssueLine(issue, colors));
+}
+
+// List view (--long mode)
+console.log(formatIssueHeader(colors));
+for (const issue of issues) {
+  const lines = formatIssueLong(issue, colors, process.stdout.columns ?? 80);
+  lines.forEach(line => console.log(line));
 }
 
 // Dependency list (compact)
@@ -610,9 +772,9 @@ The standard issue table format (see Issue Line Format above):
 
 ```
 ID          PRI  STATUS           TITLE
-bd-a1b2     P0   ● blocked        Fix authentication timeout
-bd-c3d4     P1   ◐ in_progress    Add dark mode support
-bd-e5f6     P2   ○ open           Update documentation
+bd-a1b2     P0   ● blocked        [bug] Fix authentication timeout
+bd-c3d4     P1   ◐ in_progress    [feature] Add dark mode support
+bd-e5f6     P2   ○ open           [task] Update documentation
 
 3 issue(s)
 ```
@@ -630,13 +792,13 @@ bd-e5f6     P2   ○ open           Update documentation
 The `--pretty` flag displays issues in a tree format showing parent-child relationships:
 
 ```
-bd-1875  P1  ✓ closed  epic  Phase 24 Epic: Installation and Agent Integration
-├── bd-1876  P1  ✓ closed  task  Implement tbd prime command
-└── bd-1877  P1  ✓ closed  task  Implement tbd setup claude command
-bd-a1b2  P1  ◐ in_progress  bug  Fix authentication bug
-bd-f14c  P2  ○ open  feature  Add OAuth support
-├── bd-c3d4  P2  ● blocked  task  Write OAuth tests
-└── bd-e5f6  P2  ○ open  task  Update OAuth docs
+bd-1875  P1  ✓ closed  [epic] Phase 24 Epic: Installation and Agent Integration
+├── bd-1876  P1  ✓ closed  [task] Implement tbd prime command
+└── bd-1877  P1  ✓ closed  [task] Implement tbd setup claude command
+bd-a1b2  P1  ◐ in_progress  [bug] Fix authentication bug
+bd-f14c  P2  ○ open  [feature] Add OAuth support
+├── bd-c3d4  P2  ● blocked  [task] Write OAuth tests
+└── bd-e5f6  P2  ○ open  [task] Update OAuth docs
 
 7 issue(s)
 ```
@@ -649,8 +811,7 @@ bd-f14c  P2  ○ open  feature  Add OAuth support
 | ID | cyan | Display ID |
 | Priority | P0=red, P1=yellow, P2+=default | Always with P prefix |
 | Status | per status | Icon + word together |
-| Type | dim | Issue kind |
-| Title | default | Issue title |
+| Kind+Title | kind=dim, title=default | `[kind]` prefix + title |
 
 **Tree characters:**
 
@@ -1170,6 +1331,126 @@ console.log(formatStatus('in_progress')); // "◐ in_progress"
 console.log(formatStatus('open'));        // "○ open"
 console.log(formatStatus('closed'));      // "✓ closed"
 ```
+
+#### 2c. Text Truncation Utility
+
+**File(s)**: `packages/tbd-cli/src/lib/truncate.ts`
+
+A standalone, reusable utility for truncating text with Unicode ellipsis.
+This utility MUST be used everywhere text needs truncation for consistent behavior.
+
+```typescript
+/** Unicode ellipsis character */
+export const ELLIPSIS = '…';  // U+2026
+
+/**
+ * Truncate text to fit within maxLength, adding ellipsis if needed.
+ * Truncates on word boundaries when possible.
+ *
+ * @param text - The text to truncate
+ * @param maxLength - Maximum length including ellipsis
+ * @param options - Truncation options
+ * @returns Truncated text with ellipsis if truncated
+ */
+export function truncate(
+  text: string,
+  maxLength: number,
+  options?: {
+    /** Truncate at word boundaries (default: true) */
+    wordBoundary?: boolean;
+    /** Custom ellipsis character (default: '…') */
+    ellipsis?: string;
+  },
+): string {
+  const { wordBoundary = true, ellipsis = ELLIPSIS } = options ?? {};
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  const truncateAt = maxLength - ellipsis.length;
+  if (truncateAt <= 0) {
+    return ellipsis.slice(0, maxLength);
+  }
+
+  let truncated = text.slice(0, truncateAt);
+
+  // Truncate at word boundary if requested
+  if (wordBoundary) {
+    const lastSpace = truncated.lastIndexOf(' ');
+    if (lastSpace > truncateAt * 0.5) {  // Only if we don't lose too much
+      truncated = truncated.slice(0, lastSpace);
+    }
+  }
+
+  return truncated.trimEnd() + ellipsis;
+}
+
+/**
+ * Truncate text from the middle, keeping start and end visible.
+ * Useful for paths and IDs.
+ *
+ * @param text - The text to truncate
+ * @param maxLength - Maximum length including ellipsis
+ * @returns Truncated text with ellipsis in middle
+ */
+export function truncateMiddle(
+  text: string,
+  maxLength: number,
+): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  const ellipsis = ELLIPSIS;
+  const charsToShow = maxLength - ellipsis.length;
+  if (charsToShow <= 0) {
+    return ellipsis.slice(0, maxLength);
+  }
+
+  const frontChars = Math.ceil(charsToShow / 2);
+  const backChars = Math.floor(charsToShow / 2);
+
+  return text.slice(0, frontChars) + ellipsis + text.slice(-backChars);
+}
+```
+
+**Usage:**
+```typescript
+import { truncate, truncateMiddle, ELLIPSIS } from '../lib/truncate.js';
+
+// Basic truncation (word boundary by default)
+truncate('Fix authentication timeout issues', 20);
+// → "Fix authentication…"
+
+// Truncation without word boundary
+truncate('Fix authentication timeout', 20, { wordBoundary: false });
+// → "Fix authenticatio…"
+
+// Middle truncation (for paths/IDs)
+truncateMiddle('is-01hx5zzkbkactav9wevgemmvrz', 15);
+// → "is-01h…emmvrz"
+
+// Check if truncation happened
+const result = truncate(text, 50);
+const wasTruncated = result.endsWith(ELLIPSIS);
+```
+
+**Rules:**
+- Always use `…` (U+2026) - never use `...` (three dots)
+- Prefer word boundary truncation for natural text
+- Use middle truncation for paths, IDs, and technical strings
+- All truncation in the CLI MUST use this utility (no ad-hoc truncation)
+
+**Test Coverage Required:**
+- Empty string handling
+- String shorter than max (no truncation)
+- String exactly at max (no truncation)
+- String longer than max (truncation)
+- Word boundary truncation preserves whole words
+- Very short maxLength edge cases
+- Unicode character handling
+- Middle truncation with even/odd lengths
 
 #### 3. CommandContext
 

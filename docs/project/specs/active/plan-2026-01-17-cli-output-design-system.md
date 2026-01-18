@@ -319,7 +319,7 @@ word-only.
 
 **Standard Line (list/table view):**
 ```
-{ID}  {PRI}  {STATUS}  {TITLE}
+{ID}  {PRI}  {STATUS}  {KIND} {TITLE}
 ```
 
 | Column | Width | Format | Color |
@@ -327,18 +327,22 @@ word-only.
 | ID | 12 chars | Display ID | Cyan |
 | PRI | 5 chars | P-prefixed | P0=red, P1=yellow |
 | STATUS | 16 chars | Icon + word | Per status |
-| TITLE | Remaining | Plain text | Default |
+| KIND+TITLE | Remaining | `[kind]` prefix + title | Kind=dim, title=default |
 
 **Example:**
 ```
-bd-a1b2     P0   ● blocked        Fix authentication timeout
-bd-c3d4     P1   ◐ in_progress    Add dark mode support
+bd-a1b2     P0   ● blocked        [bug] Fix authentication timeout
+bd-c3d4     P1   ◐ in_progress    [feature] Add dark mode support
 ```
+
+**Kind Display:** Always show kind in brackets with dim color: `[bug]`, `[feature]`,
+`[task]`, `[epic]`, `[chore]`
 
 **Compact Line (references, dependencies):**
 ```
 {ID} {STATUS_ICON} {TITLE}
 ```
+(Kind NOT shown in compact format)
 
 **Example:**
 ```
@@ -346,21 +350,41 @@ Blocked by:
   bd-a1b2 ● Fix authentication timeout
 ```
 
+**Long Format (`--long`):**
+Shows description on second line, indented 6 spaces, dim color, max 2 lines.
+Truncated with Unicode ellipsis `…` (U+2026):
+```
+bd-a1b2     P0   ● blocked        [bug] Fix authentication timeout
+      Users report 30s delays when logging in. Investigate connection
+      pooling and add retry logic with exponential backoff…
+```
+
 **Inline Reference (messages):**
 ```
 {ID} ({TITLE})
 ```
+(Kind NOT shown in inline format)
 
 **Example:**
 ```
 ✓ Created issue bd-a1b2 (Fix authentication timeout)
 ```
 
-**Required utilities** (in `cli/lib/issueFormat.ts`):
-- `formatIssueLine()` - Standard table row
-- `formatIssueCompact()` - Compact reference
-- `formatIssueInline()` - Inline mention
+**Required utilities:**
+
+*Truncation utility* (in `lib/truncate.ts`):
+- `ELLIPSIS` - Unicode ellipsis constant (`…` U+2026)
+- `truncate()` - Truncate text with ellipsis, word boundary aware
+- `truncateMiddle()` - Truncate from middle (for paths/IDs)
+
+*Issue formatting* (in `cli/lib/issueFormat.ts`):
+- `formatKind()` - Format kind in brackets
+- `formatIssueLine()` - Standard table row (includes kind)
+- `formatIssueCompact()` - Compact reference (no kind)
+- `formatIssueInline()` - Inline mention (no kind)
+- `formatIssueLong()` - Long format with description (uses truncate)
 - `formatIssueHeader()` - Table header
+- `wrapDescription()` - Word-wrap description text (uses truncate)
 - `ISSUE_COLUMNS` - Column width constants
 
 ### 2.5 Verbose vs Debug Mode
@@ -625,19 +649,31 @@ data<T>(data: T, textFormatter?: (data: T) => void): void {
 - [ ] Create `getStatusIcon()` utility for status icons
 - [ ] Update all commands to use `formatPriority()` for display
 - [ ] Update all commands to use `formatStatus()` for display
+- [ ] Create `lib/truncate.ts` - standalone text truncation utility:
+  - [ ] `ELLIPSIS` constant (`…` U+2026) - never use `...`
+  - [ ] `truncate(text, maxLength, options?)` - truncate with word boundary support
+  - [ ] `truncateMiddle(text, maxLength)` - truncate from middle (for paths/IDs)
+  - [ ] Unit tests for all edge cases (empty, exact length, unicode, etc.)
 - [ ] Create `cli/lib/issueFormat.ts` with shared issue line formatting utilities:
-  - [ ] `ISSUE_COLUMNS` constants (ID=12, PRIORITY=5, STATUS=16, KIND=9, ASSIGNEE=10)
-  - [ ] `formatIssueLine()` - Standard table row format
-  - [ ] `formatIssueCompact()` - Compact reference format (ID + icon + title)
-  - [ ] `formatIssueInline()` - Inline mention format (ID + title in parens)
+  - [ ] `ISSUE_COLUMNS` constants (ID=12, PRIORITY=5, STATUS=16, ASSIGNEE=10)
+  - [ ] `formatKind()` - Format kind in brackets `[bug]`, `[feature]`, etc.
+  - [ ] `formatIssueLine()` - Standard table row with `[kind]` prefix on title
+  - [ ] `formatIssueCompact()` - Compact reference format (ID + icon + title, no kind)
+  - [ ] `formatIssueInline()` - Inline mention format (ID + title in parens, no kind)
   - [ ] `formatIssueHeader()` - Table header row
-  - [ ] `formatIssueLineExtended()` - Extended format with kind/assignee
+  - [ ] `formatIssueLineExtended()` - Extended format with assignee
+  - [ ] `formatIssueLong()` - Long format with wrapped description on 2nd line
+  - [ ] `wrapDescription()` - Word-wrap description text (6-space indent, max 2 lines)
+- [ ] Add `--long` flag to `list` command for showing descriptions
+- [ ] Add `--long` flag to `ready` command for showing descriptions
+- [ ] Add `--long` flag to `blocked` command for showing descriptions
 - [ ] Update `list.ts` to use `formatIssueLine()` and `formatIssueHeader()`
 - [ ] Update `show.ts` to use issue formatting utilities for dependencies
 - [ ] Update `ready.ts` to use `formatIssueLine()`
 - [ ] Update `blocked.ts` to use `formatIssueLine()` and `formatIssueCompact()`
 - [ ] Update `search.ts` to use `formatIssueLine()`
 - [ ] Update success/notice messages to use `formatIssueInline()` consistently
+- [ ] Ensure `--long` works with `--pretty` tree view (proper indentation)
 
 #### 2.3 API Design Principles
 
@@ -695,8 +731,12 @@ data<T>(data: T, textFormatter?: (data: T) => void): void {
 7. Priorities always display as P0-P4 (never raw numbers)
 8. Icons used consistently: ✓ for success, ✗ for error, ⚠ for warning
 9. Status always displays with icon + word (○ open, ◐ in_progress, ● blocked, ✓ closed)
-10. Sync operations show immediate progress (spinner before any delay)
-11. Sync summaries show new/updated/deleted tallies (not vague “pushed/pulled”)
+10. Kind always displayed in brackets with dim color: `[bug]`, `[feature]`, `[task]`, `[epic]`
+11. Kind shown as prefix to title in standard format, omitted in compact/inline formats
+12. `--long` mode shows wrapped description on second line (6-space indent, max 2 lines)
+13. `--long` works correctly with `--pretty` tree view
+14. Sync operations show immediate progress (spinner before any delay)
+15. Sync summaries show new/updated/deleted tallies (not vague "pushed/pulled")
 
 **Testing Approach:**
 

@@ -400,8 +400,9 @@ tbd list --all
 ```
 
 The `tbd beads --disable` command safely moves all Beads files to `.beads-disabled/`
-including `.beads/`, `.beads-hooks/`, Cursor rules, and removes bd hooks from Claude
-settings. This preserves data for potential rollback.
+including `.beads/`, `.beads-hooks/`, Cursor rules, removes bd hooks from Claude
+settings, and removes beads merge driver lines from `.gitattributes`. This preserves
+data for potential rollback.
 
 Import preserves:
 - Issue IDs (numeric portion preserved, prefix from config)

@@ -3551,11 +3551,12 @@ The command safely moves all Beads files to `.beads-disabled/` for potential rol
 
 | Source | Destination | Description |
 | --- | --- | --- |
-| `.beads/` | `.beads-disabled/beads/` | Beads data and config |
-| `.beads-hooks/` | `.beads-disabled/beads-hooks/` | Beads git hooks |
-| `.cursor/rules/beads.mdc` | `.beads-disabled/cursor-rules-beads.mdc` | Cursor rules |
-| `.claude/settings.local.json` | `.beads-disabled/claude-settings.local.json` | Backup (bd hooks removed) |
-| `AGENTS.md` | `.beads-disabled/AGENTS.md.backup` | Backup (Beads section removed) |
+| `.beads/` | `.beads-disabled/.beads/` | Beads data and config |
+| `.beads-hooks/` | `.beads-disabled/.beads-hooks/` | Beads git hooks |
+| `.cursor/rules/beads.mdc` | `.beads-disabled/.cursor/rules/beads.mdc` | Cursor rules |
+| `.claude/settings.local.json` | `.beads-disabled/.claude/settings.local.json` | Backup (bd hooks removed) |
+| `AGENTS.md` | `.beads-disabled/AGENTS.md` | Backup (Beads section removed) |
+| `.gitattributes` | `.beads-disabled/.gitattributes` | Backup (beads merge driver lines removed) |
 
 To restore Beads, move files back from `.beads-disabled/`.
 
