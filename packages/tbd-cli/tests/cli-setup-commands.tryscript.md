@@ -418,7 +418,7 @@ The check command should always exit with code 0, regardless of installation sta
 
 ```console
 $ tbd setup claude --check
-[..]
+...
 ? 0
 ```
 
