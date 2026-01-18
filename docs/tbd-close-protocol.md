@@ -1,11 +1,15 @@
 # Session Close Protocol
 
-Before completing work, run this checklist:
+**CRITICAL**: Before saying “done” or “complete”, you MUST run this checklist:
 
-1. `tbd close <id>` - Close any completed issues
-2. `tbd sync` - Commit tbd changes to sync branch
-3. `git add` + `git commit` - Commit code changes
-4. `tbd sync` - Commit any new tbd changes
-5. `git push` - Push to remote
+```
+[ ] 1. git add + git commit    (stage and commit code changes)
+[ ] 2. git push                (push to remote)
+[ ] 3. gh pr checks            (verify CI is passing)
+[ ] 4. tbd close/update <id>   (update status for issues worked on)
+[ ] 5. tbd sync                (sync tbd changes to git)
+```
 
-Work is not done until issues are closed and everything is pushed.
+**NEVER skip this.** Work is not done until pushed, CI passes, and tbd is synced.
+
+> **Tip**: Run `tbd close-protocol` anytime for a reminder of this checklist.

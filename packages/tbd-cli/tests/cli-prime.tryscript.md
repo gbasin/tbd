@@ -75,12 +75,16 @@ $ tbd init --prefix=test
 # Test: Prime outputs workflow context in initialized project
 
 ```console
-$ tbd prime | head -5
-# tbd Workflow Context
+$ tbd prime | head -1
+# tbd Workflow
+? 0
+```
 
-> **Context Recovery**: Run `tbd prime` after compaction, clear, or new session
-> Hooks auto-call this in Claude Code when .tbd/ detected
+# Test: Prime contains context recovery note
 
+```console
+$ tbd prime | grep -c "Context Recovery"
+1
 ? 0
 ```
 
@@ -125,10 +129,8 @@ $ tbd prime | grep -c "Finding Work"
 The --export flag outputs the default content, ignoring any custom PRIME.md.
 
 ```console
-$ tbd prime --export | head -3
-# tbd Workflow Context
-
-> **Context Recovery**: Run `tbd prime` after compaction, clear, or new session
+$ tbd prime --export | head -1
+# tbd Workflow
 ? 0
 ```
 
@@ -154,10 +156,8 @@ $ tbd prime | head -1
 # Test: Prime --export ignores custom PRIME.md
 
 ```console
-$ tbd prime --export | head -3
-# tbd Workflow Context
-
-> **Context Recovery**: Run `tbd prime` after compaction, clear, or new session
+$ tbd prime --export | head -1
+# tbd Workflow
 ? 0
 ```
 

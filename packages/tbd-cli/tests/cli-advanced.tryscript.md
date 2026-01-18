@@ -468,25 +468,28 @@ Usage: tbd dep [options] [command]
 Manage issue dependencies
 
 Options:
-  -h, --help            display help for command
+  -h, --help                   display help for command
 
 Global Options:
-  --version             Show version number
-  --dry-run             Show what would be done without making changes
-  --verbose             Enable verbose output
-  --quiet               Suppress non-essential output
-  --json                Output as JSON
-  --color <when>        Colorize output: auto, always, never (default: "auto")
-  --non-interactive     Disable all prompts, fail if input required
-  --yes                 Assume yes to confirmation prompts
-  --no-sync             Skip automatic sync after write operations
-  --debug               Show internal IDs alongside public IDs for debugging
+  --version                    Show version number
+  --dry-run                    Show what would be done without making changes
+  --verbose                    Enable verbose output
+  --quiet                      Suppress non-essential output
+  --json                       Output as JSON
+  --color <when>               Colorize output: auto, always, never (default:
+                               "auto")
+  --non-interactive            Disable all prompts, fail if input required
+  --yes                        Assume yes to confirmation prompts
+  --no-sync                    Skip automatic sync after write operations
+  --debug                      Show internal IDs alongside public IDs for
+                               debugging
 
 Commands:
-  add <id> <target>     Add a blocks dependency
-  remove <id> <target>  Remove a blocks dependency
-  list <id>             List dependencies for an issue
-  help [command]        display help for command
+  add <issue> <depends-on>     Add dependency (issue depends on depends-on)
+  remove <issue> <depends-on>  Remove dependency (issue no longer depends on
+                               depends-on)
+  list <id>                    List dependencies for an issue
+  help [command]               display help for command
 
 For more on tbd, see: https://github.com/jlevy/tbd
 ? 0

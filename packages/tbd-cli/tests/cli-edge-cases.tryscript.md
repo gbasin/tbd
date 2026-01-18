@@ -113,7 +113,7 @@ $ echo -e "Line 1\nLine 2\nLine 3" > /tmp/multi.txt && tbd create "Multi-line" -
 # Test: Invalid issue ID format
 
 ```console
-$ tbd show "invalid!!!" 2>&1 | head -1
+$ tbd show "invalid!!!" 2>&1
 Error: Issue not found: invalid!!!
 ? 1
 ```
@@ -121,7 +121,7 @@ Error: Issue not found: invalid!!!
 # Test: Non-existent short ID
 
 ```console
-$ tbd show "zzzz" 2>&1 | head -1
+$ tbd show "zzzz" 2>&1
 Error: Issue not found: zzzz
 ? 1
 ```
@@ -129,7 +129,7 @@ Error: Issue not found: zzzz
 # Test: Invalid priority value
 
 ```console
-$ tbd create "Test" --priority=10 2>&1 | head -1
+$ tbd create "Test" --priority=10 2>&1
 Error: Invalid priority: 10. Must be 0-4
 ? 2
 ```
@@ -137,7 +137,7 @@ Error: Invalid priority: 10. Must be 0-4
 # Test: Invalid type value
 
 ```console
-$ tbd create "Test" --type=invalid 2>&1 | head -1
+$ tbd create "Test" --type=invalid 2>&1
 Error: Invalid type: invalid. Must be: bug, feature, task, epic, chore
 ? 2
 ```
@@ -145,7 +145,7 @@ Error: Invalid type: invalid. Must be: bug, feature, task, epic, chore
 # Test: Empty title error
 
 ```console
-$ tbd create "" 2>&1 | head -1
+$ tbd create "" 2>&1
 Error: Title is required. Use: tbd create "Issue title"
 ? 2
 ```
@@ -153,7 +153,7 @@ Error: Title is required. Use: tbd create "Issue title"
 # Test: Update non-existent issue
 
 ```console
-$ tbd update bd-0000 --priority=1 2>&1 | head -1
+$ tbd update bd-0000 --priority=1 2>&1
 Error: Issue not found: bd-0000
 ? 1
 ```
@@ -161,7 +161,7 @@ Error: Issue not found: bd-0000
 # Test: Close non-existent issue
 
 ```console
-$ tbd close bd-0000 2>&1 | head -1
+$ tbd close bd-0000 2>&1
 Error: Issue not found: bd-0000
 ? 1
 ```
@@ -174,7 +174,7 @@ $ tbd list --json | node -e "d=JSON.parse(require('fs').readFileSync(0,'utf8'));
 ```
 
 ```console
-$ ID=$(cat /tmp/self_id.txt) && tbd dep add $ID $ID 2>&1 | head -1
+$ ID=$(cat /tmp/self_id.txt) && tbd dep add $ID $ID 2>&1
 Error: Issue cannot depend on itself
 ? 2
 ```
