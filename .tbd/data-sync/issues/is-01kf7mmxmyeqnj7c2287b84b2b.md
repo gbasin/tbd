@@ -1,4 +1,6 @@
 ---
+close_reason: Implemented showGitLogDebug helper in sync.ts - shows git log --stat after push/pull in debug mode
+closed_at: 2026-01-18T05:46:15.152Z
 created_at: 2026-01-18T04:08:42.397Z
 dependencies:
   - target: is-01kf7mmy2wq0qgmaxj55vtsvsc
@@ -7,11 +9,11 @@ id: is-01kf7mmxmyeqnj7c2287b84b2b
 kind: task
 labels: []
 priority: 2
-status: open
+status: closed
 title: Debug mode git log output
 type: is
-updated_at: 2026-01-18T04:11:05.790Z
-version: 4
+updated_at: 2026-01-18T05:46:15.153Z
+version: 5
 ---
 Show git log --stat in debug mode after sync:
 - After push: git log --stat origin/tbd-sync@{1}..origin/tbd-sync

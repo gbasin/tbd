@@ -1,4 +1,6 @@
 ---
+close_reason: Audited all commands for design system compliance. Fixed stats.ts priority display to use P0-P4 format instead of raw numbers.
+closed_at: 2026-01-18T05:49:15.508Z
 created_at: 2026-01-18T04:08:42.843Z
 dependencies:
   - target: is-01kf7mmygxzyd03r6wq568tqef
@@ -9,11 +11,11 @@ id: is-01kf7mmy2wq0qgmaxj55vtsvsc
 kind: task
 labels: []
 priority: 2
-status: open
+status: closed
 title: Audit commands for design system compliance
 type: is
-updated_at: 2026-01-18T04:11:08.683Z
-version: 9
+updated_at: 2026-01-18T05:49:15.509Z
+version: 10
 ---
 Audit all commands for design system compliance:
 - Audit list.ts for compliance
