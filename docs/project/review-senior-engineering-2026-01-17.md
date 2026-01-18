@@ -33,12 +33,12 @@
 
 | # | Issue | Bug | Severity | Location | Status |
 |---|-------|-----|----------|----------|--------|
-| 1 | `tbd-6ijk` | Exit codes return 0 on errors | **Critical** | `src/cli/commands/*.ts` | Open |
-| 2 | `tbd-ipm3` | Dependency direction semantics confusing | Medium | `src/cli/commands/dep.ts` | Open |
-| 3 | `tbd-21kp` | Search outputs message with --quiet | Low | `src/cli/commands/search.ts` | Open |
-| 4 | `tbd-sr6h` | Doctor warns on empty issues dir | Low | `src/cli/commands/doctor.ts` | Open |
-| 5 | `tbd-eczs` | Import changes ID prefix | Medium | `src/cli/commands/import.ts` | Open |
-| 6 | `tbd-zosy` | Errors not JSON with --json flag | Medium | `src/cli/lib/output.ts` | Open |
+| 1 | `tbd-wyy6` | Exit codes return 0 on errors | **Critical** | `src/cli/commands/*.ts` | Open |
+| 2 | `tbd-sefe` | Dependency direction semantics confusing | Medium | `src/cli/commands/dep.ts` | Open |
+| 3 | `tbd-kylk` | Search outputs message with --quiet | Low | `src/cli/commands/search.ts` | Open |
+| 4 | `tbd-b94e` | Doctor warns on empty issues dir | Low | `src/cli/commands/doctor.ts` | Open |
+| 5 | `tbd-5dfm` | Import changes ID prefix | Medium | `src/cli/commands/import.ts` | Open |
+| 6 | `tbd-ig1p` | Errors not JSON with --json flag | Medium | `src/cli/lib/output.ts` | Open |
 
 ---
 
@@ -48,41 +48,31 @@
 
 | # | Issue | Enhancement | Category |
 |---|-------|-------------|----------|
-| E1 | `tbd-6ijk` | Fix exit codes (Bug #1) | Bug Fix |
-| E2 | `tbd-cp7s` | Publish to npm | Release |
-| E3 | `tbd-l3rp` | Add Git 2.42+ version check | Robustness |
+| E1 | `tbd-wyy6` | Fix exit codes (Bug #1) | Bug Fix |
+| E2 | `tbd-ys08` | Publish to npm | Release |
+| E3 | `tbd-ywil` | Add Git 2.42+ version check | Robustness |
 
 ### Priority: High (Before 1.0)
 
 | # | Issue | Enhancement | Category |
 |---|-------|-------------|----------|
-| E4 | `tbd-ipm3` | Clarify dependency semantics (Bug #2) | UX |
-| E5 | `tbd-zosy` | Error JSON output with --json (Bug #6) | Agent Support |
-| E6 | `tbd-hnob` | Integration tests with git remotes | Testing |
-| E7 | `tbd-i3e3` | Document Git version requirement | Docs |
-| E8 | `tbd-ikuj` | Auto-detect ID prefix on import | Migration |
+| E4 | `tbd-sefe` | Clarify dependency semantics (Bug #2) | UX |
+| E5 | `tbd-ig1p` | Error JSON output with --json (Bug #6) | Agent Support |
+| E6 | `tbd-7696` | Integration tests with git remotes | Testing |
+| E7 | `tbd-98zb` | Document Git version requirement | Docs |
+| E8 | `tbd-9o1i` | Auto-detect ID prefix on import | Migration |
 
 ### Priority: Medium (Nice to Have)
 
 | # | Issue | Enhancement | Category |
 |---|-------|-------------|----------|
-| E9 | `tbd-eflj` | Add `--brief` flag to prime | Agent Support |
-| E10 | `tbd-pcyh` | Issue templates | UX |
-| E11 | `tbd-5x6s` | Query DSL for list | UX |
-| E12 | `tbd-8ob8` | Batch operations | Agent Support |
-| E13 | `tbd-emug` | `--format` option (json/yaml/table/csv) | UX |
-| E14 | `tbd-jvvy` | Architecture diagrams in docs | Docs |
-| E15 | `tbd-8exe` | Make close idempotent | Agent Support |
-
-### Priority: Low (Future)
-
-| # | Issue | Enhancement | Category |
-|---|-------|-------------|----------|
-| E16 | `tbd-jq95` | Issue history/log command | Feature |
-| E17 | `tbd-s00m` | GitHub Issues sync | Feature |
-| E18 | `tbd-5e7y` | Plugin architecture | Extensibility |
-| E19 | `tbd-j2lv` | Optional SQLite index layer | Performance |
-| E20 | `tbd-x469` | Auto-link issue references | UX |
+| E9 | `tbd-7dh3` | Add `--brief` flag to prime | Agent Support |
+| E10 | `tbd-xqn2` | Issue templates | UX |
+| E11 | `tbd-mvus` | Query DSL for list | UX |
+| E12 | `tbd-cxqm` | Batch operations | Agent Support |
+| E13 | `tbd-tv5i` | `--format` option (json/yaml/table/csv) | UX |
+| E14 | `tbd-32ar` | Architecture diagrams in docs | Docs |
+| E15 | `tbd-w3gj` | Make close idempotent | Agent Support |
 
 ---
 
@@ -283,32 +273,6 @@ tbd list --format=yaml
 **E15: Idempotent Close**
 - `tbd close` on already-closed issue should succeed silently
 - Important for agent retry logic
-
----
-
-### E16-E20: Future Enhancements
-
-**E16: Issue History**
-```bash
-tbd log bd-xyz           # Show version history
-tbd diff bd-xyz@2 bd-xyz@3  # Show changes
-```
-
-**E17: GitHub Issues Sync**
-- Two-way sync with GitHub Issues
-- Map tbd fields to GitHub fields
-
-**E18: Plugin Architecture**
-- Custom commands via `.tbd/plugins/`
-- Hook into lifecycle events
-
-**E19: Optional Index Layer**
-- SQLite cache for fast queries (opt-in)
-- Regenerated from files on demand
-
-**E20: Auto-link Issue References**
-- Detect `#bd-xyz` in descriptions
-- Track as implicit dependencies
 
 ---
 
