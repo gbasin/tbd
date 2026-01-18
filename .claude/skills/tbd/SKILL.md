@@ -13,10 +13,10 @@ If `tbd` is not installed, install it globally:
 npm install -g tbd-cli@latest
 ```
 
-Then initialize in your repository:
+Confirm it is initialized in this repository:
 
 ```bash
-tbd init
+tbd init 2>/dev/null || echo "tbd already initialized"
 ```
 
 `tbd` provides lightweight, git-native task and issue tracking using beads, which are
