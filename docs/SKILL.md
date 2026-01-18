@@ -1,3 +1,8 @@
+---
+name: tbd
+description: Lightweight, git-native issue tracking (aka beads) for AI agents. Use for creating, planning, updating, and tracking issues with dependencies. Invoke when user mentions tbd, beads, to-do lists, planning, tracking tasks, issues, or bugs.
+allowed-tools: Bash(tbd:*), Read, Write
+---
 # tbd Workflow
 
 `tbd` provides lightweight, git-native task and issue tracking using beads, which are
@@ -6,9 +11,9 @@ just lightweight issues managed from the CLI.
 > **Context Recovery**: Run `tbd prime` after compaction, clear, or new session.
 > Hooks auto-call this in Claude Code when .tbd/ detected.
 
-# SESSION CLOSE PROTOCOL
+# SESSION CLOSING PROTOCOL
 
-**CRITICAL**: Before saying "done" or "complete", you MUST run this checklist:
+**CRITICAL**: Before saying “done” or “complete”, you MUST run this checklist:
 
 ```
 [ ] 1. Stage and commit: git add + git commit
@@ -25,7 +30,7 @@ just lightweight issues managed from the CLI.
 ### CI: Wait for `--watch` to finish
 
 The `--watch` flag blocks until ALL checks complete.
-Do NOT see "passing" in early output and move on—wait for the **final summary** showing
+Do NOT see “passing” in early output and move on—wait for the **final summary** showing
 all checks passed.
 
 ### tbd: Update issues and sync

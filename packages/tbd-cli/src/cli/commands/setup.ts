@@ -37,25 +37,6 @@ interface SetupCodexOptions {
 }
 
 /**
- * YAML frontmatter for the Claude Code skill file.
- */
-const SKILL_FRONTMATTER = `---
-name: tbd
-description: Git-native issue tracking for AI agents. Use for creating, updating, and tracking issues with dependencies. Invoke when user mentions tbd, issues, tasks, or asks about project work.
-allowed-tools: Bash(tbd:*), Read, Write
----
-`;
-
-/**
- * Generate Claude Code skill file content.
- * Loads the prime content and prepends the skill YAML frontmatter.
- */
-async function generateSkillContent(): Promise<string> {
-  const primeContent = await loadPrimeContent();
-  return SKILL_FRONTMATTER + primeContent;
-}
-
-/**
  * Claude Code global hooks configuration (installed to ~/.claude/settings.json)
  */
 const CLAUDE_GLOBAL_HOOKS = {
@@ -139,7 +120,7 @@ This project uses tbd for git-native issue tracking.
 - \`tbd close <id>\` - Mark complete
 - \`tbd sync\` - Sync with git remote
 
-## Session Close Protocol
+## Session Closing Protocol
 
 Before saying "done", run:
 1. git status
@@ -621,7 +602,7 @@ class SetupClaudeHandler extends BaseCommand {
 
       // Install skill file in project
       await mkdir(dirname(skillPath), { recursive: true });
-      const skillContent = await generateSkillContent();
+      const skillContent = await loadPrimeContent();
       await writeFile(skillPath, skillContent);
       this.output.success('Installed skill file');
       this.output.info(`  ${skillPath}`);
