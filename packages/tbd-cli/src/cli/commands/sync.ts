@@ -208,6 +208,7 @@ class SyncHandler extends BaseCommand {
   }
 
   private async pullChanges(syncBranch: string, remote: string): Promise<void> {
+    const spinner = this.output.spinner('Pulling from remote...');
     try {
       await git('fetch', remote, syncBranch);
 
@@ -224,6 +225,7 @@ class SyncHandler extends BaseCommand {
         this.output.debug('Branch does not exist');
       }
 
+      spinner.stop();
       if (behind === 0) {
         this.output.success('Already up to date');
         return;
@@ -241,6 +243,7 @@ class SyncHandler extends BaseCommand {
 
       this.output.success(`Pulled ${behind} change(s) from ${remote}/${syncBranch}`);
     } catch (error) {
+      spinner.stop();
       const msg = (error as Error).message;
       if (msg.includes('not found') || msg.includes('does not exist')) {
         this.output.info(`Remote branch ${remote}/${syncBranch} does not exist yet`);
@@ -295,6 +298,7 @@ class SyncHandler extends BaseCommand {
   }
 
   private async pushChanges(syncBranch: string, remote: string): Promise<void> {
+    const spinner = this.output.spinner('Pushing to remote...');
     try {
       // Commit any uncommitted changes in the worktree before pushing
       const committedFiles = await this.commitWorktreeChanges();
@@ -326,12 +330,14 @@ class SyncHandler extends BaseCommand {
       }
 
       if (ahead === 0) {
+        spinner.stop();
         this.output.success('Already up to date');
         return;
       }
 
       // Use push with retry
       const result = await this.doPushWithRetry(syncBranch, remote);
+      spinner.stop();
 
       if (result.success) {
         this.output.success(`Pushed ${ahead} commit(s) to ${remote}/${syncBranch}`);
@@ -343,6 +349,7 @@ class SyncHandler extends BaseCommand {
         throw new SyncError(`Failed to push: ${result.error}`);
       }
     } catch (error) {
+      spinner.stop();
       if (error instanceof SyncError) throw error;
       throw new SyncError(`Failed to push: ${(error as Error).message}`);
     }
@@ -384,20 +391,21 @@ class SyncHandler extends BaseCommand {
   }
 
   private async fullSync(syncBranch: string, remote: string, force?: boolean): Promise<void> {
+    const spinner = this.output.spinner('Syncing with remote...');
     let pulled = 0;
     let pushed = 0;
     const conflicts: ConflictEntry[] = [];
     const worktreePath = join(process.cwd(), WORKTREE_DIR);
 
-    // STEP 1: Commit local changes FIRST (before pulling)
-    // This ensures local work is preserved before we incorporate remote changes.
-    const committedFiles = await this.commitWorktreeChanges();
-    if (committedFiles > 0) {
-      this.output.debug(`Committed ${committedFiles} file(s) to sync branch`);
-    }
-
-    // STEP 2: Fetch remote
     try {
+      // STEP 1: Commit local changes FIRST (before pulling)
+      // This ensures local work is preserved before we incorporate remote changes.
+      const committedFiles = await this.commitWorktreeChanges();
+      if (committedFiles > 0) {
+        this.output.debug(`Committed ${committedFiles} file(s) to sync branch`);
+      }
+
+      // STEP 2: Fetch remote
       await git('fetch', remote, syncBranch);
 
       // Count commits behind remote
@@ -503,6 +511,7 @@ class SyncHandler extends BaseCommand {
     }
 
     const forceNote = force ? ' (force)' : '';
+    spinner.stop();
     this.output.data({ pulled, pushed, conflicts: conflicts.length }, () => {
       if (pulled === 0 && pushed === 0) {
         this.output.success('Already in sync');

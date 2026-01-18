@@ -219,6 +219,7 @@ export class OutputManager {
 
   /**
    * Output success message - text mode only, stdout.
+   * Suppressed by --quiet and --json.
    */
   success(message: string): void {
     if (!this.ctx.json && !this.ctx.quiet) {
@@ -227,27 +228,40 @@ export class OutputManager {
   }
 
   /**
-   * Output info message - text mode only, stdout.
+   * Output notice message - noteworthy events during normal operation.
+   * Blue bullet, shown at default level. Suppressed by --quiet and --json.
    */
-  info(message: string): void {
+  notice(message: string): void {
     if (!this.ctx.json && !this.ctx.quiet) {
-      console.log(this.colors.info(message));
+      console.log(this.colors.info(`${ICONS.NOTICE} ${message}`));
     }
   }
 
   /**
-   * Output warning - always stderr, always shown.
+   * Output info message - operational progress.
+   * Requires --verbose or --debug. Suppressed by --json.
+   */
+  info(message: string): void {
+    if (!this.ctx.json && (this.ctx.verbose || this.ctx.debug)) {
+      console.error(this.colors.dim(message));
+    }
+  }
+
+  /**
+   * Output warning - issues that didn't stop operation.
+   * Yellow warning icon, stderr. Suppressed by --quiet.
    */
   warn(message: string): void {
     if (this.ctx.json) {
       console.error(JSON.stringify({ warning: message }));
-    } else {
+    } else if (!this.ctx.quiet) {
       console.error(this.colors.warn(`${ICONS.WARN} ${message}`));
     }
   }
 
   /**
-   * Output error - always stderr, always shown.
+   * Output error - failures that stop operation.
+   * Red X icon, always shown (even in --quiet), stderr.
    */
   error(message: string, err?: Error): void {
     if (this.ctx.json) {
@@ -261,10 +275,22 @@ export class OutputManager {
   }
 
   /**
-   * Output verbose/debug message - only in verbose or debug mode, stderr.
+   * Output command being executed - shows external commands.
+   * Requires --verbose or --debug. Suppressed by --json.
+   */
+  command(cmd: string, args?: string[]): void {
+    if (!this.ctx.json && (this.ctx.verbose || this.ctx.debug)) {
+      const fullCmd = args ? `${cmd} ${args.join(' ')}` : cmd;
+      console.error(this.colors.dim(`> ${fullCmd}`));
+    }
+  }
+
+  /**
+   * Output debug message - internal state for troubleshooting.
+   * Requires --debug only (not --verbose). Suppressed by --json.
    */
   debug(message: string): void {
-    if ((this.ctx.verbose || this.ctx.debug) && !this.ctx.json) {
+    if (this.ctx.debug && !this.ctx.json) {
       console.error(this.colors.dim(`[debug] ${message}`));
     }
   }
@@ -281,6 +307,71 @@ export class OutputManager {
         console.log(this.colors.dim(JSON.stringify(details, null, 2)));
       }
     }
+  }
+
+  /**
+   * Output a table with headers and rows.
+   * Headers are dimmed. Rows are formatted with consistent column widths.
+   * Suppressed in JSON mode.
+   *
+   * @param headers - Array of column headers with widths
+   * @param rows - Array of row data arrays (each row = array of strings)
+   */
+  table(
+    headers: { label: string; width: number }[],
+    rows: (string | { value: string; color?: (s: string) => string })[][],
+  ): void {
+    if (this.ctx.json) return;
+
+    // Output header row
+    const headerLine = headers.map((h) => h.label.padEnd(h.width)).join('');
+    console.log(this.colors.dim(headerLine));
+
+    // Output data rows
+    for (const row of rows) {
+      const cells = row.map((cell, i) => {
+        const width = headers[i]?.width ?? 0;
+        if (typeof cell === 'string') {
+          return cell.padEnd(width);
+        }
+        // Cell with custom color
+        const paddedValue = cell.value.padEnd(width);
+        return cell.color ? cell.color(paddedValue) : paddedValue;
+      });
+      console.log(cells.join(''));
+    }
+  }
+
+  /**
+   * Output a bulleted list.
+   * Uses NOTICE icon (•) as bullet. Suppressed in JSON mode.
+   *
+   * @param items - Array of items to list
+   * @param options - Optional indent level (default 0)
+   */
+  list(items: string[], options?: { indent?: number }): void {
+    if (this.ctx.json) return;
+
+    const indent = '  '.repeat(options?.indent ?? 0);
+    for (const item of items) {
+      console.log(`${indent}${ICONS.NOTICE} ${item}`);
+    }
+  }
+
+  /**
+   * Output a count summary in standard format.
+   * Format: "N item(s)" with dim color. Suppressed in JSON mode.
+   *
+   * @param count - The count to display
+   * @param singular - Singular form of the item (e.g., "issue")
+   * @param plural - Optional plural form (defaults to singular + "s")
+   */
+  count(count: number, singular: string, plural?: string): void {
+    if (this.ctx.json) return;
+
+    const pluralForm = plural ?? `${singular}s`;
+    const label = count === 1 ? singular : pluralForm;
+    console.log(this.colors.dim(`${count} ${label}`));
   }
 
   /**
