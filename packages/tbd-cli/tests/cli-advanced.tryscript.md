@@ -327,7 +327,7 @@ $ tbd config get settings.auto_sync --json
 ```console
 $ tbd config get nonexistent.key 2>&1
 Error: Unknown key: nonexistent.key
-? 1
+? 2
 ```
 
 * * *
