@@ -1,4 +1,6 @@
 ---
+close_reason: Implemented --long flag in list, ready, and blocked commands with formatIssueLong support
+closed_at: 2026-01-18T05:33:02.094Z
 created_at: 2026-01-18T04:08:23.490Z
 dependencies:
   - target: is-01kf7mmy2wq0qgmaxj55vtsvsc
@@ -7,11 +9,11 @@ id: is-01kf7mmb636x6ppr9pb3d89d4v
 kind: task
 labels: []
 priority: 2
-status: open
+status: closed
 title: Add --long flag to commands
 type: is
-updated_at: 2026-01-18T04:11:04.124Z
-version: 4
+updated_at: 2026-01-18T05:33:02.095Z
+version: 5
 ---
 Add --long flag for showing descriptions:
 - Add --long flag to list command

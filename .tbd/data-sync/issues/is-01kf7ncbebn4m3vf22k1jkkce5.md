@@ -1,4 +1,6 @@
 ---
+close_reason: Updated doctor.ts to use shared diagnostic utilities with details arrays for orphaned dependencies, duplicate IDs, and invalid issues
+closed_at: 2026-01-18T05:29:56.759Z
 created_at: 2026-01-18T04:21:30.186Z
 dependencies:
   - target: is-01kf7nbezdmr4qwytemnz1mf20
@@ -7,11 +9,11 @@ id: is-01kf7ncbebn4m3vf22k1jkkce5
 kind: task
 labels: []
 priority: 2
-status: open
+status: closed
 title: "Doctor: Show specific items for orphaned deps, duplicates, and invalid issues"
 type: is
-updated_at: 2026-01-18T04:26:02.069Z
-version: 2
+updated_at: 2026-01-18T05:29:56.759Z
+version: 3
 ---
 When doctor finds orphaned dependencies, duplicate IDs, or invalid issues, it should list the specific items instead of just showing counts.
 

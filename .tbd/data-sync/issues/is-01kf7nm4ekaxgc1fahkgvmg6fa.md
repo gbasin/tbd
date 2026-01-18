@@ -1,4 +1,6 @@
 ---
+close_reason: Implemented DiagnosticResult interface and renderDiagnostic/renderDiagnostics functions in cli/lib/diagnostics.ts with 17 unit tests
+closed_at: 2026-01-18T05:29:55.924Z
 created_at: 2026-01-18T04:25:45.170Z
 dependencies:
   - target: is-01kf7ncbebn4m3vf22k1jkkce5
@@ -17,11 +19,11 @@ id: is-01kf7nm4ekaxgc1fahkgvmg6fa
 kind: task
 labels: []
 priority: 2
-status: open
+status: closed
 title: Create shared diagnostic output utilities
 type: is
-updated_at: 2026-01-18T04:26:06.359Z
-version: 7
+updated_at: 2026-01-18T05:29:55.925Z
+version: 9
 ---
 Create shared utilities for consistent diagnostic output across doctor, setup --check, and status commands.
 

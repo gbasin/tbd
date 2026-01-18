@@ -1,4 +1,6 @@
 ---
+close_reason: Updated setup codex --check to show full ./AGENTS.md path using DiagnosticResult
+closed_at: 2026-01-18T05:31:36.474Z
 created_at: 2026-01-18T04:21:32.825Z
 dependencies:
   - target: is-01kf7nbezdmr4qwytemnz1mf20
@@ -7,11 +9,11 @@ id: is-01kf7nce0tke23q8brce4p9ppn
 kind: task
 labels: []
 priority: 2
-status: open
+status: closed
 title: "Setup codex --check: Show full AGENTS.md path"
 type: is
-updated_at: 2026-01-18T04:26:03.841Z
-version: 2
+updated_at: 2026-01-18T05:31:36.475Z
+version: 3
 ---
 The `tbd setup codex --check` command should show the full file path being checked.
 

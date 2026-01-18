@@ -1,4 +1,6 @@
 ---
+close_reason: Migrated list, ready, blocked, search commands to use formatIssueLine, formatIssueHeader, formatIssueCompact utilities
+closed_at: 2026-01-18T05:30:26.539Z
 created_at: 2026-01-18T04:08:24.402Z
 dependencies:
   - target: is-01kf7mmy2wq0qgmaxj55vtsvsc
@@ -7,11 +9,11 @@ id: is-01kf7mmc2kzbrfcxcmjc052e07
 kind: task
 labels: []
 priority: 2
-status: open
+status: closed
 title: Migrate commands to issue formatting utilities
 type: is
-updated_at: 2026-01-18T04:10:56.595Z
-version: 4
+updated_at: 2026-01-18T05:30:26.540Z
+version: 6
 ---
 Update commands to use issueFormat.ts utilities:
 - Update list.ts to use formatIssueLine() and formatIssueHeader()
