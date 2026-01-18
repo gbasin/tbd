@@ -49,9 +49,13 @@ you wish.
 
 ## Quick Start
 
+**Requirements:**
+- Node.js 20+
+- Git 2.42+ (for orphan worktree support)
+
 ```bash
-# Install
-npm install -g tbd-cli
+# Install requ
+npm install -g tbd-cli@latest
 
 # Initialize in your repo
 cd my-project
@@ -71,23 +75,6 @@ tbd update proj-a7k2 --status=in_progress    # Claim it
 tbd closing  # Get a reminder of the closing protocol (this is also in the skill docs)
 tbd close proj-a7k2 --reason="Fixed in commit abc123"
 tbd sync
-```
-
-## Installation
-
-**Requirements:**
-- Node.js 20+
-- Git 2.42+ (for orphan worktree support)
-
-```bash
-# Check your Git version
-git --version  # Should be 2.42.0 or higher
-
-# Global install (recommended)
-npm install -g tbd-cli
-
-# Or run without installing
-npx tbd-cli <command>
 ```
 
 ## Commands
@@ -197,6 +184,9 @@ tbd import --from-beads
 # Verify
 tbd stats
 tbd list --all
+
+# If you wish to disable beads, instructions here
+tbd setup beads --disable 
 ```
 
 Issue IDs are preserved: `proj-123` in beads becomes `proj-123` in tbd.

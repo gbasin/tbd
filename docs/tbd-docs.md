@@ -68,19 +68,26 @@ Your normal `git push` is only for code changes.
 Issues have a short display ID like `proj-a7k2` (where `proj` is your project’s prefix)
 but these map to unique ULID-based internal IDs for reliable sorting and storage.
 
-## Requirements
+## Requirements and Installation
 
-### Git version
+**Requirements:**
 
-tbd requires Git 2.42+ for orphan worktree support (`git worktree add --orphan`).
-
-Check your version:
+- Node.js 20+
+- Git 2.42+ (for orphan worktree support)
 
 ```bash
-git --version
+# Check your Git version
+git --version  # Should be 2.42.0 or higher
+
+# Global install (recommended)
+npm install -g tbd-cli@latest
+
+# Or run without installing
+npx tbd-cli@latest <command>
 ```
 
-See [git-scm.com/downloads](https://git-scm.com/downloads) for platform-specific
+tbd requires Git 2.42+ for orphan worktree support (`git worktree add --orphan`). See
+[git-scm.com/downloads](https://git-scm.com/downloads) for platform-specific
 instructions.
 
 ## Quick Reference
