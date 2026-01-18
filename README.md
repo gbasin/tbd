@@ -55,7 +55,7 @@ you wish.
 
 ```bash
 # Install
-npm install -g tbdcli@latest
+npm install -g tbd-git@latest
 
 # Initialize in your repo
 cd my-project
