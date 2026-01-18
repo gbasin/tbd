@@ -142,19 +142,22 @@ function renderTreeNode(
     // Determine the connector for this child
     const connector = isLastChild ? TREE_CHARS.LAST : TREE_CHARS.BRANCH;
 
-    // Determine the prefix for grandchildren
+    // Determine the prefix for continuation lines (descriptions, grandchildren)
     // If this child is not last, we need a vertical line; otherwise space
     const childPrefix = prefix + (isLastChild ? TREE_CHARS.SPACE : TREE_CHARS.VERTICAL);
 
-    // Render child with its prefix
-    const childLines = renderTreeNode(child, colors, '', options);
+    // Render child with childPrefix so it knows the correct indentation for descriptions
+    const childLines = renderTreeNode(child, colors, childPrefix, options);
 
-    // Add connector to first line, maintain prefix for continuation lines
+    // Process lines: first line gets connector, others keep childPrefix
     childLines.forEach((line, lineIndex) => {
       if (lineIndex === 0) {
-        lines.push(colors.dim(connector) + line);
+        // Replace childPrefix with connector for the first line
+        const lineWithoutPrefix = line.slice(childPrefix.length);
+        lines.push(colors.dim(connector) + lineWithoutPrefix);
       } else {
-        lines.push(childPrefix + line);
+        // Keep childPrefix for continuation lines (already included)
+        lines.push(line);
       }
     });
   });
