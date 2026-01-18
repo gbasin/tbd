@@ -49,9 +49,15 @@ tbd sync
 
 ## Installation
 
-Requires Node.js 20+.
+**Requirements:**
+- Node.js 20+
+- Git 2.42+ (for orphan worktree support)
 
 ```bash
+# Check your Git version
+git --version  # Should be 2.42.0 or higher.
+See "Troubleshooting" below if not.
+
 # Global install (recommended)
 npm install -g tbd-cli
 
@@ -225,6 +231,21 @@ updated_at: 2025-01-15T10:30:00Z
 
 The /api/users endpoint crashes when given invalid JSON.
 ```
+
+## Troubleshooting
+
+### Git version too old
+
+tbd requires Git 2.42+ for orphan worktree support (`git worktree add --orphan`).
+
+**Check your version:**
+```bash
+git --version
+```
+
+**Upgrade:** See [git-scm.com/downloads](https://git-scm.com/downloads) for platform-specific instructions.
+
+After upgrading, verify with `git --version` and try `tbd init` again.
 
 ## Contributing
 

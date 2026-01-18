@@ -2115,25 +2115,44 @@ tbd label list
 
 ### 4.6 Dependency Commands
 
+Dependencies use the semantics **"A depends on B"** (equivalent to **"B blocks A"**).
+This matches Beads convention.
+
 ```bash
-# Add dependency
-tbd dep add <id> <target-id> [--type blocks]
+# Add dependency: issue depends on depends-on (depends-on blocks issue)
+tbd dep add <issue> <depends-on>
 
 # Remove dependency
-tbd dep remove <id> <target-id>
+tbd dep remove <issue> <depends-on>
 
-# Show dependency tree
-tbd dep tree <id>
+# List dependencies for an issue
+tbd dep list <id>
 ```
+
+**Argument semantics:**
+
+- `<issue>`: The issue that depends on something (the dependent/blocked issue)
+- `<depends-on>`: The issue that must be completed first (the prerequisite/blocker)
 
 **Examples:**
 
 ```bash
-tbd dep add proj-c3d4 proj-f14c --type blocks
-tbd dep tree proj-a1b2
+# "Write tests" depends on "Add OAuth" (can't write tests until OAuth is done)
+tbd dep add proj-c3d4 proj-f14c
+# Output: ✓ proj-c3d4 now depends on proj-f14c
+
+# List what blocks/is blocked by an issue
+tbd dep list proj-c3d4
+# Output:
+# Blocked by: proj-f14c
 ```
 
-**Note**: Currently only supports `blocks` dependency type.
+**Data model:** Dependencies are stored on the blocker issue with `{type: 'blocks', target:
+blocked-issue-id}`. This enables efficient lookup of "what does this issue block?" from
+its own dependencies array.
+
+**Note**: Currently only supports `blocks` dependency type. Future: `related`,
+`discovered-from`.
 
 ### 4.7 Sync Commands
 

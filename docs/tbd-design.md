@@ -233,18 +233,25 @@ scales to ~1900 issues in production.
 
 **Tradeoff**: Requires Git 2.42+ for `--orphan` worktree support.
 
-### Decision 6: Only “blocks” Dependencies
+### Decision 6: Only "blocks" Dependencies
 
-**Choice**: Support only `blocks` dependency type (A blocks B = B cannot start until A
-is done)
+**Choice**: Support only `blocks` dependency type with "depends on" CLI semantics.
+
+**CLI semantics** (matches Beads):
+- `tbd dep add A B` means "A depends on B" (equivalently, "B blocks A")
+- A cannot start until B is completed
+- Output: `✓ A now depends on B`
+
+**Data model**:
+- Dependencies stored on the blocker: B.dependencies = [{type: 'blocks', target: A}]
+- This means "B blocks A" is stored on B, enabling efficient "what do I block?" queries
 
 **Rationale**:
-- Covers the primary use case (the `ready` command needs to know what’s blocked)
+- Covers the primary use case (the `ready` command needs to know what's blocked)
 - Simpler implementation
-- Can add `related`, `discovered-from`, etc.
-  later without breaking changes
+- Can add `related`, `discovered-from`, etc. later without breaking changes
 
-**Tradeoff**: Can’t express all relationship types.
+**Tradeoff**: Can't express all relationship types.
 
 ## tbd vs Beads
 

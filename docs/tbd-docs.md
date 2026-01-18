@@ -48,7 +48,7 @@ tbd create "Users can't reset password" --type=bug --priority=0 \
 
 ```bash
 tbd create "Write integration tests" --type=task
-tbd dep add proj-1850 proj-1847           # Tests blocked until 1847 done
+tbd dep add proj-1850 proj-1847           # 1850 depends on 1847 (can't test until 1847 done)
 tbd blocked                                # See what's waiting
 ```
 
@@ -312,23 +312,28 @@ Subcommands:
 
 ### dep
 
-Manage issue dependencies (blocking relationships).
+Manage issue dependencies.
+
+**Semantics:** `tbd dep add A B` means "A depends on B" (B must complete before A can
+start).
 
 ```bash
-# proj-a7k2 blocks proj-b3m9 (b3m9 depends on a7k2)
+# proj-b3m9 depends on proj-a7k2 (a7k2 must be done first)
 tbd dep add proj-b3m9 proj-a7k2
+# Output: ✓ proj-b3m9 now depends on proj-a7k2
 
 # Remove dependency
 tbd dep remove proj-b3m9 proj-a7k2
 
-# List dependencies
+# List what blocks/is blocked by an issue
 tbd dep list proj-a7k2
+# Output shows "Blocks:" and "Blocked by:" sections
 ```
 
 Subcommands:
-- `add <id> <target>` - Add a blocks dependency (target blocks id)
-- `remove <id> <target>` - Remove a blocks dependency
-- `list <id>` - List dependencies for an issue
+- `add <issue> <depends-on>` - Issue depends on depends-on (depends-on blocks issue)
+- `remove <issue> <depends-on>` - Remove dependency
+- `list <id>` - List dependencies for an issue (what it blocks and what blocks it)
 
 * * *
 
