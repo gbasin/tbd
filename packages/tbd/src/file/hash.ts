@@ -1,5 +1,5 @@
 /**
- * Content hashing for merge resolution tiebreaking.
+ * Content hashing for deterministic merge tiebreaking.
  *
  * Uses SHA-256 hash of canonical YAML representation.
  * Canonical format ensures same content produces same hash regardless of:
@@ -7,10 +7,12 @@
  * - Array element ordering (sorted)
  * - Whitespace variations
  *
- * Note: Conflict detection uses Git push rejection.
- * Content hash is used as tiebreaker when timestamps are equal during merge.
+ * Merge resolution order (see tbd-design.md §3.5):
+ * 1. LWW by updated_at timestamp (newer wins)
+ * 2. If timestamps equal: prefer remote over local
+ * 3. If still ambiguous: lexically greater content hash wins
  *
- * See: tbd-design.md §2.4 Content Hashing
+ * Equal timestamps occur with coarse clocks, bulk imports, or identical writes.
  */
 
 import { createHash } from 'node:crypto';
