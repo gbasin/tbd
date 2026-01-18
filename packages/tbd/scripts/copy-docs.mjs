@@ -24,6 +24,8 @@ if (phase === 'prebuild') {
   copyFileSync(join(repoRoot, 'docs', 'tbd-closing.md'), join(srcDocs, 'tbd-closing.md'));
   copyFileSync(join(repoRoot, 'docs', 'SKILL.md'), join(srcDocs, 'SKILL.md'));
   copyFileSync(join(repoRoot, 'README.md'), join(srcDocs, 'README.md'));
+  // Copy README to package root for npm publishing
+  copyFileSync(join(repoRoot, 'README.md'), join(root, 'README.md'));
 } else if (phase === 'postbuild') {
   const distDocs = join(root, 'dist', 'docs');
   mkdirSync(distDocs, { recursive: true });
