@@ -4,12 +4,13 @@ dependencies: []
 id: is-01kf7hx5ysfrbynw0cf54x6brb
 kind: task
 labels: []
+parent_id: is-01kf7j53z1gahrqswh8x4v4b6t
 priority: 2
 status: open
 title: Extract hardcoded content templates to markdown files
 type: is
-updated_at: 2026-01-18T03:20:57.630Z
-version: 2
+updated_at: 2026-01-18T03:27:11.080Z
+version: 5
 ---
 Extract hardcoded content templates from setup.ts into separate markdown files, following the pattern established with SKILL.md.
 
