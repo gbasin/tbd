@@ -1,4 +1,6 @@
 ---
+close_reason: "Added Setup Commands section documenting: setup claude, setup cursor, setup codex, setup beads --disable, setup auto"
+closed_at: 2026-01-18T07:55:15.342Z
 created_at: 2026-01-18T07:48:51.953Z
 dependencies: []
 id: is-01kf8181kj4ey9cx38t6kccfys
@@ -6,10 +8,10 @@ kind: task
 labels: []
 parent_id: is-01kf817cfba3htpetxgesej8hx
 priority: 3
-status: open
+status: closed
 title: Document all setup commands
 type: is
-updated_at: 2026-01-18T07:48:51.953Z
-version: 1
+updated_at: 2026-01-18T07:55:15.343Z
+version: 3
 ---
 tbd-design.md only mentions 'tbd setup claude' but the spec also defines 'tbd setup cursor' and 'tbd setup codex'. Should document all available setup commands.
