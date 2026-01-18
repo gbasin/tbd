@@ -95,10 +95,10 @@ const CLAUDE_PROJECT_HOOKS = {
 };
 
 /**
- * Script to remind about tbd sync after git push
+ * Script to remind about close protocol after git push
  */
-const TBD_SYNC_REMINDER_SCRIPT = `#!/bin/bash
-# Remind about tbd sync after git push
+const TBD_CLOSE_PROTOCOL_SCRIPT = `#!/bin/bash
+# Remind about close protocol after git push
 # Installed by: tbd setup claude
 
 input=$(cat)
@@ -107,7 +107,7 @@ command=$(echo "$input" | jq -r '.tool_input.command // empty')
 # Check if this is a git push command and .tbd exists
 if [[ "$command" == git\\ push* ]] || [[ "$command" == *"&& git push"* ]] || [[ "$command" == *"; git push"* ]]; then
   if [ -d ".tbd" ]; then
-    echo "Reminder: Run 'tbd sync' to sync any issue changes to remote."
+    tbd close-protocol
   fi
 fi
 
@@ -557,7 +557,7 @@ class SetupClaudeHandler extends BaseCommand {
 
       // Install hook script
       await mkdir(dirname(hookScriptPath), { recursive: true });
-      await writeFile(hookScriptPath, TBD_SYNC_REMINDER_SCRIPT);
+      await writeFile(hookScriptPath, TBD_CLOSE_PROTOCOL_SCRIPT);
       await chmod(hookScriptPath, 0o755);
       this.output.success('Installed sync reminder hook script');
 

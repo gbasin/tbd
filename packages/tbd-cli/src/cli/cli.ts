@@ -34,6 +34,7 @@ import { configCommand } from './commands/config.js';
 import { atticCommand } from './commands/attic.js';
 import { importCommand } from './commands/import.js';
 import { docsCommand } from './commands/docs.js';
+import { closeProtocolCommand } from './commands/close-protocol.js';
 import { designCommand } from './commands/design.js';
 import { readmeCommand } from './commands/readme.js';
 import { uninstallCommand } from './commands/uninstall.js';
@@ -74,6 +75,7 @@ function createProgram(): Command {
   program.addCommand(readmeCommand);
   program.addCommand(primeCommand);
   program.addCommand(docsCommand);
+  program.addCommand(closeProtocolCommand);
   program.addCommand(designCommand);
 
   program.commandsGroup('Setup & Configuration:');
