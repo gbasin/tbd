@@ -207,13 +207,13 @@ The following Beads files will be moved to .beads-disabled/:
     Beads data directory
   .beads-hooks/ → .beads-disabled/.beads-hooks/ [..]
     Beads git hooks
-  .cursor/rules/beads.mdc → .beads-disabled/cursor-rules-beads.mdc
+  .cursor/rules/beads.mdc → .beads-disabled/.cursor/rules/beads.mdc
     Cursor IDE Beads rules
-  .claude/settings.local.json → .beads-disabled/claude-settings.local.json [..]
+  .claude/settings.local.json → .beads-disabled/.claude/settings.local.json [..]
     Claude Code project hooks with bd commands
-  AGENTS.md → .beads-disabled/AGENTS.md.backup [..]
+  AGENTS.md → .beads-disabled/AGENTS.md [..]
     AGENTS.md with Beads section
-  .gitattributes → .beads-disabled/gitattributes.backup [..]
+  .gitattributes → .beads-disabled/.gitattributes [..]
     .gitattributes with Beads merge driver
 
 This preserves all Beads data for potential rollback.
@@ -269,17 +269,16 @@ The following Beads files will be moved to .beads-disabled/:
     Beads data directory
   .beads-hooks/ → .beads-disabled/.beads-hooks/ [..]
     Beads git hooks
-  .cursor/rules/beads.mdc → .beads-disabled/cursor-rules-beads.mdc
+  .cursor/rules/beads.mdc → .beads-disabled/.cursor/rules/beads.mdc
     Cursor IDE Beads rules
-  .claude/settings.local.json → .beads-disabled/claude-settings.local.json [..]
+  .claude/settings.local.json → .beads-disabled/.claude/settings.local.json [..]
     Claude Code project hooks with bd commands
-  AGENTS.md → .beads-disabled/AGENTS.md.backup [..]
+  AGENTS.md → .beads-disabled/AGENTS.md [..]
     AGENTS.md with Beads section
-  .gitattributes → .beads-disabled/gitattributes.backup [..]
+  .gitattributes → .beads-disabled/.gitattributes [..]
     .gitattributes with Beads merge driver
 
-Disabling Beads...
-  [..] [..]daemon[..]
+  [..]daemon[..]
   ✓ Moved .beads/
   ✓ Moved .beads-hooks/
   ✓ Moved .cursor/rules/beads.mdc
@@ -379,7 +378,7 @@ claude settings backed up
 # Test: AGENTS.md backed up
 
 ```console
-$ test -f .beads-disabled/AGENTS.md.backup && echo "AGENTS.md backed up"
+$ test -f .beads-disabled/AGENTS.md && echo "AGENTS.md backed up"
 AGENTS.md backed up
 ? 0
 ```
@@ -507,7 +506,7 @@ $ grep -c "*.png binary" .gitattributes
 # Test: Running setup beads --disable again shows nothing to do
 
 ```console
-$ tbd setup beads --disable
+$ tbd setup beads --disable --verbose
 No Beads files found to disable.
 ? 0
 ```
@@ -599,8 +598,8 @@ $ tbd init --prefix=test --quiet
 # Test: tbd prime without .beads shows no warning
 
 ```console
-$ tbd prime | grep -c "A .beads/ directory was detected"
-0
+$ tbd prime | grep "A .beads/ directory was detected" || echo "no warning"
+no warning
 ? 0
 ```
 
@@ -632,7 +631,7 @@ $ tbd setup beads --disable --confirm | grep "has been disabled"
 ```
 
 ```console
-$ tbd prime | grep -c "A .beads/ directory was detected"
-0
+$ tbd prime | grep "A .beads/ directory was detected" || echo "no warning"
+no warning
 ? 0
 ```
