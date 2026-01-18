@@ -1,15 +1,17 @@
 ---
+close_reason: "Fixed by reordering sync operations: now commits local changes FIRST, then fetches/merges remote changes. This ensures both local and remote work are preserved. The git merge handles combining the changes properly."
+closed_at: 2026-01-18T00:53:53.453Z
 created_at: 2026-01-18T00:02:07.965Z
 dependencies: []
 id: is-01kf76hdz4wgn6teghzv2dj2h1
 kind: bug
 labels: []
-priority: 1
-status: open
+priority: 0
+status: closed
 title: "Bug: Sync doesn't update worktree after pull, may lose remote changes"
 type: is
-updated_at: 2026-01-18T00:02:07.965Z
-version: 1
+updated_at: 2026-01-18T00:53:53.454Z
+version: 4
 ---
 In fullSync(), after pulling remote changes (update-ref to remote commit), the worktree's working directory is NOT updated. This means:
 
