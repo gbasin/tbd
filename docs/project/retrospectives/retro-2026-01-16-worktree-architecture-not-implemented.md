@@ -331,8 +331,8 @@ bypassed or rubber-stamped.
 
 ## References
 
-- Design spec: `docs/project/architecture/current/tbd-full-design.md` §2.3 Hidden Worktree
-  Model
+- Design spec: `docs/project/architecture/current/tbd-full-design.md` §2.3 Hidden
+  Worktree Model
 - Implementation plan:
   `docs/project/specs/active/plan-2026-01-15-tbd-v1-implementation.md` Phase 2
 - Bug bead: tbd-1810

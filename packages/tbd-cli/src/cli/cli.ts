@@ -39,7 +39,6 @@ import { readmeCommand } from './commands/readme.js';
 import { uninstallCommand } from './commands/uninstall.js';
 import { primeCommand } from './commands/prime.js';
 import { setupCommand } from './commands/setup.js';
-import { beadsCommand } from './commands/beads.js';
 import { CLIError } from './lib/errors.js';
 
 /**
@@ -92,8 +91,8 @@ function createProgram(): Command {
   program.addCommand(searchCommand);
 
   program.commandsGroup('Views and Filtering:');
-  program.addCommand(listCommand);
   program.addCommand(readyCommand);
+  program.addCommand(listCommand);
   program.addCommand(blockedCommand);
   program.addCommand(staleCommand);
 
@@ -110,7 +109,6 @@ function createProgram(): Command {
   program.addCommand(doctorCommand);
   program.addCommand(atticCommand);
   program.addCommand(importCommand);
-  program.addCommand(beadsCommand);
   program.addCommand(uninstallCommand);
 
   // Apply colored help to all commands recursively

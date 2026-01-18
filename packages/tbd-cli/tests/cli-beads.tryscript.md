@@ -88,11 +88,26 @@ before: |
 ---
 # tbd CLI: Beads Migration Command
 
-Tests for `tbd setup beads` which helps migrate from Beads to tbd.
+Tests for `tbd setup beads --disable` which helps migrate from Beads to tbd.
 
 * * *
 
 ## Setup Beads Help
+
+# Test: Setup beads without --disable shows usage
+
+```console
+$ tbd setup beads
+Usage: tbd setup beads --disable [--confirm]
+
+Options:
+  --disable   Disable Beads and move files to .beads-disabled/
+  --confirm   Confirm the operation (required to proceed)
+
+This command helps migrate from Beads to tbd by safely
+moving Beads configuration files to a backup directory.
+? 0
+```
 
 # Test: Setup beads --help shows options
 
@@ -103,6 +118,7 @@ Usage: tbd setup beads [options]
 Disable Beads and migrate to tbd
 
 Options:
+  --disable          Disable Beads and move files to .beads-disabled/
   --confirm          Confirm the operation (required to proceed)
   -h, --help         display help for command
 
@@ -168,12 +184,12 @@ $ grep -c "BEGIN BEADS INTEGRATION" AGENTS.md
 
 * * *
 
-## Setup Beads Preview Mode
+## Setup Beads --disable Preview Mode
 
-# Test: Setup beads shows preview without changes
+# Test: Setup beads --disable shows preview without changes
 
 ```console
-$ tbd setup beads
+$ tbd setup beads --disable
 The following Beads files will be moved to .beads-disabled/:
 
   .beads/ → .beads-disabled/beads/ [..]
@@ -228,12 +244,12 @@ no .beads-disabled yet
 
 * * *
 
-## Setup Beads --confirm Execution
+## Setup Beads --disable --confirm Execution
 
-# Test: Setup beads --confirm moves files
+# Test: Setup beads --disable --confirm moves files
 
 ```console
-$ tbd setup beads --confirm
+$ tbd setup beads --disable --confirm
 The following Beads files will be moved to .beads-disabled/:
 
   .beads/ → .beads-disabled/beads/ [..]
@@ -424,10 +440,10 @@ $ grep -c "More content below" AGENTS.md
 
 ## Setup Beads When Already Disabled
 
-# Test: Running disable again shows nothing to do
+# Test: Running setup beads --disable again shows nothing to do
 
 ```console
-$ tbd setup beads
+$ tbd setup beads --disable
 No Beads files found to disable.
 ? 0
 ```
@@ -452,10 +468,10 @@ $ mkdir -p .beads && echo "test" > .beads/config.yaml
 ? 0
 ```
 
-# Test: Setup beads with only .beads/
+# Test: Setup beads --disable with only .beads/
 
 ```console
-$ tbd setup beads
+$ tbd setup beads --disable
 The following Beads files will be moved to .beads-disabled/:
 
   .beads/ → .beads-disabled/beads/ [..]
@@ -475,7 +491,7 @@ After disabling Beads, run:
 # Test: Confirm partial disable
 
 ```console
-$ tbd setup beads --confirm | grep "has been disabled"
+$ tbd setup beads --disable --confirm | grep "has been disabled"
 ✓ Beads has been disabled.
 ? 0
 ```
@@ -493,5 +509,72 @@ $ test -d .beads || echo ".beads removed"
 ```console
 $ test -d .beads-disabled/beads && echo ".beads-disabled/beads created"
 .beads-disabled/beads created
+? 0
+```
+
+* * *
+
+## tbd prime Beads Warning
+
+Test that `tbd prime` warns when .beads/ exists alongside .tbd/
+
+# Test: Clean up for prime test
+
+```console
+$ rm -rf .beads .beads-disabled
+? 0
+```
+
+# Test: Initialize tbd
+
+```console
+$ tbd init --prefix=test --quiet
+? 0
+```
+
+# Test: tbd prime without .beads shows no warning
+
+```console
+$ tbd prime | head -5
+# tbd Workflow Context
+
+> **Context Recovery**: Run `tbd prime` after compaction, clear, or new session
+> Hooks auto-call this in Claude Code when .tbd/ detected
+? 0
+```
+
+# Test: Create .beads directory
+
+```console
+$ mkdir -p .beads && echo "test" > .beads/config.yaml
+? 0
+```
+
+# Test: tbd prime with .beads shows warning
+
+```console
+$ tbd prime | head -5
+[..]WARNING: A .beads/ directory was detected alongside .tbd/
+   When asked to use beads, use `tbd` commands, NOT `bd` commands.
+   To complete migration: tbd setup beads --disable --confirm
+
+# tbd Workflow Context
+? 0
+```
+
+# Test: After disabling beads, warning disappears
+
+```console
+$ tbd setup beads --disable --confirm | grep "has been disabled"
+✓ Beads has been disabled.
+? 0
+```
+
+```console
+$ tbd prime | head -5
+# tbd Workflow Context
+
+> **Context Recovery**: Run `tbd prime` after compaction, clear, or new session
+> Hooks auto-call this in Claude Code when .tbd/ detected
 ? 0
 ```

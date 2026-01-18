@@ -287,10 +287,12 @@ Works in any environment where git works.
 #### 3. Manual Git Operations for Issues
 
 **Beads**: After creating/updating issues, you must manually `git add`, `git commit`,
-and `git push` the JSONL file. Easy to forget, leading to lost work or desync.
+and `git push` the JSONL file.
+Easy to forget, leading to lost work or desync.
 
 **tbd**: `tbd sync` handles everything automatically.
-One command commits and pushes to the sync branch. No manual git operations for issues.
+One command commits and pushes to the sync branch.
+No manual git operations for issues.
 
 #### 4. JSONL Merge Conflicts
 

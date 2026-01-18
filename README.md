@@ -169,8 +169,8 @@ tbd stats
 tbd list --all
 ```
 
-Issue IDs are preserved: `proj-123` in beads becomes `proj-123` in tbd. The prefix
-from your beads configuration is automatically used.
+Issue IDs are preserved: `proj-123` in beads becomes `proj-123` in tbd.
+The prefix from your beads configuration is automatically used.
 
 ## How It Works
 
@@ -191,9 +191,10 @@ tbd stores issues on a dedicated `tbd-sync` branch, separate from your code:
 - No conflicts across main or feature branches
 - Issues shared across all branches
 
-**Automatic sync**: Unlike Beads (where you manually `git add`/`commit`/`push` the JSONL file),
-`tbd sync` handles all git operations automatically. One command commits and pushes issues
-to the sync branch. Your normal `git push` is only for code changes.
+**Automatic sync**: Unlike Beads (where you manually `git add`/`commit`/`push` the JSONL
+file), `tbd sync` handles all git operations automatically.
+One command commits and pushes issues to the sync branch.
+Your normal `git push` is only for code changes.
 
 **Conflict handling:**
 - Separate issues never conflict since they are separate files.
@@ -201,7 +202,7 @@ to the sync branch. Your normal `git push` is only for code changes.
   (last-write-wins for scalars, union for arrays)
 - In that case lost values preserved in attic—no data loss ever
 
-Issues have a short display ID like `proj-a7k2` (where `proj` is your project's prefix)
+Issues have a short display ID like `proj-a7k2` (where `proj` is your project’s prefix)
 but these map to unique ULID-based internal IDs for reliable sorting and storage.
 
 ## Issue File Format

@@ -1407,8 +1407,9 @@ The file-per-entity design means parallel work rarely conflicts at the git level
 | A modifies issue-1, B creates issue-2 | Different files | Trivial merge |
 | A and B both modify issue-1 | Same file modified | Field-level merge |
 
-Only when two agents modify the **same issue** before syncing does tbd need to
-perform field-level merging. This is rare in practice because:
+Only when two agents modify the **same issue** before syncing does tbd need to perform
+field-level merging.
+This is rare in practice because:
 - Issues are small, focused units of work
 - Agents typically work on different issues
 - The `ready` command distributes work across agents
@@ -1417,9 +1418,8 @@ perform field-level merging. This is rare in practice because:
 
 #### When Conflicts Occur
 
-Conflicts (requiring field-level merge) happen when the same issue file is modified
-in two places before
-sync:
+Conflicts (requiring field-level merge) happen when the same issue file is modified in
+two places before sync:
 
 - Two environments modify the same issue before syncing
 
@@ -3549,7 +3549,7 @@ To restore Beads, move files back from `.beads-disabled/`.
 
 **Gradual rollout alternative:**
 
-- Keep Beads running alongside tbd initially (don't run `tbd beads --disable`)
+- Keep Beads running alongside tbd initially (don’t run `tbd beads --disable`)
 
 - Compare outputs (`bd list` vs `tbd list`)
 

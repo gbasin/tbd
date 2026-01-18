@@ -138,8 +138,9 @@ Progress indicators and debug output go to stderr because:
 
 ### OutputManager Methods
 
-The OutputManager API enforces consistent formatting. Each method handles its own
-icon, color, and visibility rules internally - callers just pass the message.
+The OutputManager API enforces consistent formatting.
+Each method handles its own icon, color, and visibility rules internally - callers just
+pass the message.
 
 ```typescript
 // Primary data output - stdout, always shown
@@ -178,7 +179,7 @@ output.spinner("Syncing...")
 1. **Callers never format icons** - Methods add their own prefix
 2. **Callers never check verbosity** - Methods handle visibility internally
 3. **Callers never choose colors** - Methods apply semantic colors consistently
-4. **One method per level** - No overloading, no optional "level" parameters
+4. **One method per level** - No overloading, no optional “level” parameters
 
 ## Color System
 
@@ -372,8 +373,8 @@ Examples:
 
 ### Notice Messages
 
-Notices are for noteworthy events that aren't warnings - things the user should know
-about but that don't indicate a problem.
+Notices are for noteworthy events that aren’t warnings - things the user should know
+about but that don’t indicate a problem.
 
 ```
 • {Noteworthy event}
@@ -590,7 +591,8 @@ id: bd-a1b2 (is-01hx5zzkbkactav9wevgemmvrz)
 
 ### Git Stat Log in Debug Mode
 
-**Rule**: In `--debug` mode, after any git push/pull operation, show the git log with stat for the commits that were just synced.
+**Rule**: In `--debug` mode, after any git push/pull operation, show the git log with
+stat for the commits that were just synced.
 
 ```bash
 $ tbd sync --debug
@@ -788,11 +790,11 @@ $ tbd create --title="New feature" --type=feature
 ```
 
 **Summary formatting rules:**
-- Omit zero counts (don't say "sent 0 new")
-- Use singular/plural correctly: "1 new" vs "2 new"
+- Omit zero counts (don’t say “sent 0 new”)
+- Use singular/plural correctly: “1 new” vs “2 new”
 - Order: new → updated → deleted
 - Separate sent/received with comma if both present
-- Use "Already in sync" when nothing changed
+- Use “Already in sync” when nothing changed
 
 ### Sync Progress Visibility
 

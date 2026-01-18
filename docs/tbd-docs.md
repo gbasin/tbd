@@ -481,8 +481,8 @@ The `--disable` option safely moves all Beads files to `.beads-disabled/`:
 - Removes `bd` hooks from `.claude/settings.local.json` (with backup)
 - Removes Beads section from `AGENTS.md` (with backup)
 
-This preserves all data for potential rollback. To restore Beads, move files back from
-`.beads-disabled/`.
+This preserves all data for potential rollback.
+To restore Beads, move files back from `.beads-disabled/`.
 
 * * *
 
@@ -850,9 +850,9 @@ Commands like `--due` and `--defer` accept flexible date input:
 
 tbd stores issues on a dedicated `tbd-sync` branch, separate from your code branches.
 
-**Fully automatic**: Unlike Beads (where you manually `git add`/`commit`/`push` the JSONL file),
-`tbd sync` handles all git operations on the sync branch automatically. You never need to
-manually push issue data—just run `tbd sync` and it's done.
+**Fully automatic**: Unlike Beads (where you manually `git add`/`commit`/`push` the
+JSONL file), `tbd sync` handles all git operations on the sync branch automatically.
+You never need to manually push issue data—just run `tbd sync` and it’s done.
 
 **Why this matters:**
 - No merge conflicts in feature branches
@@ -871,7 +871,8 @@ tbd sync                    # Pull + push (run at session start/end)
 tbd sync --status           # Check what's pending
 ```
 
-Note: Your normal `git push` is only for code changes. Issue sync is separate and automatic.
+Note: Your normal `git push` is only for code changes.
+Issue sync is separate and automatic.
 
 * * *
 
@@ -906,8 +907,8 @@ tbd list --debug
 
 ### Debugging with Internal IDs
 
-tbd uses short display IDs (`proj-a7k2`) that map to internal ULIDs (`is-01hx5zzkbk...`).
-You normally don’t need internal IDs, but they’re useful for:
+tbd uses short display IDs (`proj-a7k2`) that map to internal ULIDs
+(`is-01hx5zzkbk...`). You normally don’t need internal IDs, but they’re useful for:
 
 ```bash
 # Find the actual issue file

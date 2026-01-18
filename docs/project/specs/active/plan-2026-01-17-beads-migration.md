@@ -18,10 +18,11 @@ tbd has working migration and integration features:
 **Problems Identified:**
 
 1. **No safe Beads disable**: Users migrating from Beads want to preserve data while
-   preventing accidental Beads usage. Currently they must manually rename/delete files.
+   preventing accidental Beads usage.
+   Currently they must manually rename/delete files.
 
-2. **Partial migration**: After import, Beads files remain active and can conflict with tbd.
-   Claude Code hooks may still call `bd prime` instead of `tbd prime`.
+2. **Partial migration**: After import, Beads files remain active and can conflict with
+   tbd. Claude Code hooks may still call `bd prime` instead of `tbd prime`.
 
 3. **Documentation gap**: The `--global` flag was documented but not implemented in
    `tbd setup claude` (fixed in this work).
@@ -32,13 +33,15 @@ tbd has working migration and integration features:
 - [setup.ts](packages/tbd-cli/src/cli/commands/setup.ts) - Setup commands
 - [import.ts](packages/tbd-cli/src/cli/commands/import.ts) - Import command
 - [tbd-design.md](docs/tbd-design.md) - Overall product design
-- [Beads uninstall gist](https://gist.github.com/banteg/1a539b88b3c8945cd71e4b958f319d8d) - Reference for Beads file locations
+- [Beads uninstall gist](https://gist.github.com/banteg/1a539b88b3c8945cd71e4b958f319d8d)
+  \- Reference for Beads file locations
 
 ## Summary of Task
 
 Implement safe Beads migration workflow:
 
-1. **`tbd beads --disable`** - Move Beads files to `.beads-disabled/` for safe deactivation
+1. **`tbd beads --disable`** - Move Beads files to `.beads-disabled/` for safe
+   deactivation
 2. **Documentation updates** - Fix incorrect `--global` flag reference
 3. **Integration verification** - Ensure `tbd setup claude` properly replaces old hooks
 
@@ -195,7 +198,8 @@ tbd setup codex    # AGENTS.md section (optional)
 
 ## Open Questions
 
-1. **Should `tbd import --from-beads` automatically suggest running `tbd beads --disable`?**
+1. **Should `tbd import --from-beads` automatically suggest running
+   `tbd beads --disable`?**
    - Current: No, commands are independent
    - Could add a hint in import output
 
@@ -205,5 +209,7 @@ tbd setup codex    # AGENTS.md section (optional)
 
 ## References
 
-- [Beads uninstall script](https://gist.github.com/banteg/1a539b88b3c8945cd71e4b958f319d8d) - Comprehensive list of Beads file locations
-- [tbd-full-design.md](docs/project/architecture/current/tbd-full-design.md) - Migration section
+- [Beads uninstall script](https://gist.github.com/banteg/1a539b88b3c8945cd71e4b958f319d8d)
+  \- Comprehensive list of Beads file locations
+- [tbd-full-design.md](docs/project/architecture/current/tbd-full-design.md) - Migration
+  section

@@ -103,6 +103,13 @@ class PrimeHandler extends BaseCommand {
       return;
     }
 
+    // Check for Beads installation alongside tbd and warn
+    const beadsWarning = await this.checkForBeads(cwd);
+    if (beadsWarning) {
+      console.log(beadsWarning);
+      console.log('');
+    }
+
     // Check for custom override file
     const customPrimePath = join(cwd, '.tbd', 'PRIME.md');
 
@@ -120,6 +127,24 @@ class PrimeHandler extends BaseCommand {
 
     // Output default prime content
     console.log(PRIME_OUTPUT);
+  }
+
+  /**
+   * Check if Beads is installed alongside tbd and return a warning message.
+   * This helps users who are migrating from Beads to tbd.
+   */
+  private async checkForBeads(cwd: string): Promise<string | null> {
+    const beadsDir = join(cwd, '.beads');
+    try {
+      await access(beadsDir);
+      // .beads/ exists - warn the agent
+      return `⚠️  WARNING: A .beads/ directory was detected alongside .tbd/
+   When asked to use beads, use \`tbd\` commands, NOT \`bd\` commands.
+   To complete migration: tbd setup beads --disable --confirm`;
+    } catch {
+      // No .beads/ directory, no warning needed
+      return null;
+    }
   }
 }
 
