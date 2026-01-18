@@ -415,9 +415,10 @@ See: https://github.com/jlevy/tbd/issues/TBD
 # Test: Claude --check exits successfully
 
 The check command should always exit with code 0, regardless of installation status.
+Use --verbose to show status messages.
 
 ```console
-$ tbd setup claude --check
+$ tbd setup claude --check --verbose
 ...
 ? 0
 ```
