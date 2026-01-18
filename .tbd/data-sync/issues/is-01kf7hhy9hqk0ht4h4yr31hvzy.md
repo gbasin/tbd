@@ -1,4 +1,6 @@
 ---
+close_reason: Doctor now shows STATUS + STATISTICS + HEALTH CHECKS as comprehensive superset
+closed_at: 2026-01-18T05:44:03.619Z
 created_at: 2026-01-18T03:14:39.024Z
 dependencies:
   - target: is-01kf7hgnt5ymykg47yvryr2dj7
@@ -7,11 +9,11 @@ id: is-01kf7hhy9hqk0ht4h4yr31hvzy
 kind: task
 labels: []
 priority: 1
-status: open
+status: closed
 title: Refactor tbd doctor to include status and stats output
 type: is
-updated_at: 2026-01-18T03:15:40.739Z
-version: 5
+updated_at: 2026-01-18T05:44:03.620Z
+version: 6
 ---
 Make tbd doctor a comprehensive health check that includes:
 

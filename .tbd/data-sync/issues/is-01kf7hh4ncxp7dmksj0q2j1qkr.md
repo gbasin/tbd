@@ -1,4 +1,6 @@
 ---
+close_reason: Issue counts removed from status command, moved to stats
+closed_at: 2026-01-18T05:44:02.678Z
 created_at: 2026-01-18T03:14:12.779Z
 dependencies:
   - target: is-01kf7hhy9hqk0ht4h4yr31hvzy
@@ -9,11 +11,11 @@ id: is-01kf7hh4ncxp7dmksj0q2j1qkr
 kind: task
 labels: []
 priority: 1
-status: in_progress
+status: closed
 title: Refactor tbd status to remove issue counts
 type: is
-updated_at: 2026-01-18T05:38:43.787Z
-version: 5
+updated_at: 2026-01-18T05:44:02.678Z
+version: 6
 ---
 Remove issue counts (Ready, In progress, Open, Total) from tbd status output. These will be moved to tbd stats.
 

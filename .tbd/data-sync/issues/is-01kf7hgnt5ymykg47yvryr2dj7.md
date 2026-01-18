@@ -1,15 +1,17 @@
 ---
+close_reason: "Command hierarchy redesigned: status shows setup only, stats shows all statistics, doctor is comprehensive superset"
+closed_at: 2026-01-18T05:44:11.997Z
 created_at: 2026-01-18T03:13:57.572Z
 dependencies: []
 id: is-01kf7hgnt5ymykg47yvryr2dj7
 kind: epic
 labels: []
 priority: 1
-status: open
+status: closed
 title: Redesign tbd status/stats/doctor command hierarchy
 type: is
-updated_at: 2026-01-18T03:15:34.225Z
-version: 8
+updated_at: 2026-01-18T05:44:11.997Z
+version: 9
 ---
 Redesign the relationship between status, stats, and doctor commands:
 
