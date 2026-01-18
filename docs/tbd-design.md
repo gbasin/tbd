@@ -448,9 +448,10 @@ necessary.
 
 ## References
 
-- **CLI Documentation**: `tbd docs` or [docs/tbd-docs.md](tbd-docs.md)
+- **README**: `tbd readme`
+- **CLI Documentation**: `tbd docs`
 - **Full Design Spec**:
-  [docs/project/architecture/current/tbd-design-v3.md](project/architecture/current/tbd-design-v3.md)
+  [docs/project/architecture/current/tbd-full-design.md](project/architecture/current/tbd-full-design.md)
 - **Beads**: https://github.com/steveyegge/beads
 - **ticket**: https://github.com/wedow/ticket
 - **ULID Spec**: https://github.com/ulid/spec
