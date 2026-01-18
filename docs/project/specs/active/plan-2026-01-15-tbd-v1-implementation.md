@@ -1747,7 +1747,7 @@ title: Test issue
 
 ```console
 $ ID=$(tbd create "Update test" --json | jq -r '.id')
-$ tbd update $ID --status in_progress --priority 0
+$ tbd update $ID --status in_progress --priority=P0
 Updated bd-[..]
 ? 0
 $ tbd show $ID --json | jq '.status, .priority'

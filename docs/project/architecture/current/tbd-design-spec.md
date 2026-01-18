@@ -1750,7 +1750,7 @@ Options:
 **Examples:**
 
 ```bash
-tbd create "Fix authentication bug" --type=bug --priority=1
+tbd create "Fix authentication bug" --type=bug --priority=P1
 tbd create "Add OAuth" --type=feature --label=backend --label=security
 tbd create "Write tests" --parent proj-a1b2
 tbd create "API docs" --file design.md
@@ -1809,7 +1809,7 @@ Options:
 tbd list                             # Active issues only (excludes closed)
 tbd list --all                       # All issues including closed
 tbd list --status closed             # Only closed issues
-tbd list --status open --priority=1
+tbd list --status open --priority=P1
 tbd list --assignee agent-1 --json
 tbd list --deferred
 ```
@@ -1968,7 +1968,7 @@ Options:
 
 ```bash
 tbd update proj-a1b2 --status=in_progress
-tbd update proj-a1b2 --add-label urgent --priority 0
+tbd update proj-a1b2 --add-label urgent --priority=P0
 tbd update proj-a1b2 --defer 2025-02-01
 
 # Round-trip editing: export, modify, re-import
@@ -2572,7 +2572,7 @@ Example agent workflow:
 
 ```bash
 # CI pipeline: create issue non-interactively
-CI=1 tbd create "Deploy failed" --kind bug --priority=2 --json
+CI=1 tbd create "Deploy failed" --kind bug --priority=P2 --json
 
 # Agent: preview changes before committing
 tbd update td-abc1 --status done --dry-run --json
@@ -3721,8 +3721,8 @@ Options:
 - `tbd show <id>` - Detailed issue view with dependencies
 
 ### Creating & Updating
-- `tbd create "title" --type=task|bug|feature --priority=2` - New issue
-  - Priority: 0-4 (0=critical, 2=medium, 4=backlog)
+- `tbd create "title" --type=task|bug|feature --priority=P2` - New issue
+  - Priority: P0-P4 (P0=critical, P2=medium, P4=backlog)
 - `tbd update <id> --status=in_progress` - Claim work
 - `tbd update <id> --assignee username` - Assign to someone
 - `tbd close <id>` - Mark complete
@@ -4499,14 +4499,14 @@ Claims are advisory in both (no enforcement).
 **Beads:**
 
 ```bash
-bd create "Found bug" --type=bug --priority=1 --deps discovered-from:<id> --json
+bd create "Found bug" --type=bug --priority=P1 --deps discovered-from:<id> --json
 ```
 
 **tbd:**
 
 ```bash
 # Only blocks dependency supported currently
-tbd create "Found bug" --type=bug --priority=1 --parent=<id> --json
+tbd create "Found bug" --type=bug --priority=P1 --parent=<id> --json
 # Or wait for future version for discovered-from
 ```
 

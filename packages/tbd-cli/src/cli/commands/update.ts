@@ -11,7 +11,8 @@ import { BaseCommand } from '../lib/baseCommand.js';
 import { requireInit, NotFoundError, ValidationError, CLIError } from '../lib/errors.js';
 import { readIssue, writeIssue } from '../../file/storage.js';
 import { formatDisplayId, formatDebugId } from '../../lib/ids.js';
-import { IssueStatus, IssueKind, Priority } from '../../lib/schemas.js';
+import { IssueStatus, IssueKind } from '../../lib/schemas.js';
+import { parsePriority } from '../../lib/priority.js';
 import type { IssueStatusType, IssueKindType, PriorityType } from '../../lib/types.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
 import { now } from '../../utils/timeUtils.js';
@@ -160,12 +161,12 @@ class UpdateHandler extends BaseCommand {
     }
 
     if (options.priority) {
-      const num = parseInt(options.priority, 10);
-      const result = Priority.safeParse(num);
-      if (!result.success) {
-        throw new ValidationError(`Invalid priority: ${options.priority}. Must be 0-4`);
+      // Use shared parsePriority which accepts both "P1" and "1" formats
+      const priority = parsePriority(options.priority);
+      if (priority === undefined) {
+        throw new ValidationError(`Invalid priority: ${options.priority}. Use P0-P4 or 0-4.`);
       }
-      updates.priority = result.data;
+      updates.priority = priority;
     }
 
     if (options.assignee !== undefined) {

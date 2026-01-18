@@ -34,12 +34,12 @@ tbd sync                                   # Push to remote
 ### Create issues
 
 ```bash
-tbd create "API returns 500 on malformed input" --type=bug --priority=1
+tbd create "API returns 500 on malformed input" --type=bug --priority=P1
 tbd create "Add rate limiting to /api/upload" --type=feature
-tbd create "Refactor database connection pooling" --type=task --priority=3
+tbd create "Refactor database connection pooling" --type=task --priority=P3
 
 # With description and labels
-tbd create "Users can't reset password" --type=bug --priority=0 \
+tbd create "Users can't reset password" --type=bug --priority=P0 \
   --description="Reset emails not sending. Affects all users since deploy." \
   --label=urgent --label=auth
 ```
@@ -92,7 +92,7 @@ Create a new issue.
 
 ```bash
 tbd create "Implement user auth"                                   # Basic task
-tbd create "Fix crash on login" --type=bug --priority=0            # Critical bug
+tbd create "Fix crash on login" --type=bug --priority=P0            # Critical bug
 tbd create "Dark mode support" --type=feature                      # Feature request
 tbd create "Refactor database layer" --type=chore                  # Technical debt
 tbd create "Q1 Goals" --type=epic                                  # Epic for grouping
@@ -133,7 +133,7 @@ tbd list --all                              # Include closed issues
 tbd list --status=in_progress               # Currently being worked on
 tbd list --status=blocked                   # Blocked issues
 tbd list --type=bug                         # Only bugs
-tbd list --priority=0                       # Critical priority only
+tbd list --priority=P0                       # Critical priority only
 tbd list --assignee=alice                   # Assigned to alice
 tbd list --label=urgent                     # With 'urgent' label
 tbd list --label=backend --label=api        # Multiple labels (AND)
@@ -184,7 +184,7 @@ Modify an existing issue.
 ```bash
 tbd update proj-a7k2 --status=in_progress    # Start working
 tbd update proj-a7k2 --status=blocked        # Mark as blocked
-tbd update proj-a7k2 --priority=0            # Escalate priority
+tbd update proj-a7k2 --priority=P0            # Escalate priority
 tbd update proj-a7k2 --assignee=bob          # Reassign
 tbd update proj-a7k2 --description="New description"
 tbd update proj-a7k2 --notes="Found root cause in auth.ts"
@@ -678,7 +678,7 @@ tbd sync
 
 ```bash
 # Create epic
-tbd create "User Authentication System" --type=epic --priority=1
+tbd create "User Authentication System" --type=epic --priority=P1
 
 # Create child tasks
 tbd create "Design auth API" --parent=proj-epic
@@ -715,7 +715,7 @@ tbd ready  # API now appears as ready
 tbd list --type=bug --sort=priority
 
 # Escalate a critical bug
-tbd update proj-bug1 --priority=0 --label=critical
+tbd update proj-bug1 --priority=P0 --label=critical
 
 # Assign bugs
 tbd update proj-bug1 --assignee=alice
@@ -838,7 +838,7 @@ sync:
 | 3 | P3 | Low—backlog |
 | 4 | P4 | Lowest—maybe/someday |
 
-Both formats work: `--priority=1` or `--priority P1`
+Both formats work: `--priority=P1` or `--priority=1` (P-prefix is the canonical display format)
 
 ## Date Formats
 

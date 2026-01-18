@@ -45,11 +45,27 @@ $ tbd create "A bug report" --type=bug
 ? 0
 ```
 
-# Test: Create feature with priority
+# Test: Create feature with priority (numeric format)
 
 ```console
 $ tbd create "High priority feature" --type=feature --priority=0
 ✓ Created test-[SHORTID]: High priority feature
+? 0
+```
+
+# Test: Create feature with priority (P-prefix format)
+
+```console
+$ tbd create "P1 priority feature" --type=feature --priority=P1
+✓ Created test-[SHORTID]: P1 priority feature
+? 0
+```
+
+# Test: Create with lowercase p-prefix format
+
+```console
+$ tbd create "Lowercase p2 task" --type=task --priority=p2
+✓ Created test-[SHORTID]: Lowercase p2 task
 ? 0
 ```
 
@@ -213,11 +229,49 @@ $ tbd list --type=bug
 ? 0
 ```
 
-# Test: List filter by priority
+# Test: List filter by priority (numeric format)
+
+At this point we have 3 P1 issues: P1 priority feature, Epic project, Issue to show
 
 ```console
-$ tbd list --priority=1
-...
+$ tbd list --priority=1 --count
+3
+? 0
+```
+
+# Test: List filter by priority (P-prefix format)
+
+P-prefix format should work the same as numeric format:
+
+```console
+$ tbd list --priority=P1 --count
+3
+? 0
+```
+
+# Test: List filter by priority P0 (should return only P0 issues)
+
+At this point we have 1 P0 issue (High priority feature). Create another one:
+
+```console
+$ tbd create "Critical P0 issue" --priority=0 --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); require('fs').writeFileSync('p0_id.txt', d.id); console.log('Created')"
+Created
+? 0
+```
+
+Now we have 2 P0 issues:
+
+```console
+$ tbd list --priority=P0 --count
+2
+? 0
+```
+
+Numeric format should return the same count:
+
+```console
+$ tbd list --priority=0 --count
+2
 ? 0
 ```
 
@@ -289,10 +343,26 @@ $ tbd update $(cat update_id.txt) --status=in_progress
 ? 0
 ```
 
-# Test: Update priority
+# Test: Update priority (numeric format)
 
 ```console
 $ tbd update $(cat update_id.txt) --priority=0
+✓ Updated [..]
+? 0
+```
+
+# Test: Update priority (P-prefix format)
+
+```console
+$ tbd update $(cat update_id.txt) --priority=P2
+✓ Updated [..]
+? 0
+```
+
+# Test: Update priority (lowercase p-prefix format)
+
+```console
+$ tbd update $(cat update_id.txt) --priority=p1
 ✓ Updated [..]
 ? 0
 ```
@@ -518,10 +588,26 @@ Error: Title is required[..]
 ? 2
 ```
 
-# Test: Update with invalid priority
+# Test: Update with invalid priority (out of range)
 
 ```console
 $ tbd update $(cat update_id.txt) --priority=10 2>&1
+Error: Invalid priority[..]
+? 2
+```
+
+# Test: Update with invalid priority (P-prefix out of range)
+
+```console
+$ tbd update $(cat update_id.txt) --priority=P9 2>&1
+Error: Invalid priority[..]
+? 2
+```
+
+# Test: Update with invalid priority (non-numeric)
+
+```console
+$ tbd update $(cat update_id.txt) --priority=high 2>&1
 Error: Invalid priority[..]
 ? 2
 ```

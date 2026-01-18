@@ -61,8 +61,8 @@ Every session must end with tbd in a clean state:
 
 ### Creating & Updating
 
-- `tbd create "title" --type task|bug|feature --priority 2` - New issue
-  - Priority: 0-4 (0=critical, 2=medium, 4=backlog).
+- `tbd create "title" --type task|bug|feature --priority=P2` - New issue
+  - Priority: P0-P4 (P0=critical, P2=medium, P4=backlog).
     Do NOT use "high"/"medium"/"low"
 - `tbd update <id> --status in_progress` - Claim work
 - `tbd update <id> --assignee username` - Assign to someone

@@ -35,7 +35,7 @@ cd my-project
 tbd init
 
 # Create issues
-tbd create "API returns 500 on malformed input" --type=bug --priority=1
+tbd create "API returns 500 on malformed input" --type=bug --priority=P1
 tbd create "Add rate limiting to /api/upload" --type=feature
 
 # Find and claim work
@@ -243,7 +243,8 @@ tbd requires Git 2.42+ for orphan worktree support (`git worktree add --orphan`)
 git --version
 ```
 
-**Upgrade:** See [git-scm.com/downloads](https://git-scm.com/downloads) for platform-specific instructions.
+**Upgrade:** See [git-scm.com/downloads](https://git-scm.com/downloads) for
+platform-specific instructions.
 
 After upgrading, verify with `git --version` and try `tbd init` again.
 

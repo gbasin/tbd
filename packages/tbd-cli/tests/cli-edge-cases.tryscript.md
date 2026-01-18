@@ -130,7 +130,7 @@ Error: Issue not found: zzzz
 
 ```console
 $ tbd create "Test" --priority=10 2>&1
-Error: Invalid priority: 10. Must be 0-4
+Error: Invalid priority: 10. Use P0-P4 or 0-4.
 ? 2
 ```
 

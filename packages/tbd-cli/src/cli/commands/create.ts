@@ -19,7 +19,8 @@ import {
   addIdMapping,
   resolveToInternalId,
 } from '../../file/idMapping.js';
-import { IssueKind, Priority } from '../../lib/schemas.js';
+import { IssueKind } from '../../lib/schemas.js';
+import { parsePriority } from '../../lib/priority.js';
 import { resolveDataSyncDir } from '../../lib/paths.js';
 import { now } from '../../utils/timeUtils.js';
 import { readConfig } from '../../file/config.js';
@@ -48,7 +49,7 @@ class CreateHandler extends BaseCommand {
 
     // Parse and validate options
     const kind = this.parseKind(options.type ?? 'task');
-    const priority = this.parsePriority(options.priority ?? '2');
+    const priority = this.validatePriority(options.priority ?? '2');
 
     // Read description from file if specified
     let description = options.description;
@@ -132,13 +133,13 @@ class CreateHandler extends BaseCommand {
     return result.data;
   }
 
-  private parsePriority(value: string): PriorityType {
-    const num = parseInt(value, 10);
-    const result = Priority.safeParse(num);
-    if (!result.success) {
-      throw new ValidationError(`Invalid priority: ${value}. Must be 0-4`);
+  private validatePriority(value: string): PriorityType {
+    // Use shared parsePriority which accepts both "P1" and "1" formats
+    const num = parsePriority(value);
+    if (num === undefined) {
+      throw new ValidationError(`Invalid priority: ${value}. Use P0-P4 or 0-4.`);
     }
-    return result.data;
+    return num;
   }
 }
 
