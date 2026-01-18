@@ -20,57 +20,39 @@ interface PrimeOptions {
 }
 
 /**
- * Get the path to the bundled tbd-prime.md file.
- * Similar to how docs.ts locates tbd-docs.md.
- */
-function getPrimePath(): string {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  // When bundled, runs from dist/bin.mjs or dist/cli.mjs
-  // Docs are at dist/docs/tbd-prime.md (same level as the bundle)
-  return join(__dirname, 'docs', 'tbd-prime.md');
-}
-
-/**
  * Get the path to the bundled SKILL.md file.
  */
 function getSkillPath(): string {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
+  // When bundled, runs from dist/bin.mjs or dist/cli.mjs
+  // Docs are at dist/docs/SKILL.md (same level as the bundle)
   return join(__dirname, 'docs', 'SKILL.md');
 }
 
 /**
- * Load the prime content from the bundled tbd-prime.md file with fallbacks.
+ * Strip YAML frontmatter from markdown content.
+ * Frontmatter is delimited by --- at start and end.
  */
-export async function loadPrimeContent(): Promise<string> {
-  // Try bundled location first
-  try {
-    return await readFile(getPrimePath(), 'utf-8');
-  } catch {
-    // Fallback: try to read from source location during development
+function stripFrontmatter(content: string): string {
+  const lines = content.split('\n');
+  if (lines[0]?.trim() !== '---') {
+    return content;
   }
 
-  // Fallback for development without bundle
-  try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const devPath = join(__dirname, '..', '..', 'docs', 'tbd-prime.md');
-    return await readFile(devPath, 'utf-8');
-  } catch {
-    // Fallback: try repo-level docs
+  // Find the closing ---
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i]?.trim() === '---') {
+      // Return content after frontmatter, trimming leading newlines
+      return lines
+        .slice(i + 1)
+        .join('\n')
+        .replace(/^\n+/, '');
+    }
   }
 
-  // Last fallback: repo-level docs
-  try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const repoPath = join(__dirname, '..', '..', '..', '..', '..', 'docs', 'tbd-prime.md');
-    return await readFile(repoPath, 'utf-8');
-  } catch {
-    // If all else fails, throw an error
-    throw new Error('tbd-prime.md content file not found. Please rebuild the CLI.');
-  }
+  // No closing --- found, return original
+  return content;
 }
 
 /**
@@ -105,6 +87,18 @@ export async function loadSkillContent(): Promise<string> {
     // If all else fails, throw an error
     throw new Error('SKILL.md content file not found. Please rebuild the CLI.');
   }
+}
+
+/**
+ * Load the prime content from the bundled SKILL.md file with fallbacks.
+ * Strips frontmatter and adjusts the header for prime output.
+ */
+export async function loadPrimeContent(): Promise<string> {
+  const skillContent = await loadSkillContent();
+  const content = stripFrontmatter(skillContent);
+
+  // Replace header for prime output context
+  return content.replace(/^# tbd Workflow\b/, '# tbd Workflow Context');
 }
 
 class PrimeHandler extends BaseCommand {
