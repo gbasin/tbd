@@ -94,7 +94,7 @@ ag-anonymous-01hx5zzkbkcdtav9wevgemmvrz  # If no name provided
 tbd tx begin [--name <name>]     # Start transaction, get tx ID
 tbd tx status                     # Show pending changes in current tx
 tbd tx diff                       # Show what would change on commit
-tbd tx commit [--message <msg>]   # Apply all changes, merge to tbd-sync
+tbd tx commit                     # Apply all changes, merge to tbd-sync
 tbd tx abort                      # Discard all changes
 tbd tx list                       # Show active transactions (for recovery)
 ```
@@ -158,7 +158,7 @@ tbd dep add bd-mfa bd-oauth --type blocks
 # Agent adjusts structure...
 
 # Plan finalized - commit all at once
-tbd tx commit --message "Q1 auth roadmap with 4 tasks"
+tbd tx commit
 # → All issues appear atomically in tbd-sync
 ```
 
@@ -404,7 +404,7 @@ write to the worktree, which is now on the transaction branch.
   - [ ] `tx begin [--name <name>]` command
   - [ ] `tx status` command - shows active tx name, id, started_at, pending changes
   - [ ] `tx diff` command - shows uncommitted changes in worktree
-  - [ ] `tx commit [--message <msg>]` command
+  - [ ] `tx commit` command - error if no changes
   - [ ] `tx abort` command
   - [ ] `tx list` command - shows orphaned tx branches for recovery
 
@@ -516,7 +516,7 @@ tbd create "Implement MFA" --type task --parent bd-epic
 tbd dep add bd-mfa bd-oauth --type blocks
 
 # Plan finalized
-tbd tx commit --message "Q1 auth roadmap"
+tbd tx commit
 # → All issues appear atomically in tbd-sync
 ​```
 
@@ -578,11 +578,12 @@ Transactional mode provides atomic batch commits using git branches.
    commands required.
 
 3. **Commit**: `tbd tx commit`:
-   a. Commits any uncommitted changes in worktree to tx branch
-   b. Checks out `tbd-sync` in worktree
-   c. Merges tx branch into `tbd-sync`
-   d. Pushes `tbd-sync` to remote (with retry on conflict)
-   e. Deletes tx branch
+   a. Error if no changes in transaction
+   b. Commits any uncommitted changes in worktree to tx branch
+   c. Checks out `tbd-sync` in worktree
+   d. Merges tx branch into `tbd-sync` (auto-generated message: "tbd tx: {name}")
+   e. Pushes `tbd-sync` to remote (with retry on conflict)
+   f. Deletes tx branch
 
 4. **Abort**: `tbd tx abort`:
    a. Checks out `tbd-sync` in worktree (discarding uncommitted changes)
@@ -728,13 +729,11 @@ Shows detailed changes that would be committed.
 #### Commit
 
 ​```bash
-tbd tx commit [--message <msg>]
-
-Options:
-  --message <msg>    Commit message (default: "tbd tx commit")
+tbd tx commit
 ​```
 
 Commits the transaction: merges changes to tbd-sync and syncs to remote.
+Merge commit message is auto-generated from transaction name.
 
 **Output:**
 ​```
@@ -742,6 +741,12 @@ Committed transaction: auth-feature
   new:      2 issues
   updated:  3 issues
 Synced to origin/tbd-sync
+​```
+
+**Error (empty transaction):**
+​```
+Error: Transaction has no changes to commit.
+Run 'tbd tx abort' to close the transaction.
 ​```
 
 #### Abort
