@@ -1,4 +1,6 @@
 ---
+close_reason: Completed in cf08856 - enforce atomic writes and consolidate command context (#16)
+closed_at: 2026-01-19T08:21:01.205Z
 created_at: 2026-01-18T03:19:02.488Z
 dependencies:
   - target: is-01kf7htgqhy36w25mnk7c6qwqs
@@ -7,11 +9,11 @@ id: is-01kf7hszjstaa0cn5jsnzskr75
 kind: task
 labels: []
 priority: 2
-status: open
+status: closed
 title: Audit all write file operations for atomic writes
 type: is
-updated_at: 2026-01-18T03:19:33.476Z
-version: 3
+updated_at: 2026-01-19T08:21:01.206Z
+version: 4
 ---
 Audit all file write operations to ensure we're using the 'atomically' library consistently.
 

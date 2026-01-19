@@ -1,4 +1,6 @@
 ---
+close_reason: Completed in cf08856 - enforce atomic writes and consolidate command context (#16)
+closed_at: 2026-01-19T08:21:00.770Z
 created_at: 2026-01-17T21:34:08.039Z
 dependencies:
   - target: is-01kf6y2pm7sk2tzrzd90wnb4d5
@@ -7,11 +9,11 @@ id: is-01kf6y2e5dy0wmv1zwhkz7vyhm
 kind: task
 labels: []
 priority: 2
-status: open
+status: closed
 title: Consolidate command context loading into unified CommandContext class
 type: is
-updated_at: 2026-01-17T21:34:21.483Z
-version: 2
+updated_at: 2026-01-19T08:21:00.772Z
+version: 3
 ---
 Currently, commands load configuration and mapping data in a repetitive pattern:
 

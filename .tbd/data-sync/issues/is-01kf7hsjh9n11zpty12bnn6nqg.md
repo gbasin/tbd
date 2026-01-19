@@ -1,4 +1,6 @@
 ---
+close_reason: Completed in cf08856 - copy-docs.mjs now uses atomicCopy with atomically library
+closed_at: 2026-01-19T08:21:32.828Z
 created_at: 2026-01-18T03:18:49.128Z
 dependencies:
   - target: is-01kf7hszjstaa0cn5jsnzskr75
@@ -7,11 +9,11 @@ id: is-01kf7hsjh9n11zpty12bnn6nqg
 kind: task
 labels: []
 priority: 2
-status: open
+status: closed
 title: Audit and fix copy file operations to use atomic writes
 type: is
-updated_at: 2026-01-18T03:19:15.513Z
-version: 3
+updated_at: 2026-01-19T08:21:32.829Z
+version: 4
 ---
 Audit all file copy operations in the codebase and ensure they use atomic writes.
 
