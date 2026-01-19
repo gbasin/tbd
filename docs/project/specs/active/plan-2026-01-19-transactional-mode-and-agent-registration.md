@@ -237,20 +237,21 @@ base_commit: abc123...  # tbd-sync commit when tx started
 
 ### 2.4 Transaction Worktree Strategy
 
-**Approach A: Single worktree, switch branches**
+**Approach: Single worktree, switch branches**
 - One worktree at `.tbd/data-sync-worktree/`
 - On `tx begin`, checkout tx branch in worktree
 - On `tx commit/abort`, checkout tbd-sync back
-- Simpler, but worktree state changes during transaction
+- Only one transaction active at a time (enforced)
 
-**Approach B: Separate transaction worktree**
-- Main worktree at `.tbd/data-sync-worktree/` (tbd-sync)
-- Transaction worktree at `.tbd/data-sync-worktree-tx/` (tx branch)
-- On `tx begin`, create new worktree
-- On `tx commit/abort`, remove tx worktree
-- More isolation, cleaner semantics
+**Why single worktree:**
+- Simpler - no second worktree lifecycle management
+- No extra disk space
+- Matches constraint of one transaction at a time
+- During transaction, agent wants to see tx state anyway
 
-**Recommendation:** Approach B - better isolation, easier to reason about
+**Trade-off:** During a transaction, viewing "original" tbd-sync state requires
+`git show tbd-sync:path` rather than file reads. This is acceptable since it's
+a rare need - agents typically want to see their pending changes.
 
 ### 2.5 Implementation Location
 
@@ -260,28 +261,43 @@ base_commit: abc123...  # tbd-sync commit when tx started
 | Transaction commands | `packages/tbd/src/cli/commands/tx.ts` | New file |
 | Agent state | `packages/tbd/src/file/agent.ts` | New file |
 | Transaction state | `packages/tbd/src/file/transaction.ts` | New file |
-| Transaction worktree | `packages/tbd/src/file/git.ts` | Extend existing |
-| Path resolution | `packages/tbd/src/lib/paths.ts` | Add TX_WORKTREE_DIR |
-| Storage routing | `packages/tbd/src/file/storage.ts` | Detect active tx |
+| Transaction git ops | `packages/tbd/src/file/git.ts` | Extend existing |
+| Path constants | `packages/tbd/src/lib/paths.ts` | Add state file paths |
 
-### 2.6 Command Detection of Active Transaction
+### 2.6 Worktree Branch Switching
 
-All write commands (create, update, close, reopen, label, dep) need to:
+Since the worktree is already on the correct branch (either `tbd-sync` or
+`tbd-sync-tx-{id}`), existing commands work without modification. The worktree
+path resolution remains unchanged - only the branch it's checked out to changes.
 
-1. Check for active transaction in `.tbd/cache/transaction.yml`
-2. If active: resolve data-sync dir to transaction worktree
-3. If not active: use normal tbd-sync worktree (current behavior)
-
-```typescript
-// In storage.ts or new transaction.ts
-export async function resolveDataSyncDir(): Promise<string> {
-  const activeTx = await getActiveTransaction();
-  if (activeTx) {
-    return join(process.cwd(), TX_WORKTREE_DIR, TBD_DIR, DATA_SYNC_DIR_NAME);
-  }
-  return join(process.cwd(), WORKTREE_DIR, TBD_DIR, DATA_SYNC_DIR_NAME);
-}
+**On `tx begin`:**
+```bash
+# In the worktree directory
+git checkout -b tbd-sync-tx-{id}
 ```
+
+**On `tx commit`:**
+```bash
+# Commit any pending changes to tx branch
+git add -A && git commit -m "tbd tx: {message}"
+
+# Switch back to tbd-sync and merge
+git checkout tbd-sync
+git merge tbd-sync-tx-{id} -m "tbd tx commit: {message}"
+
+# Clean up
+git branch -d tbd-sync-tx-{id}
+```
+
+**On `tx abort`:**
+```bash
+# Discard changes and switch back
+git checkout tbd-sync
+git branch -D tbd-sync-tx-{id}
+```
+
+**Key insight:** No changes needed to create/update/close commands - they already
+write to the worktree, which is now on the transaction branch.
 
 * * *
 
@@ -314,54 +330,60 @@ export async function resolveDataSyncDir(): Promise<string> {
   - [ ] `beginTransaction(name?: string)` function
   - [ ] `getActiveTransaction()` function
   - [ ] `clearTransaction()` function
-  - [ ] `listTransactions()` function (find orphaned tx branches)
+  - [ ] `listOrphanedTransactions()` function (find tx branches without state file)
 
 - [ ] Update `packages/tbd/src/lib/paths.ts`
-  - [ ] Add `TX_WORKTREE_DIR = '.tbd/data-sync-worktree-tx'`
   - [ ] Add `TRANSACTION_STATE_FILE = 'transaction.yml'`
 
 ### Phase 3: Transaction Git Operations
 
 - [ ] Update `packages/tbd/src/file/git.ts`
-  - [ ] `createTransactionBranch(txId: string)` function
-  - [ ] `initTransactionWorktree(txId: string)` function
-  - [ ] `mergeTransactionToSync(txId: string, message?: string)` function
-  - [ ] `deleteTransactionBranch(txId: string)` function
-  - [ ] `removeTransactionWorktree()` function
+  - [ ] `createTransactionBranch(txId: string)` - checkout -b in worktree
+  - [ ] `commitTransaction(message?: string)` - commit pending changes to tx branch
+  - [ ] `mergeTransactionToSync(txId: string, message?: string)` - merge tx → tbd-sync
+  - [ ] `abortTransaction(txId: string)` - checkout tbd-sync, delete tx branch
+  - [ ] `getWorktreeBranch()` - get current branch in worktree
 
 ### Phase 4: Transaction Commands
 
 - [ ] Create `packages/tbd/src/cli/commands/tx.ts`
   - [ ] `tx begin [--name <name>]` command
-  - [ ] `tx status` command
-  - [ ] `tx diff` command
+  - [ ] `tx status` command - shows active tx name, id, started_at, pending changes
+  - [ ] `tx diff` command - shows uncommitted changes in worktree
   - [ ] `tx commit [--message <msg>]` command
   - [ ] `tx abort` command
-  - [ ] `tx list` command
+  - [ ] `tx list` command - shows orphaned tx branches for recovery
 
 - [ ] Register in `packages/tbd/src/cli/cli.ts`
 
-### Phase 5: Storage Routing
+**`tx status` output example:**
+```
+Transaction: auth-feature (tx-01hx5zzkbk...)
+Started: 2025-01-19T10:30:00Z (2 hours ago)
+Agent: ag-claude-01hx5zzkbk...
 
-- [ ] Update `packages/tbd/src/lib/paths.ts`
-  - [ ] Modify `resolveDataSyncDir()` to check for active transaction
+Pending changes:
+  new:      2 issues
+  updated:  3 issues
+  deleted:  0 issues
 
-- [ ] Update all write commands to use `resolveDataSyncDir()`
-  - [ ] `create.ts`
-  - [ ] `update.ts`
-  - [ ] `close.ts`
-  - [ ] `reopen.ts`
-  - [ ] `label.ts`
-  - [ ] `dep.ts`
+Run 'tbd tx diff' for details, 'tbd tx commit' to finalize.
+```
 
-### Phase 6: Testing
+**When no transaction active:**
+```
+No active transaction.
+Run 'tbd tx begin' to start one.
+```
+
+### Phase 5: Testing
 
 - [ ] Create `packages/tbd/tests/agent.test.ts`
 - [ ] Create `packages/tbd/tests/transaction.test.ts`
 - [ ] Create tryscript: `packages/tbd/tests/cli-agent.tryscript.md`
 - [ ] Create tryscript: `packages/tbd/tests/cli-transaction.tryscript.md`
 
-### Phase 7: Documentation
+### Phase 6: Documentation
 
 - [ ] Update `docs/tbd-design.md` (see section below)
 - [ ] Update `docs/tbd-docs.md` with new commands
