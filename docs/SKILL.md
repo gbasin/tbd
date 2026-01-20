@@ -7,17 +7,13 @@ allowed-tools: Bash(tbd:*), Read, Write
 
 ## Installation
 
-If `tbd` is not installed, install it globally:
+If `tbd` is not installed, install and set up in one command:
 
 ```bash
-npm install -g tbd-git@latest
+npm install -g tbd-git@latest && tbd setup --auto
 ```
 
-Confirm it is initialized in this repository:
-
-```bash
-tbd init 2>/dev/null || echo "tbd already initialized"
-```
+This initializes tbd and configures your coding agent automatically.
 
 `tbd` provides lightweight, git-native task and issue tracking using beads, which are
 just lightweight issues managed from the CLI.

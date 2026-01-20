@@ -599,12 +599,23 @@ class SetupDefaultHandler extends BaseCommand {
 - [ ] Update help footer in cli.ts with one-liner
 - [ ] Add help text for `tbd setup --help` showing surgical option
 - [ ] Add help text for `tbd init --help` explaining when to use it
-- [ ] Update SKILL.md to reference `tbd setup --auto`
 - [ ] Update design doc §6.4
 - [ ] Update README with prominent one-liner:
   `npm install -g tbd-git@latest && tbd setup --auto`
 
-### Phase 6: Testing
+### Phase 6: Agent Messaging Consistency
+
+- [ ] Update SKILL.md Installation section to use `tbd setup --auto` (not `tbd init`)
+- [ ] Have `tbd setup --auto` output `tbd prime` content after setup completes
+- [ ] Ensure all SKILL.md copies are in sync:
+  - `packages/tbd/src/docs/SKILL.md` (source of truth)
+  - `docs/SKILL.md` (repo-level copy for reference)
+- [ ] Test the full agent flow:
+  1. Agent reads SKILL.md → runs `tbd setup --auto`
+  2. Setup completes → outputs full workflow context
+  3. Next session → hook calls `tbd prime` → same context
+
+### Phase 7: Testing
 
 - [ ] Unit tests for prefix auto-detection
 - [ ] Integration tests for all setup flows
@@ -631,3 +642,116 @@ class SetupDefaultHandler extends BaseCommand {
 
 **Mental model:** Think of `tbd setup` like “npm create” (friendly wizard) and
 `tbd init` like “npm init” (minimal, predictable).
+
+## Agent Messaging Consistency
+
+### The Three Agent States
+
+When an AI agent encounters tbd, it’s in one of three states:
+
+| State | How Agent Gets Context | Entry Point |
+| --- | --- | --- |
+| **Not installed** | Reads SKILL.md from skill/rules file | `tbd setup --auto` |
+| **Installed, new session** | SessionStart hook calls `tbd prime` | Automatic |
+| **Mid-session, after compaction** | PreCompact hook calls `tbd prime` | Automatic |
+
+### Messaging Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Agent sees SKILL.md (via Claude skill, Cursor rules, AGENTS.md)         │
+│                                                                         │
+│ SKILL.md says:                                                          │
+│   npm install -g tbd-git@latest && tbd setup --auto                     │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Agent runs: tbd setup --auto                                            │
+│                                                                         │
+│ Output:                                                                 │
+│   ✓ Initialized tbd (prefix: myapp)                                    │
+│   ✓ Configured Claude Code                                              │
+│                                                                         │
+│ Then automatically outputs tbd prime content:                           │
+│   ─────────────────────────────────────────────────                     │
+│   # tbd Workflow Context                                                │
+│   [Full workflow instructions from SKILL.md]                            │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Subsequent sessions: SessionStart hook runs `tbd prime`                 │
+│ After compaction: PreCompact hook runs `tbd prime`                      │
+│                                                                         │
+│ Same content as above, ensuring context is always available             │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Content Consistency Requirements
+
+All three sources MUST contain identical workflow instructions:
+
+1. **SKILL.md** - Bundled with tbd, installed to `.claude/skills/tbd/SKILL.md`
+2. **`tbd prime` output** - Reads and outputs SKILL.md content (with minor header
+   change)
+3. **Cursor rules / AGENTS.md** - Also derived from SKILL.md
+
+**Single source of truth:** `packages/tbd/src/docs/SKILL.md`
+
+### SKILL.md Updates Required
+
+The Installation section in SKILL.md must be updated:
+
+````markdown
+## Installation
+
+If `tbd` is not installed, install and set up in one command:
+
+```bash
+npm install -g tbd-git@latest && tbd setup --auto
+````
+
+This initializes tbd and configures your coding agent automatically.
+After setup, `tbd prime` will output the full workflow context.
+
+> **Context Recovery**: Run `tbd prime` after compaction, clear, or new session.
+> Hooks auto-call this in Claude Code when .tbd/ detected.
+````
+
+### `tbd setup --auto` Output Behavior
+
+When `tbd setup --auto` completes successfully:
+
+1. Print setup summary (what was initialized/configured)
+2. Print separator line
+3. Output `tbd prime` content automatically
+
+This ensures the agent has full context immediately after setup, without needing
+to run a second command.
+
+**Implementation:** Call `loadPrimeContent()` at the end of SetupDefaultHandler
+when `--auto` flag is used.
+
+### `tbd prime` Behavior (No Changes Needed)
+
+Current behavior is correct:
+- Outputs SKILL.md content (with "# tbd Workflow Context" header)
+- Silent exit if not in a tbd project (exit 0, no output)
+- Supports `--brief` for minimal context
+- Supports `.tbd/PRIME.md` override for customization
+
+### Hook Configuration
+
+The hooks installed by `tbd setup claude` call `tbd prime`:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{ "matcher": "", "hooks": [{ "type": "command", "command": "tbd prime" }] }],
+    "PreCompact": [{ "matcher": "", "hooks": [{ "type": "command", "command": "tbd prime" }] }]
+  }
+}
+````
+
+This ensures agents always have tbd context at session start and after compaction.
