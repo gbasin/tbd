@@ -41,7 +41,114 @@ issues is manual:
 - [tbd-design.md](../../tbd-design.md) - Overall product design (sections 2.6.3
   IssueSchema, 2.7 Relationships, 4.4 Issue Commands)
 - [schemas.ts](../../../packages/tbd/src/lib/schemas.ts) - Issue schema with extensions
-- Markform MF/0.1 spec (external) - Structured Markdown format
+- [markform-spec-mf0.1.md](../../reference/markform-spec-mf0.1.md) - Markform MF/0.1 spec
+
+## Markform Compatibility Analysis
+
+### Why Markform Field Wrappers Matter
+
+After reviewing the Markform MF/0.1 spec, **field wrappers ARE required** for using the
+Markform programmatic API. Key findings:
+
+1. **Programmatic API requires fields**: The `set_checkboxes` patch operation targets a
+   `fieldId`. Without field wrappers, there's no way to use `markform apply` to update
+   checkbox states.
+
+2. **Option IDs are required**: Each checkbox option needs an ID annotation (`{% #id %}`)
+   for the API to address it.
+
+3. **Checkbox modes align well**: Markform's `multi` mode provides exactly the 5 states
+   we need: `todo`, `done`, `incomplete`, `active`, `na`.
+
+### Two Implementation Approaches
+
+**Approach A: Text-only manipulation (no Markform API)**
+
+```markdown
+## Backend <!-- #proj-a1b2 -->
+
+- [x] Set up OAuth config <!-- #proj-c3d4 -->
+- [*] Implement token refresh <!-- #proj-e5f6 -->
+```
+
+- Pros: Simpler format, no field wrappers needed, cleaner Markdown
+- Cons: Can't use Markform's `apply` API, must do regex-based text manipulation
+- Sync: `tbd plan sync` does direct text edits (change `[ ]` to `[x]`, etc.)
+
+**Approach B: Full Markform integration**
+
+```markdown
+---
+markform:
+  spec: MF/0.1
+---
+
+{% form id="oauth_plan" %}
+
+## Backend <!-- #proj-a1b2 -->
+
+{% field kind="checkboxes" id="backend_tasks" label="Backend tasks" checkboxMode="multi" %}
+- [x] Set up OAuth config {% #setup_oauth tbd:proj-c3d4 %}
+- [*] Implement token refresh {% #token_refresh tbd:proj-e5f6 %}
+{% /field %}
+
+{% /form %}
+```
+
+- Pros: Can use Markform's `markform apply` for updates, structured validation
+- Cons: More complex format, requires field wrappers around every checklist
+- Sync: Could use `markform apply` with `set_checkboxes` patches
+
+### Recommended Approach: Hybrid (Approach B with graceful degradation)
+
+**Use full Markform structure** for these benefits:
+
+1. **Programmatic API**: `tbd plan sync` can call `markform apply` internally
+2. **Validation**: Markform validates checkbox structure and IDs
+3. **Future-proof**: Ready for Markform ecosystem tools
+4. **Agent compatibility**: Agents can use Markform tools directly on plan files
+
+**Key design decisions for Markform integration:**
+
+1. **Dual ID system**: Options have Markform IDs (`{% #setup_oauth %}`) AND tbd
+   references (`tbd:proj-c3d4`). This separates plan structure from issue linkage.
+
+2. **Auto-generate field wrappers**: `tbd plan create` wraps contiguous checklists in
+   `{% field kind="checkboxes" %}` tags automatically.
+
+3. **Field IDs from context**: Field IDs are derived from the enclosing heading
+   (e.g., `backend_tasks` from `## Backend`).
+
+4. **Graceful parsing**: `tbd plan sync` can handle both:
+   - Full Markform (use `markform apply`)
+   - Plain Markdown (fall back to text manipulation)
+
+### Status Mapping (tbd ↔ Markform)
+
+| tbd status | Markform checkbox state | Marker |
+| --- | --- | --- |
+| `open` | `todo` | `[ ]` |
+| `in_progress` | `active` | `[*]` |
+| `blocked` | `incomplete` | `[/]` |
+| `deferred` | `na` | `[-]` |
+| `closed` | `done` | `[x]` |
+
+This mapping is bidirectional and lossless.
+
+### Markform Limitations and Workarounds
+
+1. **Option labels must be plain text**: Markform validates that option labels are
+   plain text (no inline Markdown). For plan items with code or links:
+   - Use plain text labels in the checkbox
+   - Put rich content in description below the field
+
+2. **Canonical serialization doesn't preserve arbitrary content**: Markform's
+   canonical serialize doesn't preserve content outside fields. Workaround:
+   - Use minimal-diff patching (only change checkbox markers)
+   - Or use `markform apply` which handles this correctly
+
+3. **No cross-field dependencies**: Markform doesn't model task dependencies.
+   tbd handles this via `dependencies[].type: blocks`.
 
 ## Summary of Task
 
@@ -81,12 +188,13 @@ system-of-record for status, assignment, and dependencies.
 - Plan doc checkbox markers reflect tbd status (read-only sync)
 - Avoids dual-source-of-truth conflicts
 
-**Decision 2: Minimal planfile format**
+**Decision 2: Full Markform structure**
 
-- Planfile is Markdown with optional Markform structure
-- ID annotations use HTML comments: `<!-- #proj-xxxx -->`
-- Comments are invisible in GitHub rendering
-- No complex frontmatter required for basic usage
+- Planfile uses Markform MF/0.1 format for programmatic API access
+- Checklists are wrapped in `{% field kind="checkboxes" %}` tags
+- Option IDs use Markdoc syntax: `{% #option_id %}`
+- tbd issue links use custom attribute: `tbd:proj-xxxx`
+- `tbd plan create` auto-generates Markform scaffolding from plain Markdown
 
 **Decision 3: Hierarchy from document structure**
 
@@ -120,16 +228,17 @@ system-of-record for status, assignment, and dependencies.
 - [ ] `tbd plan sync <file>` - Create issues for new checkboxes
 - [ ] `tbd plan status <file>` - Dry-run report
 - [ ] `tbd plan validate <file>` - Syntax and reference validation
-- [ ] ID annotation format: `<!-- #proj-xxxx -->`
+- [ ] Markform field wrappers around checklists (`{% field kind="checkboxes" %}`)
+- [ ] Markform frontmatter (`markform: spec: MF/0.1`)
+- [ ] Dual ID system: Markform option IDs + tbd issue references
 - [ ] Hierarchy: headings and nested checkboxes
 - [ ] Multi-state checkbox markers ([ ], [x], [*], [/], [-])
 - [ ] Extensions metadata for plan traceability
+- [ ] Use `markform apply` for checkbox state updates (when Markform structure present)
 
 **Out of Scope (future):**
 
 - `tbd plan schedule` - Agent assignment and scheduling
-- Markform field wrappers (not required for v1)
-- Full Markform frontmatter
 - Bidirectional title sync (plan text vs issue title)
 - Auto-discovery of child issues from tbd
 - Ordering preservation
@@ -151,47 +260,90 @@ system-of-record for status, assignment, and dependencies.
 
 ### 2.1 Planfile Format
 
-#### Minimal Example
+#### Full Markform Example
 
 ```markdown
-# OAuth Implementation
+---
+markform:
+  spec: MF/0.1
+---
 
-## Backend <!-- #proj-a1b2 -->
+{% form id="oauth_plan" title="OAuth Implementation Plan" %}
 
-- [x] Set up OAuth provider config <!-- #proj-c3d4 -->
-- [*] Implement token refresh <!-- #proj-e5f6 -->
-- [ ] Add rate limiting <!-- #proj-g7h8 -->
-  - [ ] Design rate limit algorithm <!-- #proj-i9j0 -->
-  - [ ] Implement token bucket <!-- #proj-k1l2 -->
+# OAuth Implementation <!-- tbd:proj-root -->
 
-## Frontend <!-- #proj-m3n4 -->
+{% group id="backend" title="Backend" %}
 
-- [ ] Create login button component <!-- #proj-o5p6 -->
-- [/] Handle OAuth callback <!-- #proj-q7r8 -->
+## Backend <!-- tbd:proj-a1b2 -->
+
+{% field kind="checkboxes" id="backend_tasks" label="Backend tasks" checkboxMode="multi" %}
+- [x] Set up OAuth provider config {% #setup_oauth tbd:proj-c3d4 %}
+- [*] Implement token refresh {% #token_refresh tbd:proj-e5f6 %}
+- [ ] Add rate limiting {% #rate_limiting tbd:proj-g7h8 %}
+{% /field %}
+
+{% field kind="checkboxes" id="rate_limit_subtasks" label="Rate limiting subtasks" checkboxMode="multi" %}
+- [ ] Design rate limit algorithm {% #rate_algo tbd:proj-i9j0 %}
+- [ ] Implement token bucket {% #token_bucket tbd:proj-k1l2 %}
+{% /field %}
+
+{% /group %}
+
+{% group id="frontend" title="Frontend" %}
+
+## Frontend <!-- tbd:proj-m3n4 -->
+
+{% field kind="checkboxes" id="frontend_tasks" label="Frontend tasks" checkboxMode="multi" %}
+- [ ] Create login button component {% #login_button tbd:proj-o5p6 %}
+- [/] Handle OAuth callback {% #oauth_callback tbd:proj-q7r8 %}
+{% /field %}
+
+{% /group %}
+
+{% /form %}
 ```
 
-#### ID Annotation Format
+#### Dual ID System
 
+**Markform option IDs** (structural identity within the document):
 ```
-<!-- #<display-id> -->
+{% #setup_oauth %}
+```
+- Uses Markdoc attribute shorthand
+- Scoped to the containing field
+- Used by Markform's `set_checkboxes` patch API
+
+**tbd issue references** (link to tbd issue tracking):
+```
+tbd:proj-c3d4
+```
+- Custom attribute linking to tbd display ID
+- Used by `tbd plan sync` to correlate with issues
+- Placed alongside the Markform option ID
+
+**Combined format:**
+```
+- [x] Set up OAuth provider config {% #setup_oauth tbd:proj-c3d4 %}
 ```
 
-- Placed at end of heading line or checkbox line
-- Uses display ID (e.g., `proj-a1b2`) not internal ULID
-- HTML comment is invisible in GitHub Markdown rendering
-- Parser matches: `<!-- #([a-z]+-[0-9a-z]+) -->`
+#### Heading Annotations
+
+Headings use HTML comments for tbd references (since they're not inside fields):
+```markdown
+## Backend <!-- tbd:proj-a1b2 -->
+```
 
 #### Checkbox Markers
 
-| Marker | Meaning | Maps to tbd status |
+| Marker | Markform State | tbd Status |
 | --- | --- | --- |
-| `[ ]` | Todo | `open` |
-| `[x]` | Done | `closed` |
-| `[*]` | Active | `in_progress` |
-| `[/]` | Incomplete | `blocked` |
-| `[-]` | N/A / Deferred | `deferred` |
+| `[ ]` | `todo` | `open` |
+| `[x]` | `done` | `closed` |
+| `[*]` | `active` | `in_progress` |
+| `[/]` | `incomplete` | `blocked` |
+| `[-]` | `na` | `deferred` |
 
-These markers are from Markform's `checkboxMode="multi"` specification.
+These are Markform's `checkboxMode="multi"` states.
 
 ### 2.2 Issue Extensions Schema
 
@@ -287,22 +439,46 @@ Created 12 issues from docs/plans/oauth.plan.md:
 
 **Purpose:** Reconcile plan document with tbd issue state.
 
-**Algorithm:**
+**Algorithm (with Markform integration):**
 
-1. Parse Markdown file for ID annotations
-2. For each annotated item:
+1. Parse planfile:
+   - If has Markform frontmatter: use `markform` library to parse
+   - Otherwise: fall back to plain Markdown parsing
+2. Build tbd reference map from `tbd:proj-xxxx` attributes
+3. For each checkbox option with tbd reference:
    - Load issue from tbd
-   - If checkbox: update marker to match issue status
-   - If heading: compute derived status from children
-3. For items without ID annotations:
-   - Create new issues (like `create`)
-4. Update `extensions.plan.line_number` if positions changed
-5. Write modified Markdown back to file
+   - Compare checkbox state to issue status
+   - If mismatch: queue a `set_checkboxes` patch
+4. For checkboxes without tbd references:
+   - Create new tbd issue
+   - Queue edit to add `tbd:proj-xxxx` attribute
+5. Apply changes:
+   - If Markform: use `markform apply` with patches
+   - Otherwise: use text-based edits
+6. Update `extensions.plan.line_number` in tbd issues if positions changed
+7. Write modified planfile
+
+**Using Markform Apply:**
+
+```typescript
+import { parseForm, applyPatches, getMarkdown } from 'markform';
+
+// Build patches from tbd status
+const patches = checkboxUpdates.map(({ fieldId, optionId, newState }) => ({
+  op: 'set_checkboxes',
+  fieldId,
+  value: { [optionId]: newState }
+}));
+
+// Apply via Markform API
+const result = applyPatches(parsedForm, patches);
+const updatedMarkdown = getMarkdown(result.form);
+```
 
 **Truth Rules (v1):**
 
-- Status/assignee: tbd -> plan (tbd wins)
-- Structure/wording: plan -> tbd (for new issues only)
+- Status/assignee: tbd → plan (tbd wins)
+- Structure/wording: plan → tbd (for new issues only)
 - Conflicts: tbd wins for status, warn if title differs
 
 **Options:**
@@ -408,63 +584,112 @@ Validation failed with 1 error(s).
 
 ## Stage 3: Refine Architecture
 
-### 3.1 Markdown Parsing Strategy
+### 3.1 Parsing Strategy
 
-**Minimal-diff patching approach:**
+**Dual-mode parsing:**
 
-To preserve arbitrary Markdown content, we do NOT re-render the entire document.
-Instead:
+`tbd plan` supports two parsing modes:
 
-1. Parse to identify checkbox lines and heading lines
-2. Track line numbers and column positions
-3. Apply surgical edits:
-   - Change checkbox marker: `[ ]` -> `[x]`
-   - Append ID annotation: ` <!-- #proj-xxxx -->`
-4. Leave all other content byte-for-byte identical
+1. **Markform mode** (preferred): When file has Markform frontmatter, use `markform`
+   library for parsing and the `apply` API for updates.
 
-This avoids Markform's canonical serialization which doesn't preserve arbitrary content.
+2. **Plain Markdown mode** (fallback): For files without Markform structure, use
+   regex-based parsing and text manipulation.
 
-**Parser requirements:**
+**Markform mode benefits:**
 
-- Identify GFM task list items: `- [ ]`, `- [x]`, `- [*]`, `- [/]`, `- [-]`
-- Identify ATX headings: `#`, `##`, etc.
-- Extract existing ID annotations: `<!-- #... -->`
-- Track nesting level for checkboxes (indentation-based)
-- Handle edge cases: checkboxes in code blocks (ignore), etc.
+- Structured parsing via Markdoc AST
+- `set_checkboxes` patch API for reliable updates
+- Built-in validation of checkbox states
+- Consistent serialization
 
-### 3.2 File Operations
+**Detection logic:**
+
+```typescript
+function hasMarkformStructure(content: string): boolean {
+  // Check for Markform frontmatter
+  return /^---\s*\nmarkform:\s*\n\s+spec:\s*MF\//.test(content);
+}
+```
+
+### 3.2 Markform Integration
+
+**Parsing Markform planfiles:**
+
+```typescript
+import { parseForm } from 'markform';
+
+const parsed = parseForm(content);
+
+// Extract tbd references from option attributes
+for (const field of parsed.schema.fields) {
+  if (field.kind === 'checkboxes') {
+    for (const option of field.options) {
+      // Custom attribute: tbd:proj-xxxx
+      const tbdRef = option.attributes?.tbd;
+      if (tbdRef) {
+        tbdReferenceMap.set(tbdRef, {
+          fieldId: field.id,
+          optionId: option.id,
+          currentState: parsed.responsesByFieldId[field.id]?.values?.[option.id]
+        });
+      }
+    }
+  }
+}
+```
+
+**Applying checkbox updates via Markform:**
+
+```typescript
+import { applyPatches, getMarkdown } from 'markform';
+
+// Build patches from tbd issue status
+const patches = updates.map(({ fieldId, optionId, tbdStatus }) => ({
+  op: 'set_checkboxes' as const,
+  fieldId,
+  value: { [optionId]: tbdStatusToMarkformState(tbdStatus) }
+}));
+
+// Apply patches - Markform handles serialization correctly
+const result = applyPatches(parsedForm, patches);
+
+if (result.applyStatus === 'applied') {
+  const updatedMarkdown = getMarkdown(result.form);
+  await fs.writeFile(planPath, updatedMarkdown);
+}
+```
+
+### 3.3 Plain Markdown Fallback
+
+For files without Markform structure, use text-based manipulation:
 
 **Read-modify-write pattern:**
 
 ```typescript
-async function syncPlanFile(path: string): Promise<SyncResult> {
-  // 1. Read file
+async function syncPlanFilePlain(path: string): Promise<SyncResult> {
   const content = await fs.readFile(path, 'utf8');
-
-  // 2. Parse structure
-  const nodes = parsePlanNodes(content);
-
-  // 3. Load issues and compute changes
+  const nodes = parsePlainMarkdown(content);
   const edits: Edit[] = [];
+
   for (const node of nodes) {
-    if (node.id) {
-      const issue = await loadIssue(node.id);
+    if (node.tbdRef) {
+      const issue = await loadIssue(node.tbdRef);
       const newMarker = statusToMarker(issue.status);
       if (node.marker !== newMarker) {
-        edits.push({ type: 'marker', line: node.line, col: node.markerCol, from: node.marker, to: newMarker });
+        edits.push({
+          type: 'marker',
+          line: node.line,
+          col: node.markerCol,
+          from: node.marker,
+          to: newMarker
+        });
       }
-    } else {
-      const issue = await createIssue(node);
-      edits.push({ type: 'insertId', line: node.line, col: node.lineEnd, id: issue.displayId });
     }
   }
 
-  // 4. Apply edits (reverse order to preserve positions)
   const newContent = applyEdits(content, edits.reverse());
-
-  // 5. Write back
   await fs.writeFile(path, newContent, 'utf8');
-
   return { edits };
 }
 ```
