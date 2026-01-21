@@ -17,14 +17,17 @@ describe('integration file formats', () => {
       const cursorPath = join(docsDir, 'CURSOR.mdc');
       const content = await readFile(cursorPath, 'utf-8');
 
-      // MDC files must start with YAML frontmatter (handle Windows CRLF)
-      expect(content.startsWith('---\n') || content.startsWith('---\r\n')).toBe(true);
+      // Normalize line endings for cross-platform compatibility
+      const normalizedContent = content.replace(/\r\n/g, '\n');
+
+      // MDC files must start with YAML frontmatter
+      expect(normalizedContent.startsWith('---\n')).toBe(true);
 
       // Extract frontmatter
-      const endOfFrontmatter = content.indexOf('\n---\n', 4);
+      const endOfFrontmatter = normalizedContent.indexOf('\n---\n', 4);
       expect(endOfFrontmatter).toBeGreaterThan(0);
 
-      const frontmatter = content.slice(4, endOfFrontmatter);
+      const frontmatter = normalizedContent.slice(4, endOfFrontmatter);
 
       // Required MDC fields
       expect(frontmatter).toContain('description:');
@@ -47,14 +50,17 @@ describe('integration file formats', () => {
       const skillPath = join(docsDir, 'SKILL.md');
       const content = await readFile(skillPath, 'utf-8');
 
-      // Skill files must start with YAML frontmatter (handle Windows CRLF)
-      expect(content.startsWith('---\n') || content.startsWith('---\r\n')).toBe(true);
+      // Normalize line endings for cross-platform compatibility
+      const normalizedContent = content.replace(/\r\n/g, '\n');
+
+      // Skill files must start with YAML frontmatter
+      expect(normalizedContent.startsWith('---\n')).toBe(true);
 
       // Extract frontmatter
-      const endOfFrontmatter = content.indexOf('\n---\n', 4);
+      const endOfFrontmatter = normalizedContent.indexOf('\n---\n', 4);
       expect(endOfFrontmatter).toBeGreaterThan(0);
 
-      const frontmatter = content.slice(4, endOfFrontmatter);
+      const frontmatter = normalizedContent.slice(4, endOfFrontmatter);
 
       // Required Claude Code skill fields
       expect(frontmatter).toContain('name:');
