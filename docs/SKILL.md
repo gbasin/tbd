@@ -15,6 +15,16 @@ npm install -g tbd-git@latest && tbd setup --auto
 
 This initializes tbd and configures your coding agent automatically.
 
+**IMPORTANT FOR AGENTS:** Always use `--auto` flag.
+The command `tbd setup` without flags is interactive (prompts for confirmation) and is
+only for humans who want to understand each step.
+Agents should ALWAYS run `tbd setup --auto`.
+
+Other non-interactive commands for agents:
+- `tbd setup --from-beads` - Migrate from beads without prompts
+- `tbd setup claude` - Add Claude integration only
+- `tbd setup cursor` - Add Cursor integration only
+
 `tbd` provides lightweight, git-native task and issue tracking using beads, which are
 just lightweight issues managed from the CLI.
 

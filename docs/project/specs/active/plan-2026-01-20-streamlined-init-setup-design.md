@@ -474,11 +474,44 @@ Setup complete!
 
 #### 7. Explicit Beads Migration (`--from-beads`)
 
+The `--from-beads` flag is **non-interactive** - it forces beads migration without
+prompting.
+
 ```
 $ tbd setup --from-beads
 
-# Same as beads migration flow, but skips the "Migrate?" prompt
+Importing from Beads...
+  ✓ Found 47 issues in .beads/
+  ✓ Imported 47 issues (prefix: proj)
+  ✓ Disabled beads (moved to .beads-disabled/)
+
+Configuring integrations...
+  ✓ Claude Code - Installed hooks and skill
+
+Setup complete!
 ```
+
+### Command Mode Summary
+
+**IMPORTANT FOR SKILL FILES:** Agents should ALWAYS use non-interactive commands.
+
+| Command | Mode | Who Uses It |
+| --- | --- | --- |
+| `tbd setup` | **Interactive** | Humans who want to understand and confirm each step |
+| `tbd setup --auto` | Non-interactive | Agents, scripts, CI/CD |
+| `tbd setup --from-beads` | Non-interactive | Agents migrating from beads |
+| `tbd setup claude` | Non-interactive | Adding specific integration |
+| `tbd setup cursor` | Non-interactive | Adding specific integration |
+| `tbd init --prefix=X` | Non-interactive | Scripts needing surgical init |
+
+**The only interactive command is `tbd setup` with no flags.** All other variants
+(`--auto`, `--from-beads`, subcommands) are non-interactive and make changes
+immediately.
+
+**For SKILL.md and agent instructions:**
+- Always recommend `tbd setup --auto` for agents
+- `tbd setup` (no args) is ONLY for humans who want step-by-step confirmation
+- Agents should never run `tbd setup` without `--auto`
 
 ### Complete Scenario Matrix for `tbd setup`
 
