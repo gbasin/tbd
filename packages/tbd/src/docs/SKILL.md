@@ -16,8 +16,8 @@ npm install -g tbd-git@latest && tbd setup --auto
 This initializes tbd and configures your coding agent automatically.
 
 **IMPORTANT FOR AGENTS:** Always use `--auto` flag.
-The command `tbd setup` without flags is interactive (prompts for confirmation) and is
-only for humans who want to understand each step.
+The command `tbd setup` without flags shows help and requires a mode flag.
+Use `--interactive` for humans, `--auto` for agents.
 Agents should ALWAYS run `tbd setup --auto`.
 
 Other non-interactive commands for agents:

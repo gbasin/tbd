@@ -111,23 +111,28 @@ GitHub’s “create repository” flow.
 ### Proposed Command Structure
 
 ```
-tbd                           # Shows --help with "Run: tbd setup" guidance
+tbd                           # Runs tbd prime (dashboard)
 
 # High-level entry point (recommended for most users)
-tbd setup [options]           # Full setup: init if needed + integrations
-  --auto                      # Non-interactive mode (for agents/scripts)
+tbd setup                     # Shows help, requires --interactive or --auto
+tbd setup --interactive       # Interactive mode (for humans who want to understand)
+tbd setup --auto              # Non-interactive mode (for agents/scripts)
   --from-beads                # Migrate from beads (can also auto-detect)
   --prefix=<name>             # Override auto-detected prefix
-  tbd setup claude            # Just Claude integration
-  tbd setup cursor            # Just Cursor integration
-  tbd setup codex             # Just AGENTS.md
-  tbd setup check             # Check all integration status
+  tbd setup claude            # Just Claude integration (non-interactive)
+  tbd setup cursor            # Just Cursor integration (non-interactive)
+  tbd setup codex             # Just AGENTS.md (non-interactive)
+  tbd setup check             # Check all integration status (non-interactive)
 
 # Low-level surgical commands
 tbd init [options]            # Just create .tbd/, no integrations
   --prefix=<name>             # Project prefix for issue IDs (REQUIRED)
 tbd import <file>             # Import from exported JSONL file
 ```
+
+**Key design decision:** `tbd setup` with no flags shows help and exits.
+This prevents agents from accidentally running interactive mode.
+Users must explicitly choose `--interactive` or `--auto`.
 
 ### Command Relationship
 
@@ -159,7 +164,9 @@ backward compatibility with confusing patterns.
 | --- | --- |
 | `tbd init` | Surgical init only (no longer calls setup auto) |
 | `tbd init --prefix=x` | Prefix REQUIRED (no auto-detect for surgical init) |
-| `tbd setup` | Full setup (init if needed + integrations) |
+| `tbd setup` | Shows help, requires `--interactive` or `--auto` flag |
+| `tbd setup --interactive` | Interactive mode for humans (explains + confirms each step) |
+| `tbd setup --auto` | Non-interactive mode for agents (all defaults, no prompts) |
 | `tbd setup auto` | **Removed** - use `tbd setup --auto` instead |
 | `tbd import --from-beads` | **Removed** - use `tbd setup --from-beads` instead |
 | `tbd setup beads --disable` | **Removed** - integrated into `--from-beads` flow |
@@ -168,14 +175,14 @@ backward compatibility with confusing patterns.
 
 | Journey | Command | What Happens |
 | --- | --- | --- |
-| New repo (full) | `tbd setup` | Auto-detect prefix → init → integrations |
+| New repo (human) | `tbd setup --interactive` | Auto-detect prefix → confirm → init → integrations |
 | New repo (surgical) | `tbd init --prefix=x` | Explicit prefix → init only |
-| Has beads | `tbd setup` | Detect beads → offer migration → init → integrations |
-| Joining tbd repo | `tbd setup` | Detect .tbd → check/update integrations (no prefix needed) |
+| Has beads (human) | `tbd setup --interactive` | Detect beads → offer migration → init → integrations |
+| Joining tbd repo | `tbd setup --interactive` | Detect .tbd → check/update integrations (no prefix needed) |
 | Agent automation | `tbd setup --auto` | All defaults, no prompts |
-| Explicit beads | `tbd setup --from-beads` | Force beads migration flow |
+| Explicit beads | `tbd setup --from-beads` | Force beads migration flow (non-interactive) |
 | Script/CI init | `tbd init --prefix=x` | Just create .tbd/ with explicit prefix |
-| Global setup only | `tbd setup` (outside repo) | Warning, global config only |
+| Global setup only | `tbd setup --interactive` (outside repo) | Warning, global config only |
 
 ### Detailed Behavior Specifications
 
@@ -194,7 +201,7 @@ Getting Started:
   npm install -g tbd-git@latest && tbd setup --auto
 
   This initializes tbd and configures your coding agents automatically.
-  For interactive setup: tbd setup
+  For interactive setup: tbd setup --interactive
   For manual control: tbd init --help
 ```
 
@@ -205,22 +212,27 @@ Usage: tbd setup [options] [command]
 
 Full setup: initialize tbd (if needed) and configure agent integrations.
 
+IMPORTANT: You must specify a mode flag OR a subcommand.
+
+Modes:
+  --auto              Non-interactive mode with smart defaults (for agents/scripts)
+  --interactive       Interactive mode with prompts (for humans)
+
 Options:
-  --auto              Non-interactive mode with smart defaults (recommended)
-  --from-beads        Migrate from Beads to tbd
+  --from-beads        Migrate from Beads to tbd (non-interactive)
   --prefix <name>     Override auto-detected project prefix
 
 Commands:
-  claude              Configure Claude Code integration only
-  cursor              Configure Cursor IDE integration only
-  codex               Configure AGENTS.md only
+  claude              Configure Claude Code integration only (non-interactive)
+  cursor              Configure Cursor IDE integration only (non-interactive)
+  codex               Configure AGENTS.md only (non-interactive)
   check               Check status of all integrations
 
 Examples:
-  tbd setup --auto          # Recommended: full automatic setup
-  tbd setup                 # Interactive setup with prompts
-  tbd setup claude          # Add just Claude integration
-  tbd setup --from-beads    # Migrate from Beads
+  tbd setup --auto              # Recommended: full automatic setup (for agents)
+  tbd setup --interactive       # Interactive setup with prompts (for humans)
+  tbd setup claude              # Add just Claude integration
+  tbd setup --from-beads        # Migrate from Beads (non-interactive)
 
 For surgical initialization without integrations, see: tbd init --help
 ```
@@ -263,11 +275,11 @@ tbd setup
 
 #### 3. Fresh Setup Flow (no .tbd/, no .beads/)
 
-This is the interactive flow.
-For non-interactive, see section 6 (`--auto` mode).
+This is the interactive flow (`--interactive`). For non-interactive, see section 6
+(`--auto` mode).
 
 ```
-$ tbd setup
+$ tbd setup --interactive
 
 tbd: Git-native issue tracking for AI agents and humans
 
@@ -309,7 +321,7 @@ Setup complete! Next steps:
 #### 4. Beads Migration Flow (.beads/ detected)
 
 ```
-$ tbd setup
+$ tbd setup --interactive
 
 tbd: Git-native issue tracking for AI agents and humans
 
@@ -343,7 +355,7 @@ If user declines migration:
 ? Migrate from Beads to tbd? (Y/n) n
 
 To set up tbd alongside beads (not recommended):
-  tbd setup --prefix=<name>
+  tbd setup --interactive --prefix=<name>
 
 To migrate later:
   tbd setup --from-beads
@@ -352,7 +364,7 @@ To migrate later:
 #### 5. Already Initialized Flow (.tbd/ exists)
 
 ```
-$ tbd setup
+$ tbd setup --interactive
 
 tbd: Git-native issue tracking for AI agents and humans
 
@@ -380,15 +392,39 @@ Checking integrations...
 
 #### 6. Interactive vs Non-Interactive Mode
 
-**`tbd setup` (interactive, default):**
+**`tbd setup` (no flags) - Shows Help:**
 
-The default `tbd setup` is fully interactive.
+Running `tbd setup` without flags shows help and exits.
+This prevents agents from accidentally running interactive mode.
+
+```
+$ tbd setup
+
+Usage: tbd setup [options] [command]
+
+You must specify a mode:
+  --auto              Non-interactive mode (for agents/scripts)
+  --interactive       Interactive mode (for humans)
+
+Or run a specific subcommand:
+  tbd setup claude    Add Claude integration only
+  tbd setup cursor    Add Cursor integration only
+  tbd setup check     Check integration status
+
+Examples:
+  tbd setup --auto              # Recommended for agents
+  tbd setup --interactive       # For humans who want to understand each step
+```
+
+**`tbd setup --interactive` (interactive mode):**
+
+The `--interactive` flag runs setup interactively.
 It explains what it will do and asks for confirmation at each step.
 This is the recommended mode for humans who want to understand and control the setup
 process.
 
 ```
-$ tbd setup
+$ tbd setup --interactive
 
 tbd: Git-native issue tracking for AI agents and humans
 
@@ -420,7 +456,7 @@ Setup complete! Next steps:
   2. tbd create "My first issue" --type=task
 ```
 
-**`tbd setup --auto` (non-interactive):**
+**`tbd setup --auto` (non-interactive mode):**
 
 The `--auto` flag runs setup non-interactively with sensible defaults.
 This is what agents should use - no prompts, no confirmations.
@@ -447,14 +483,15 @@ Setup complete!
 
 **Key differences:**
 
-| Behavior | `tbd setup` | `tbd setup --auto` |
-| --- | --- | --- |
-| Explains what it will do | Yes, upfront | No |
-| Confirms before proceeding | Yes | No |
-| Confirms prefix | Yes (prompt) | No (auto-accept) |
-| Confirms each integration | Yes (prompt) | No (auto-install) |
-| Beads migration | Prompts | Auto-migrates |
-| Recommended for | Humans | Agents/scripts |
+| Behavior | `tbd setup` | `tbd setup --interactive` | `tbd setup --auto` |
+| --- | --- | --- | --- |
+| Action | Shows help | Full interactive setup | Full automatic setup |
+| Explains what it will do | N/A | Yes, upfront | No |
+| Confirms before proceeding | N/A | Yes | No |
+| Confirms prefix | N/A | Yes (prompt) | No (auto-accept) |
+| Confirms each integration | N/A | Yes (prompt) | No (auto-install) |
+| Beads migration | N/A | Prompts | Auto-migrates |
+| Recommended for | N/A | Humans | Agents/scripts |
 
 **With beads detected in auto mode:**
 
@@ -493,25 +530,26 @@ Setup complete!
 
 ### Command Mode Summary
 
-**IMPORTANT FOR SKILL FILES:** Agents should ALWAYS use non-interactive commands.
+**IMPORTANT FOR SKILL FILES:** Agents should ALWAYS use `--auto` flag.
 
 | Command | Mode | Who Uses It |
 | --- | --- | --- |
-| `tbd setup` | **Interactive** | Humans who want to understand and confirm each step |
+| `tbd setup` | **Shows help** | Prevents accidental interactive mode |
+| `tbd setup --interactive` | Interactive | Humans who want to understand each step |
 | `tbd setup --auto` | Non-interactive | Agents, scripts, CI/CD |
 | `tbd setup --from-beads` | Non-interactive | Agents migrating from beads |
 | `tbd setup claude` | Non-interactive | Adding specific integration |
 | `tbd setup cursor` | Non-interactive | Adding specific integration |
 | `tbd init --prefix=X` | Non-interactive | Scripts needing surgical init |
 
-**The only interactive command is `tbd setup` with no flags.** All other variants
-(`--auto`, `--from-beads`, subcommands) are non-interactive and make changes
-immediately.
+**Key design decision:** `tbd setup` with no flags shows help and exits.
+This prevents agents from accidentally running interactive mode.
 
 **For SKILL.md and agent instructions:**
 - Always recommend `tbd setup --auto` for agents
-- `tbd setup` (no args) is ONLY for humans who want step-by-step confirmation
-- Agents should never run `tbd setup` without `--auto`
+- `tbd setup` (no args) shows help, NOT interactive mode
+- `tbd setup --interactive` is for humans who want step-by-step confirmation
+- Agents should ALWAYS run `tbd setup --auto`
 
 ### Complete Scenario Matrix for `tbd setup`
 
@@ -533,10 +571,10 @@ This section details every possible scenario and the exact prompts/behavior for 
 
 **Detection:** Not in a git repository (no `.git/` found)
 
-**Interactive mode (`tbd setup`):**
+**Interactive mode (`tbd setup --interactive`):**
 
 ```
-$ tbd setup
+$ tbd setup --interactive
 
 Warning: Not in a git repository.
 
@@ -570,7 +608,7 @@ Performing global setup...
   ✓ Installed global Claude Code skill
 
 Global setup complete!
-To initialize a repository, run 'tbd setup' from within a git repo.
+To initialize a repository, run 'tbd setup --interactive' from within a git repo.
 ```
 
 * * *
@@ -588,10 +626,10 @@ To initialize a repository, run 'tbd setup' from within a git repo.
 | "Install Claude Code integration?" | Y | Confirm hook + skill installation |
 | "Install Cursor integration?" | Y (if detected) | Confirm Cursor rules |
 
-**Interactive mode (`tbd setup`):**
+**Interactive mode (`tbd setup --interactive`):**
 
 ```
-$ tbd setup
+$ tbd setup --interactive
 
 tbd: Git-native issue tracking for AI agents and humans
 
@@ -677,10 +715,10 @@ Please specify a prefix:
 | "Use prefix 'X'?" | Y | Confirm prefix (from beads or auto-detect) |
 | "Install integrations?" | Y | Confirm integration setup |
 
-**Interactive mode (`tbd setup`):**
+**Interactive mode (`tbd setup --interactive`):**
 
 ```
-$ tbd setup
+$ tbd setup --interactive
 
 tbd: Git-native issue tracking for AI agents and humans
 
@@ -764,10 +802,10 @@ Setup complete!
 | --- | --- | --- |
 | "Update integration?" | Y | If integration is outdated |
 
-**Interactive mode (`tbd setup`):**
+**Interactive mode (`tbd setup --interactive`):**
 
 ```
-$ tbd setup
+$ tbd setup --interactive
 
 tbd: Git-native issue tracking for AI agents and humans
 
@@ -786,7 +824,7 @@ All set! Run `tbd status` for details.
 **If integration needs updating:**
 
 ```
-$ tbd setup
+$ tbd setup --interactive
 
 Checking repository...
   ✓ Git repository detected
@@ -873,7 +911,7 @@ improvements when they upgrade tbd.
 2. If outdated, automatically update the file
 3. Report what was updated
 
-**Interactive upgrade flow (`tbd setup`):**
+**Interactive upgrade flow (`tbd setup --interactive`):**
 1. Check each installed integration’s version
 2. If outdated, prompt user: “Update X? (Y/n)”
 3. Default is Y (upgrade)
@@ -899,7 +937,7 @@ Initialized tbd repository (prefix: myapp)
 
 Next steps:
   git add .tbd/ && git commit -m "Initialize tbd"
-  tbd setup   # Optional: configure agent integrations
+  tbd setup --auto   # Optional: configure agent integrations
 ```
 
 **Error: No prefix provided:**
@@ -1109,8 +1147,9 @@ This is a new tool. We remove confusing patterns entirely rather than deprecatin
 
 | Tier | Command | Purpose |
 | --- | --- | --- |
-| High-level | `tbd setup --auto` | **Recommended**: full automatic setup |
-| High-level | `tbd setup` | Interactive setup with prompts |
+| High-level | `tbd setup --auto` | **Recommended**: full automatic setup (for agents) |
+| High-level | `tbd setup --interactive` | Interactive setup with prompts (for humans) |
+| High-level | `tbd setup` | Shows help (requires flag or subcommand) |
 | High-level | `tbd setup claude` | Add specific integration |
 | Low-level | `tbd init` | Surgical: just create .tbd/ |
 
@@ -1333,8 +1372,11 @@ class SetupDefaultHandler extends BaseCommand {
 
 1. ~~Should we keep `tbd init`?~~ → **Yes, as the surgical option (not deprecated)**
 2. ~~What about backward compatibility?~~ → Not a primary concern per user request
-3. ~~Should beads migration be automatic?~~ → Yes in `--auto` mode, prompt otherwise
-4. ~~Should `tbd setup` run without args?~~ → Yes, it’s the primary entry point now
+3. ~~Should beads migration be automatic?~~ → Yes in `--auto` mode, prompt in
+   `--interactive`
+4. ~~Should `tbd setup` run without args?~~ → **No, shows help.
+   Must use `--interactive` or `--auto` to prevent agents accidentally running
+   interactive mode.**
 5. ~~Should `tbd init` still call `setup auto`?~~ → **No, that was confusing.
    Init is now purely surgical.**
 
@@ -1342,13 +1384,15 @@ class SetupDefaultHandler extends BaseCommand {
 
 | Command | Purpose | Integrations? |
 | --- | --- | --- |
-| `tbd setup` | High-level "just works" entry | Yes (auto-detect) |
-| `tbd setup --auto` | Non-interactive full setup | Yes (auto-detect) |
+| `tbd setup` | Shows help (requires flag) | N/A |
+| `tbd setup --interactive` | Interactive for humans | Yes (auto-detect) |
+| `tbd setup --auto` | Non-interactive for agents | Yes (auto-detect) |
 | `tbd init` | Surgical repo initialization | No |
 | `tbd setup claude` | Add specific integration | Just Claude |
 
-**Mental model:** Think of `tbd setup` like “npm create” (friendly wizard) and
+**Mental model:** Think of `tbd setup --auto` like “npm create” (full setup) and
 `tbd init` like “npm init” (minimal, predictable).
+The `--interactive` flag is for humans who want step-by-step confirmation.
 
 ## Prime-First Design
 
@@ -1409,8 +1453,8 @@ tbd v1.2.3
 
 To set up tbd in this project:
 
-  tbd setup                     # Interactive setup
   tbd setup --auto              # Non-interactive (for agents)
+  tbd setup --interactive       # Interactive (for humans)
 
 After setup, run 'tbd' again to see project status.
 
