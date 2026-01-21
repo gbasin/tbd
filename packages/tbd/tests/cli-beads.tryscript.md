@@ -126,6 +126,11 @@ Options:
   -h, --help         display help for command
 
 Global Options:
+  --auto             Non-interactive mode with smart defaults (for
+                     agents/scripts)
+  --interactive      Interactive mode with prompts (for humans)
+  --from-beads       Migrate from Beads to tbd
+  --prefix <name>    Override auto-detected project prefix
   --version          Show version number
   --dry-run          Show what would be done without making changes
   --verbose          Enable verbose output
@@ -610,15 +615,16 @@ $ mkdir -p .beads && echo "test" > .beads/config.yaml
 ? 0
 ```
 
-# Test: tbd prime with .beads shows warning
+# Test: tbd prime with .beads shows warning then dashboard
 
 ```console
-$ tbd prime | head -5
+$ tbd prime | head -6
 ⚠️  WARNING: A .beads/ directory was detected alongside .tbd/
    When asked to use beads, use `tbd` commands, NOT `bd` commands.
    To complete migration: tbd setup beads --disable --confirm
 
-# tbd Workflow Context
+tbd v[..]
+
 ? 0
 ```
 

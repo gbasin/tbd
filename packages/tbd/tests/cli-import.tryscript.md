@@ -254,6 +254,9 @@ Error: File not found: nonexistent.jsonl
 
 ```console
 $ tbd import --from-beads --beads-dir=nonexistent-dir 2>&1
+Note: `tbd import --from-beads` is deprecated.
+Use `tbd setup --auto` or `tbd setup --from-beads` instead.
+
 Error: Beads database not found[..]
 ...
 ? 1
@@ -270,9 +273,7 @@ Initialized empty Git repository in [..]
 ```
 
 ```console
-$ cd fresh-repo && tbd init --prefix=test && tbd import --validate 2>&1
-✓ Initialized tbd repository
-...
+$ cd fresh-repo && tbd init --prefix=test --quiet && tbd import --validate 2>&1
 Error: Beads database not found[..]
 ...
 ? 1

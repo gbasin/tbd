@@ -55,9 +55,13 @@ Error: Not a tbd repository (run 'tbd setup --auto' first)
 # Test: Import from beads auto-initializes and imports
 
 The `--from-beads` flag should auto-initialize tbd and then import the issues.
+Note: A deprecation notice is shown (not suppressed by --quiet for awareness).
 
 ```console
 $ tbd import --from-beads --quiet
+Note: `tbd import --from-beads` is deprecated.
+Use `tbd setup --auto` or `tbd setup --from-beads` instead.
+
   New issues:   2
   Merged:       0
   Skipped:      0

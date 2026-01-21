@@ -127,10 +127,13 @@ class InitHandler extends BaseCommand {
 
     this.output.data({ initialized: true, version: VERSION, prefix: options.prefix }, () => {
       this.output.success(`Initialized tbd repository (prefix: ${options.prefix})`);
-      console.log('');
-      console.log('Next steps:');
-      console.log('  git add .tbd/ && git commit -m "Initialize tbd"');
-      console.log('  tbd setup --auto   # Optional: configure agent integrations');
+      // Only show next steps if not in quiet mode
+      if (!this.output.isQuiet()) {
+        console.log('');
+        console.log('Next steps:');
+        console.log('  git add .tbd/ && git commit -m "Initialize tbd"');
+        console.log('  tbd setup --auto   # Optional: configure agent integrations');
+      }
     });
   }
 }

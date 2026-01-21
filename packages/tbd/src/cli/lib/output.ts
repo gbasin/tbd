@@ -431,4 +431,11 @@ export class OutputManager {
   getColors() {
     return this.colors;
   }
+
+  /**
+   * Check if quiet mode is enabled.
+   */
+  isQuiet(): boolean {
+    return this.ctx.quiet;
+  }
 }

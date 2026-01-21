@@ -17,8 +17,8 @@ describe('integration file formats', () => {
       const cursorPath = join(docsDir, 'CURSOR.mdc');
       const content = await readFile(cursorPath, 'utf-8');
 
-      // MDC files must start with YAML frontmatter
-      expect(content.startsWith('---\n')).toBe(true);
+      // MDC files must start with YAML frontmatter (handle Windows CRLF)
+      expect(content.startsWith('---\n') || content.startsWith('---\r\n')).toBe(true);
 
       // Extract frontmatter
       const endOfFrontmatter = content.indexOf('\n---\n', 4);
@@ -47,8 +47,8 @@ describe('integration file formats', () => {
       const skillPath = join(docsDir, 'SKILL.md');
       const content = await readFile(skillPath, 'utf-8');
 
-      // Skill files must start with YAML frontmatter
-      expect(content.startsWith('---\n')).toBe(true);
+      // Skill files must start with YAML frontmatter (handle Windows CRLF)
+      expect(content.startsWith('---\n') || content.startsWith('---\r\n')).toBe(true);
 
       // Extract frontmatter
       const endOfFrontmatter = content.indexOf('\n---\n', 4);
