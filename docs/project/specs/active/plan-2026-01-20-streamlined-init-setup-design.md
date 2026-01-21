@@ -1,10 +1,16 @@
-# Plan Spec: Streamlined Init/Setup Design
+# Plan Spec: Streamlined Init, Setup, Prime, and Skill Commands
 
 ## Purpose
 
-Design a cleaner, more intuitive onboarding flow for tbd that works seamlessly for both
-humans and AI agents, whether setting up a brand new repo, migrating from beads, or
-joining an existing tbd project.
+Design a cleaner, more intuitive CLI experience for tbd that works seamlessly for both
+humans and AI agents.
+This spec covers:
+
+1. **Onboarding flow** - Setting up new repos, migrating from beads, joining existing
+   projects
+2. **Prime-first design** - Making `tbd` with no args the orientation dashboard
+3. **Skill command** - Explicit command for AI agent skill file output
+4. **Help modernization** - Standard `--help` flags instead of separate `help` command
 
 ## Background
 
@@ -20,6 +26,8 @@ depends on their situation, but the commands don’t guide them.
 
 ## Summary of Task
 
+### Part 1: Onboarding
+
 Unify the onboarding experience around a single entry point: **`tbd setup`**
 
 This one command handles all scenarios:
@@ -28,6 +36,18 @@ This one command handles all scenarios:
 2. Existing tbd repo → check/update integrations
 3. Beads migration → import + initialize + configure
 4. Agents → non-interactive mode with sensible defaults
+
+### Part 2: Prime-First Design
+
+Make `tbd` (no args) the orientation dashboard:
+
+- **`tbd`** = **`tbd prime`** = Dashboard showing installation, status, quick start
+- **`tbd skill`** = Outputs full AI agent skill file (what `prime` used to do)
+- **`tbd --help`** = CLI reference (replaces standalone `help` command)
+
+This creates a clear mental model:
+- `prime` = “prime yourself on this project” (get oriented)
+- `skill` = “output the skill file” (for AI agents)
 
 ## Current State Analysis
 
@@ -603,19 +623,29 @@ class SetupDefaultHandler extends BaseCommand {
 - [ ] Update README with prominent one-liner:
   `npm install -g tbd-git@latest && tbd setup --auto`
 
-### Phase 6: Agent Messaging Consistency
+### Phase 6: Prime-First Implementation
 
-- [ ] Update SKILL.md Installation section to use `tbd setup --auto` (not `tbd init`)
-- [ ] Have `tbd setup --auto` output `tbd prime` content after setup completes
+- [ ] Create `tbd skill` command that outputs SKILL.md content
+- [ ] Add `--brief` flag to `tbd skill` for condensed output
+- [ ] Refactor `tbd prime` to output dashboard instead of skill content
+- [ ] Add `--brief` flag to `tbd prime` for compact status
+- [ ] Make `tbd` (no args) run `tbd prime`
+- [ ] Remove `tbd help` command (show deprecation warning pointing to `--help`)
+
+### Phase 7: Agent Messaging Consistency
+
+- [ ] Update SKILL.md context recovery to reference `tbd skill` (not `tbd prime`)
+- [ ] Have `tbd setup --auto` output dashboard after setup completes
+- [ ] Update hooks to call `tbd skill` instead of `tbd prime`
 - [ ] Ensure all SKILL.md copies are in sync:
   - `packages/tbd/src/docs/SKILL.md` (source of truth)
   - `docs/SKILL.md` (repo-level copy for reference)
 - [ ] Test the full agent flow:
   1. Agent reads SKILL.md → runs `tbd setup --auto`
-  2. Setup completes → outputs full workflow context
-  3. Next session → hook calls `tbd prime` → same context
+  2. Setup completes → outputs dashboard
+  3. Next session → hook calls `tbd skill` → full workflow context
 
-### Phase 7: Testing
+### Phase 8: Testing
 
 - [ ] Unit tests for prefix auto-detection
 - [ ] Integration tests for all setup flows
@@ -643,6 +673,173 @@ class SetupDefaultHandler extends BaseCommand {
 **Mental model:** Think of `tbd setup` like “npm create” (friendly wizard) and
 `tbd init` like “npm init” (minimal, predictable).
 
+## Prime-First Design
+
+### Core Concept
+
+Running `tbd` with no arguments shows a dashboard that orients users to the project.
+This replaces showing help text.
+
+```
+tbd                    # Runs tbd prime (dashboard)
+tbd prime              # Same as above, explicit
+tbd skill              # Output full skill file (for AI agents)
+tbd --help             # CLI reference
+```
+
+### `tbd` / `tbd prime` Output (Initialized)
+
+```
+tbd v1.2.3
+
+--- INSTALLATION ---
+✓ tbd installed (v1.2.3)
+✓ Initialized in this repo
+✓ Hooks installed
+i Update available: v1.2.4 (npm install -g tbd-git@latest)
+
+--- PROJECT STATUS ---
+Repository: ai-trade-arena
+Sync: ✓ Up to date with remote
+
+Issues:
+  3 open (1 in_progress, 2 ready)
+  0 blocked
+  12 closed this week
+
+--- QUICK START ---
+tbd ready              Show issues ready to work
+tbd show <id>          View issue details
+tbd create "title"     Create new issue
+tbd close <id>         Mark issue complete
+tbd sync               Sync with remote
+
+--- SETUP ---
+tbd setup claude       Install Claude Code hooks + skill
+tbd setup cursor       Create Cursor IDE rules
+tbd setup codex        Create/update AGENTS.md
+
+For AI agent instructions: tbd skill
+For CLI reference: tbd --help
+For command help: tbd <command> --help
+```
+
+### `tbd prime` Output (Not Initialized)
+
+```
+tbd v1.2.3
+
+--- PROJECT NOT INITIALIZED ---
+✗ Not initialized in this repository
+
+To set up tbd in this project:
+
+  tbd setup                     # Interactive setup
+  tbd setup --auto              # Non-interactive (for agents)
+
+After setup, run 'tbd' again to see project status.
+
+For CLI reference: tbd --help
+```
+
+### `tbd prime --brief`
+
+Compact version for context priming:
+
+```
+tbd v1.2.3 | ✓ Installed | ✓ Synced | 3 open (1 in_progress) | 0 blocked
+
+Quick commands: tbd ready | tbd show <id> | tbd create "title" | tbd close <id> | tbd sync
+
+Core rules:
+- Track all task work as issues using tbd
+- Run tbd sync at session end
+- Check tbd ready for available work
+```
+
+### `tbd skill`
+
+Outputs the full AI agent skill file.
+This is what gets installed to `.claude/skills/tbd/SKILL.md` or similar locations.
+
+```bash
+tbd skill              # Output full skill.md content
+tbd skill --brief      # Output condensed instructions (same as prime --brief skill section)
+```
+
+**File mapping:**
+- `tbd skill` → outputs content of bundled `SKILL.md`
+- `tbd skill --brief` → outputs condensed instructions
+- `tbd setup claude` → copies skill content to `.claude/skills/tbd/SKILL.md`
+
+### `tbd status`
+
+Full status showing installation, project setup, sync state, and issue counts:
+
+```
+--- INSTALLATION ---
+✓ tbd installed (v1.2.3)
+✓ Global hooks configured
+i Update available: v1.2.4 (npm install -g tbd-git@latest)
+
+--- PROJECT ---
+✓ Initialized in this repo
+✓ Project hooks installed
+✓ Skill file installed (.claude/skills/tbd/SKILL.md)
+
+--- SYNC ---
+✓ Up to date with remote
+  Last sync: 2 minutes ago
+
+--- ISSUES ---
+  3 open (1 in_progress, 2 ready)
+  0 blocked
+  12 closed this week
+```
+
+**Flags:**
+- `tbd status --installation` - Installation health only (global + user level)
+- `tbd status --project` - Project-specific only (setup, sync, issues)
+- `tbd status --brief` - Compact summary
+
+### `tbd doctor`
+
+Comprehensive diagnostic that includes everything from `tbd status` plus additional
+checks and suggestions:
+
+- Git configuration checks
+- Orphaned/stale issue detection
+- Circular dependency detection
+- Actionable suggestions for common problems
+
+### `tbd --help`
+
+Standard CLI help. The standalone `tbd help` command is removed in favor of:
+
+- `tbd --help` - Full CLI reference
+- `tbd <command> --help` - Command-specific help
+- `tbd prime` - Includes pointers to help
+
+This follows standard CLI conventions (git, npm, docker, etc.).
+
+### Command Summary Table
+
+| Command | Purpose |
+| --- | --- |
+| `tbd` | Dashboard (same as `tbd prime`) |
+| `tbd prime` | Dashboard: installation + status + quick start |
+| `tbd prime --brief` | Compact status + condensed skill instructions |
+| `tbd skill` | Full AI agent skill file output |
+| `tbd skill --brief` | Condensed skill instructions |
+| `tbd status` | Full health check (install + project + sync + issues) |
+| `tbd status --installation` | Global/user-level only |
+| `tbd status --project` | Project-specific only |
+| `tbd status --brief` | Compact status |
+| `tbd doctor` | Status + diagnostics + suggestions |
+| `tbd --help` | CLI reference |
+| `tbd <cmd> --help` | Command-specific help |
+| ~~`tbd help`~~ | Removed (use `--help`) |
+
 ## Agent Messaging Consistency
 
 ### The Three Agent States
@@ -652,8 +849,8 @@ When an AI agent encounters tbd, it’s in one of three states:
 | State | How Agent Gets Context | Entry Point |
 | --- | --- | --- |
 | **Not installed** | Reads SKILL.md from skill/rules file | `tbd setup --auto` |
-| **Installed, new session** | SessionStart hook calls `tbd prime` | Automatic |
-| **Mid-session, after compaction** | PreCompact hook calls `tbd prime` | Automatic |
+| **Installed, new session** | SessionStart hook calls `tbd skill` | Automatic |
+| **Mid-session, after compaction** | PreCompact hook calls `tbd skill` | Automatic |
 
 ### Messaging Flow
 
@@ -670,21 +867,21 @@ When an AI agent encounters tbd, it’s in one of three states:
 │ Agent runs: tbd setup --auto                                            │
 │                                                                         │
 │ Output:                                                                 │
-│   ✓ Initialized tbd (prefix: myapp)                                    │
+│   ✓ Initialized tbd (prefix: myapp)                                     │
 │   ✓ Configured Claude Code                                              │
 │                                                                         │
-│ Then automatically outputs tbd prime content:                           │
+│ Then automatically outputs dashboard (tbd prime):                       │
 │   ─────────────────────────────────────────────────                     │
-│   # tbd Workflow Context                                                │
-│   [Full workflow instructions from SKILL.md]                            │
+│   --- PROJECT STATUS ---                                                │
+│   [Dashboard with status + quick start + pointer to tbd skill]          │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ Subsequent sessions: SessionStart hook runs `tbd prime`                 │
-│ After compaction: PreCompact hook runs `tbd prime`                      │
+│ Subsequent sessions: SessionStart hook runs `tbd skill`                 │
+│ After compaction: PreCompact hook runs `tbd skill`                      │
 │                                                                         │
-│ Same content as above, ensuring context is always available             │
+│ Full workflow instructions from SKILL.md, ensuring context is available │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -693,15 +890,14 @@ When an AI agent encounters tbd, it’s in one of three states:
 All three sources MUST contain identical workflow instructions:
 
 1. **SKILL.md** - Bundled with tbd, installed to `.claude/skills/tbd/SKILL.md`
-2. **`tbd prime` output** - Reads and outputs SKILL.md content (with minor header
-   change)
+2. **`tbd skill` output** - Outputs SKILL.md content
 3. **Cursor rules / AGENTS.md** - Also derived from SKILL.md
 
 **Single source of truth:** `packages/tbd/src/docs/SKILL.md`
 
 ### SKILL.md Updates Required
 
-The Installation section in SKILL.md must be updated:
+The Installation and Context Recovery sections in SKILL.md must be updated:
 
 ````markdown
 ## Installation
@@ -713,9 +909,11 @@ npm install -g tbd-git@latest && tbd setup --auto
 ````
 
 This initializes tbd and configures your coding agent automatically.
-After setup, `tbd prime` will output the full workflow context.
 
-> **Context Recovery**: Run `tbd prime` after compaction, clear, or new session.
+`tbd` provides lightweight, git-native task and issue tracking using beads, which are
+just lightweight issues managed from the CLI.
+
+> **Context Recovery**: Run `tbd skill` after compaction, clear, or new session.
 > Hooks auto-call this in Claude Code when .tbd/ detected.
 ````
 
@@ -725,33 +923,42 @@ When `tbd setup --auto` completes successfully:
 
 1. Print setup summary (what was initialized/configured)
 2. Print separator line
-3. Output `tbd prime` content automatically
+3. Output dashboard (`tbd prime`) automatically
 
-This ensures the agent has full context immediately after setup, without needing
-to run a second command.
+This gives the agent orientation (status + quick start) after setup. The agent
+already has SKILL.md in its context from the skill file, so the dashboard
+confirms success and shows next steps.
 
-**Implementation:** Call `loadPrimeContent()` at the end of SetupDefaultHandler
-when `--auto` flag is used.
+**Implementation:** Call `runPrime()` at the end of SetupDefaultHandler when
+`--auto` flag is used.
 
-### `tbd prime` Behavior (No Changes Needed)
+### `tbd prime` Behavior (CHANGED)
 
-Current behavior is correct:
-- Outputs SKILL.md content (with "# tbd Workflow Context" header)
+New behavior:
+- Outputs dashboard with installation status, project status, quick start guide
+- Points to `tbd skill` for full AI agent instructions
+- Supports `--brief` for compact status + condensed skill
 - Silent exit if not in a tbd project (exit 0, no output)
-- Supports `--brief` for minimal context
-- Supports `.tbd/PRIME.md` override for customization
+
+### `tbd skill` Behavior (NEW)
+
+New command that outputs the AI agent skill file:
+- Outputs full SKILL.md content
+- Supports `--brief` for condensed instructions
+- This is what hooks call for context recovery
 
 ### Hook Configuration
 
-The hooks installed by `tbd setup claude` call `tbd prime`:
+The hooks installed by `tbd setup claude` call `tbd skill`:
 
 ```json
 {
   "hooks": {
-    "SessionStart": [{ "matcher": "", "hooks": [{ "type": "command", "command": "tbd prime" }] }],
-    "PreCompact": [{ "matcher": "", "hooks": [{ "type": "command", "command": "tbd prime" }] }]
+    "SessionStart": [{ "matcher": "", "hooks": [{ "type": "command", "command": "tbd skill" }] }],
+    "PreCompact": [{ "matcher": "", "hooks": [{ "type": "command", "command": "tbd skill" }] }]
   }
 }
 ````
 
-This ensures agents always have tbd context at session start and after compaction.
+This ensures agents always have full workflow context at session start and after
+compaction.
