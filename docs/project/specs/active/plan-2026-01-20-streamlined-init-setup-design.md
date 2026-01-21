@@ -785,6 +785,23 @@ tbd skill --brief      # Output just the condensed workflow rules (subset of pri
 - `docs/skill.md` → Full skill documentation (source of truth)
 - `docs/skill-brief.md` → Condensed workflow rules (subset)
 
+**Dual-purpose content:** Both skill files serve two audiences:
+1. **Agent instructions** - Technical guidance on how to use tbd commands
+2. **User communication** - How agents should help users understand tbd’s value
+
+**When user invokes `/tbd`:** The agent should NOT just output technical instructions.
+Instead, it should explain the VALUE of using tbd with Claude Code:
+- What problems tbd solves (tracking work, planning tasks, managing dependencies)
+- How tbd helps with AI-assisted development
+- Suggestions for how the user can leverage tbd (e.g., “I can help you plan this feature
+  by breaking it into tracked issues”, “Let me check what tasks are ready to work on”)
+
+The skill content should:
+- Give agents all essential commands and workflow patterns (for agent’s internal use)
+- Encourage agents to proactively suggest tbd usage for planning and tracking
+- Help agents communicate tbd’s value proposition to users
+- Guide agents on answering user questions about tbd functionality
+
 **Command → file mapping:**
 - `tbd skill` → outputs `docs/skill.md` (static)
 - `tbd skill --brief` → outputs `docs/skill-brief.md` (static)
