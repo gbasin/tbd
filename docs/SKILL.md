@@ -18,7 +18,7 @@ This initializes tbd and configures your coding agent automatically.
 `tbd` provides lightweight, git-native task and issue tracking using beads, which are
 just lightweight issues managed from the CLI.
 
-> **Context Recovery**: Run `tbd skill` after compaction, clear, or new session.
+> **Context Recovery**: Run `tbd prime` after compaction, clear, or new session.
 > Hooks auto-call this in Claude Code when .tbd/ detected.
 
 # SESSION CLOSING PROTOCOL
