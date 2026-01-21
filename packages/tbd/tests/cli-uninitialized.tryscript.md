@@ -42,7 +42,8 @@ Detected:
   ✗ tbd not initialized
 
 To get started:
-  tbd init                  # Start fresh
+  tbd setup --auto          # Full setup with auto-detection
+  tbd init --prefix=X       # Surgical init only
 ? 0
 ```
 

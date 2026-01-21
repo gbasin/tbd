@@ -50,8 +50,9 @@ Options:
 
 Documentation:
   readme                    Display the README (same as GitHub landing page)
-  prime [options]           Context-efficient instructions for agents, for use
-                            in every session
+  prime [options]           Show dashboard and workflow context (default when
+                            running `tbd`)
+  skill [options]           Output AI agent skill file content
   closing                   Display the session closing protocol reminder
   docs [options] [topic]    Display CLI documentation
   design [options] [topic]  Display design documentation and Beads comparison
@@ -59,7 +60,7 @@ Documentation:
 Setup & Configuration:
   init [options]            Initialize tbd in a git repository
   config                    Manage configuration
-  setup                     Configure tbd integration with editors and tools
+  setup [options]           Configure tbd integration with editors and tools
 
 Working With Issues:
   create [options] [title]  Create a new issue

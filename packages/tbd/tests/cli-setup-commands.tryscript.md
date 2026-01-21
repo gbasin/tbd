@@ -36,6 +36,11 @@ Usage: tbd setup [options] [command]
 Configure tbd integration with editors and tools
 
 Options:
+  --auto             Non-interactive mode with smart defaults (for
+                     agents/scripts)
+  --interactive      Interactive mode with prompts (for humans)
+  --from-beads       Migrate from Beads to tbd
+  --prefix <name>    Override auto-detected project prefix
   -h, --help         display help for command
 
 Global Options:
