@@ -206,15 +206,15 @@ tbd list
 # Expected: Error message with "tbd setup --auto" recommendation
 ```
 
-## Backward Compatibility
+## Clean Upgrade - No Legacy Commands
 
-All legacy commands work with deprecation notices where appropriate:
+This is a clean upgrade with no backward compatibility for legacy commands:
 
-| Legacy Command | Status | Migration Path |
-| --- | --- | --- |
-| `tbd setup auto` | Works | Use `tbd setup --auto` |
-| `tbd import --from-beads` | Works (deprecated) | Use `tbd setup --from-beads` |
-| `tbd setup beads --disable` | Works | Use `tbd setup --auto` for migration |
+| Removed Command | Replacement |
+| --- | --- |
+| `tbd setup auto` | Use `tbd setup --auto` flag |
+| `tbd import --from-beads` | Use `tbd setup --from-beads` |
+| `tbd setup beads --disable` | Use `tbd setup --from-beads` |
 
 ## Known Limitations
 
@@ -230,7 +230,7 @@ A comprehensive review of all 8 spec phases was completed on 2026-01-22:
 | Phase 1: Prefix Auto-Detection | ✅ Complete |
 | Phase 2: Setup Default Handler | ✅ Complete |
 | Phase 3: Beads Migration | ✅ Complete |
-| Phase 4: Command Cleanup | ✅ Mostly Complete (legacy kept intentionally) |
+| Phase 4: Command Cleanup | ✅ Complete (legacy commands removed) |
 | Phase 4.5: Integration Files | ✅ Complete |
 | Phase 5: Documentation & Help | ✅ Complete (help epilog fixed) |
 | Phase 6: Prime-First | ✅ Complete |
