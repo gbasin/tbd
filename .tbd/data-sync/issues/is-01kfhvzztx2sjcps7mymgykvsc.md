@@ -10,7 +10,7 @@ priority: 1
 status: open
 title: Create DocCache class with load() method
 type: is
-updated_at: 2026-01-22T03:31:11.603Z
-version: 2
+updated_at: 2026-01-22T21:11:12.884Z
+version: 3
 ---
-Create packages/tbd/src/lib/doc-cache.ts with DocCache class. Implement constructor accepting ordered array of directory paths, and load() method that scans directories and parses markdown files with gray-matter for frontmatter. Use eager loading. Track both active docs (first occurrence by name) and all docs (including shadowed).
+Create packages/tbd/src/file/doc-cache.ts (in file/ not lib/ because it uses fs/promises). Define DocCache class, scoring constants (SCORE_EXACT_MATCH=1.0, SCORE_PREFIX_MATCH=0.9, SCORE_CONTAINS_ALL=0.8, SCORE_PARTIAL_BASE=0.7, SCORE_MIN_THRESHOLD=0.5) with docstrings, DocFrontmatter interface, and CachedDoc/DocMatch interfaces.

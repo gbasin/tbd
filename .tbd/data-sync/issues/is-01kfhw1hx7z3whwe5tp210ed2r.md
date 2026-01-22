@@ -10,7 +10,7 @@ priority: 1
 status: open
 title: Implement path resolution utility
 type: is
-updated_at: 2026-01-22T03:31:29.176Z
-version: 2
+updated_at: 2026-01-22T21:11:35.469Z
+version: 3
 ---
-Add resolvePath() utility for consistent path handling in doc paths: relative paths resolved from tbd root (parent of .tbd/), absolute paths used as-is, ~/paths expanded to user home directory.
+Implement resolveDocPath() utility in paths.ts for consistent path handling: relative paths resolved from tbd root (parent of .tbd/), absolute paths used as-is, ~/ paths expanded to user home directory.

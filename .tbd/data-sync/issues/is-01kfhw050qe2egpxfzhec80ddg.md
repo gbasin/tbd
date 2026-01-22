@@ -14,7 +14,7 @@ priority: 1
 status: open
 title: Implement DocCache get() and list() methods
 type: is
-updated_at: 2026-01-22T03:31:18.303Z
-version: 4
+updated_at: 2026-01-22T21:11:24.147Z
+version: 5
 ---
-Implement get(name) method for exact filename matching (with/without .md extension, stripping shortcut- prefix). Implement list(includeAll) method to return active documents or all including shadowed. Implement isShadowed() helper.
+Implement DocCache methods: load() using existing parseFrontmatter() from parser.ts, get(name) for exact filename matching (with/without .md), list(includeAll) returning active or all docs including shadowed, and isShadowed() helper. Track seenNames for shadowing detection.

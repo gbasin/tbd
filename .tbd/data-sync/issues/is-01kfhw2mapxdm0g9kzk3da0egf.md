@@ -8,7 +8,7 @@ priority: 2
 status: open
 title: Add golden tests for shortcut output formats
 type: is
-updated_at: 2026-01-22T03:30:55.957Z
-version: 1
+updated_at: 2026-01-22T21:11:45.463Z
+version: 2
 ---
-Create golden tests for shortcut command output: --list text format, --list --all text format, --list --json format, document content output.
+Create tests/cli/shortcut.golden.test.ts with golden tests capturing CLI output for: tbd shortcut --list, tbd shortcut <name>, tbd shortcut --list --all (with shadowed entries), and JSON output mode.

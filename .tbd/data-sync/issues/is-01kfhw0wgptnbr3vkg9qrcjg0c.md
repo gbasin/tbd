@@ -16,7 +16,7 @@ priority: 1
 status: open
 title: Create shortcut command with default action
 type: is
-updated_at: 2026-01-22T03:31:35.055Z
-version: 5
+updated_at: 2026-01-22T21:11:34.962Z
+version: 6
 ---
-Create packages/tbd/src/cli/commands/shortcut.ts. Implement default action (no args): output shortcut-explanation.md content + command help. Register command in cli.ts.
+Create packages/tbd/src/cli/commands/shortcut.ts. Use picocolors (aliased as pc) for terminal styling, OutputManager via createOutput() for proper stdout/stderr separation. Implement default action (no args): output shortcut-explanation.md content + command help. Register command in cli.ts.

@@ -8,7 +8,7 @@ priority: 2
 status: open
 title: Add integration tests for shortcut command
 type: is
-updated_at: 2026-01-22T03:30:51.801Z
-version: 1
+updated_at: 2026-01-22T21:11:45.705Z
+version: 2
 ---
-Create integration tests for shortcut command: default action (no args), exact match lookup, fuzzy match lookup, --list output, --list --all output, --json output, error cases (no match, low confidence).
+Create tests/cli/shortcut.integration.test.ts with integration tests: full command flow from CLI to file system, config loading with custom doc paths, installation flow (copying shortcuts during setup).

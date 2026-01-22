@@ -10,7 +10,7 @@ priority: 1
 status: open
 title: Create built-in standard shortcuts directory
 type: is
-updated_at: 2026-01-22T03:31:28.973Z
-version: 2
+updated_at: 2026-01-22T21:11:24.418Z
+version: 3
 ---
-Create packages/tbd/src/docs/shortcuts/standard/ with workflow shortcuts: new-plan-spec.md, new-research-brief.md, commit-code.md, etc. Add frontmatter (title, description, tags) to all files.
+Create packages/tbd/src/docs/shortcuts/standard/ with workflow shortcuts using plain names (no shortcut- prefix): new-plan-spec.md, new-research-brief.md, commit-code.md, etc. Add frontmatter (title, description, tags) using DocFrontmatter interface.
