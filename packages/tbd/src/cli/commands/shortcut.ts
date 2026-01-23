@@ -12,12 +12,19 @@ import pc from 'picocolors';
 
 import { BaseCommand } from '../lib/base-command.js';
 import { requireInit } from '../lib/errors.js';
-import { DocCache, SCORE_PREFIX_MATCH } from '../../file/doc-cache.js';
+import {
+  DocCache,
+  SCORE_PREFIX_MATCH,
+  generateShortcutDirectory,
+  writeShortcutDirectoryCache,
+} from '../../file/doc-cache.js';
 import { DEFAULT_DOC_PATHS } from '../../lib/paths.js';
 
 interface ShortcutOptions {
   list?: boolean;
   all?: boolean;
+  refresh?: boolean;
+  quiet?: boolean;
 }
 
 class ShortcutHandler extends BaseCommand {
@@ -29,6 +36,12 @@ class ShortcutHandler extends BaseCommand {
       // Create and load the doc cache with proper base directory
       const cache = new DocCache(DEFAULT_DOC_PATHS, tbdRoot);
       await cache.load();
+
+      // Refresh mode: regenerate cache and update skill files
+      if (options.refresh) {
+        await this.handleRefresh(cache, tbdRoot, options.quiet);
+        return;
+      }
 
       // List mode
       if (options.list) {
@@ -45,6 +58,36 @@ class ShortcutHandler extends BaseCommand {
       // Query provided: try exact match first, then fuzzy
       await this.handleQuery(cache, query);
     }, 'Failed to find shortcut');
+  }
+
+  /**
+   * Handle --refresh mode: regenerate cache and update installed skill files.
+   */
+  private async handleRefresh(cache: DocCache, tbdRoot: string, quiet?: boolean): Promise<void> {
+    const docs = cache.list();
+
+    // Generate shortcut directory markdown
+    const directory = generateShortcutDirectory(docs);
+
+    // Write to cache file
+    await writeShortcutDirectoryCache(directory, tbdRoot);
+
+    // Count shortcuts (excluding system docs)
+    const shortcutCount = docs.filter(
+      (d) => d.name !== 'skill' && d.name !== 'skill-brief' && d.name !== 'shortcut-explanation',
+    ).length;
+
+    if (!quiet) {
+      if (this.ctx.json) {
+        this.output.data({
+          refreshed: true,
+          shortcutCount,
+          cacheFile: '.tbd/cache/shortcut-directory.md',
+        });
+      } else {
+        console.log(`Refreshed shortcut directory with ${shortcutCount} shortcut(s)`);
+      }
+    }
   }
 
   /**
@@ -169,6 +212,8 @@ export const shortcutCommand = new Command('shortcut')
   .argument('[query]', 'Shortcut name or description to search for')
   .option('--list', 'List all available shortcuts')
   .option('--all', 'Include shadowed shortcuts (use with --list)')
+  .option('--refresh', 'Refresh the cached shortcut directory')
+  .option('--quiet', 'Suppress output (use with --refresh)')
   .action(async (query: string | undefined, options: ShortcutOptions, command) => {
     const handler = new ShortcutHandler(command);
     await handler.run(query, options);

@@ -314,3 +314,170 @@ export class DocCache {
     return this.loaded;
   }
 }
+
+// =============================================================================
+// Shortcut Directory Generation
+// =============================================================================
+
+/**
+ * Marker comments for shortcut directory section in skill files.
+ * Used for incremental updates without overwriting user content.
+ */
+export const SHORTCUT_DIRECTORY_BEGIN = '<!-- BEGIN SHORTCUT DIRECTORY -->';
+export const SHORTCUT_DIRECTORY_END = '<!-- END SHORTCUT DIRECTORY -->';
+
+/**
+ * Generate a formatted markdown shortcut directory from a list of cached documents.
+ *
+ * The output includes:
+ * 1. Marker comments for incremental updates
+ * 2. A header explaining how to use shortcuts
+ * 3. A markdown table with name and description columns
+ *
+ * @param docs - Array of CachedDoc objects from DocCache.list()
+ * @returns Formatted markdown string with shortcut directory
+ *
+ * @example
+ * const cache = new DocCache(paths);
+ * await cache.load();
+ * const directory = generateShortcutDirectory(cache.list());
+ * // Returns:
+ * // <!-- BEGIN SHORTCUT DIRECTORY -->
+ * // ## Available Shortcuts
+ * // Run `tbd shortcut <name>` to use any of these shortcuts:
+ * // | Name | Description |
+ * // |------|-------------|
+ * // | new-plan-spec | Create a new technical plan specification document |
+ * // ...
+ * // <!-- END SHORTCUT DIRECTORY -->
+ */
+export function generateShortcutDirectory(docs: CachedDoc[]): string {
+  // Sort docs by name for consistent output
+  const sortedDocs = [...docs].sort((a, b) => a.name.localeCompare(b.name));
+
+  // Build table rows
+  const rows: string[] = [];
+  for (const doc of sortedDocs) {
+    // Skip system docs like skill.md and shortcut-explanation.md
+    // These are meta-docs, not shortcuts users would invoke directly
+    if (doc.name === 'skill' || doc.name === 'skill-brief' || doc.name === 'shortcut-explanation') {
+      continue;
+    }
+
+    const name = doc.name;
+    const description =
+      doc.frontmatter?.description ?? doc.frontmatter?.title ?? '(no description)';
+
+    // Escape pipe characters in description to avoid breaking the table
+    const escapedDescription = description.replace(/\|/g, '\\|');
+
+    rows.push(`| ${name} | ${escapedDescription} |`);
+  }
+
+  // If no shortcuts to list, return a minimal directory
+  if (rows.length === 0) {
+    return [
+      SHORTCUT_DIRECTORY_BEGIN,
+      '## Available Shortcuts',
+      '',
+      'No shortcuts available. Create shortcuts in `.tbd/docs/shortcuts/standard/`.',
+      '',
+      SHORTCUT_DIRECTORY_END,
+    ].join('\n');
+  }
+
+  // Build the full directory
+  return [
+    SHORTCUT_DIRECTORY_BEGIN,
+    '## Available Shortcuts',
+    '',
+    'Run `tbd shortcut <name>` to use any of these shortcuts:',
+    '',
+    '| Name | Description |',
+    '|------|-------------|',
+    ...rows,
+    '',
+    SHORTCUT_DIRECTORY_END,
+  ].join('\n');
+}
+
+// =============================================================================
+// Shortcut Directory Cache Read/Write
+// =============================================================================
+
+import { writeFile } from 'atomically';
+import { mkdir } from 'node:fs/promises';
+import { SHORTCUT_DIRECTORY_CACHE, CACHE_DIR } from '../lib/paths.js';
+
+/**
+ * Read the cached shortcut directory from disk.
+ *
+ * @param baseDir - Base directory (tbd root, parent of .tbd/)
+ * @returns The cached shortcut directory content, or null if not found
+ */
+export async function readShortcutDirectoryCache(
+  baseDir: string = process.cwd(),
+): Promise<string | null> {
+  const cachePath = join(baseDir, SHORTCUT_DIRECTORY_CACHE);
+
+  try {
+    return await readFile(cachePath, 'utf-8');
+  } catch {
+    // Cache file doesn't exist or isn't readable
+    return null;
+  }
+}
+
+/**
+ * Write the shortcut directory to the cache file.
+ *
+ * Uses atomically library for safe writes to prevent corruption if the
+ * process is interrupted during write.
+ *
+ * @param content - The shortcut directory markdown content to write
+ * @param baseDir - Base directory (tbd root, parent of .tbd/)
+ */
+export async function writeShortcutDirectoryCache(
+  content: string,
+  baseDir: string = process.cwd(),
+): Promise<void> {
+  const cachePath = join(baseDir, SHORTCUT_DIRECTORY_CACHE);
+  const cacheDir = join(baseDir, CACHE_DIR);
+
+  // Ensure cache directory exists
+  await mkdir(cacheDir, { recursive: true });
+
+  // Write atomically
+  await writeFile(cachePath, content);
+}
+
+/**
+ * Replace the shortcut directory section in existing content using marker comments.
+ *
+ * If the content doesn't have marker comments, appends the directory at the end.
+ *
+ * @param existingContent - The existing file content (e.g., SKILL.md)
+ * @param newDirectory - The new shortcut directory to insert
+ * @returns Updated content with new shortcut directory
+ */
+export function replaceShortcutDirectorySection(
+  existingContent: string,
+  newDirectory: string,
+): string {
+  const beginMarker = SHORTCUT_DIRECTORY_BEGIN;
+  const endMarker = SHORTCUT_DIRECTORY_END;
+
+  const beginIndex = existingContent.indexOf(beginMarker);
+  const endIndex = existingContent.indexOf(endMarker);
+
+  // If both markers exist, replace the section
+  if (beginIndex !== -1 && endIndex !== -1) {
+    const before = existingContent.slice(0, beginIndex);
+    const after = existingContent.slice(endIndex + endMarker.length);
+    return before + newDirectory + after;
+  }
+
+  // If only begin marker exists (malformed), append at end
+  // If no markers exist, append at end
+  return existingContent.trimEnd() + '\n\n' + newDirectory;
+}

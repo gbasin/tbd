@@ -3,30 +3,6 @@ name: tbd
 description: Lightweight, git-native issue tracking (aka beads) for AI agents. Use for creating, planning, updating, and tracking issues with dependencies. Invoke when user mentions tbd, beads, to-do lists, planning, tracking tasks, issues, or bugs.
 allowed-tools: Bash(tbd:*), Read, Write
 ---
-# tbd Workflow
-
-## Installation
-
-If `tbd` is not installed, install and set up in one command:
-
-```bash
-npm install -g tbd-git@latest && tbd setup --auto --prefix=<name>
-```
-
-Replace `<name>` with a short 2-4 letter project prefix (e.g., `tbd`, `myp`). This
-prefix is used in issue IDs (e.g., `tbd-a1b2`).
-
-**IMPORTANT FOR AGENTS:**
-- The `--prefix` flag is **required** for fresh setup (no auto-detection)
-- Use 2-4 lowercase letters for the prefix (e.g., `tbd`, `myp`, `app`)
-- Exception: `--from-beads` reads prefix from existing beads config
-- If setup fails due to missing prefix, ask user what prefix to use
-
-Other non-interactive commands for agents:
-- `tbd setup --auto --from-beads` - Migrate from beads (uses existing prefix)
-- `tbd setup claude` - Add Claude integration only
-- `tbd setup cursor` - Add Cursor integration only
-
 `tbd` provides lightweight, git-native task and issue tracking using beads, which are
 just lightweight issues managed from the CLI.
 
@@ -137,10 +113,9 @@ tbd dep add <tests-id> <feature-id>   # Tests depend on feature
 
 ## Setup Commands
 
-- `tbd setup claude` - Install Claude Code hooks and skill file
-- `tbd setup cursor` - Create Cursor IDE rules file
-- `tbd setup codex` - Create/update AGENTS.md for Codex
-- `tbd setup beads --disable` - Migrate from Beads to tbd
+- `tbd setup --auto` - Non-interactive setup with smart defaults (for agents/scripts)
+- `tbd setup --interactive` - Interactive setup with prompts (for humans)
+- `tbd setup --from-beads` - Migrate from Beads to tbd
 
 ## Quick Reference
 

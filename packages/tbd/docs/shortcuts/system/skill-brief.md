@@ -1,5 +1,8 @@
 # tbd Workflow Rules (Brief)
 
+`tbd` provides lightweight, git-native task and issue tracking using beads, which are
+just lightweight issues managed from the CLI.
+
 ## Core Workflow
 
 Track all task work as issues using tbd:

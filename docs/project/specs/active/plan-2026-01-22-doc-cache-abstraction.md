@@ -61,6 +61,16 @@ Implement `tbd shortcut <name>` that:
 2. Add `docs.paths` config in `config.yml` for custom doc directories
 3. Copy built-in shortcuts to `.tbd/docs/shortcuts/` at init time
 
+### Part 4: Shortcut Directory Integration
+
+Enhance skill output to include a complete shortcut directory:
+
+1. Generate a cached shortcut directory listing all shortcuts with descriptions
+2. Append shortcut directory to `tbd skill` and `tbd prime` output
+3. Implement `tbd shortcut --refresh` to regenerate cache and update installed skill
+   files
+4. Auto-refresh during `tbd init` and `tbd setup`
+
 ## Backward Compatibility
 
 - **New Feature**: This is entirely new functionality, no backward compatibility
@@ -170,16 +180,29 @@ packages/tbd/src/
 │   └── shortcut.ts           # Shortcut command
 └── docs/
     └── shortcuts/
-        ├── system/           # System docs (skill.md, shortcut-explanation.md)
-        │   ├── skill.md                  # Main SKILL.md content
+        ├── system/           # System docs (lowercase source files)
+        │   ├── skill.md                  # Main skill content (source of truth)
         │   ├── skill-brief.md            # Brief skill summary
         │   └── shortcut-explanation.md   # Explains shortcuts to agents
-        └── standard/         # Standard shortcut templates
+        ├── standard/         # Standard shortcut templates
+        │   └── ...
+        └── install/          # Header files for tool-specific installation
+            ├── cursor-header.md          # Cursor YAML frontmatter only
+            └── claude-header.md          # Claude YAML frontmatter only (if needed)
             ├── new-plan-spec.md
             ├── new-research-brief.md
             ├── commit-code.md
             └── ...
 ```
+
+**Source vs Installed files:**
+- **Source files** (lowercase): `packages/tbd/src/docs/shortcuts/system/skill.md`
+- **Installed files** (uppercase): `.claude/skills/tbd/SKILL.md`, `docs/SKILL.md`, etc.
+
+The `tbd shortcut --refresh` and `tbd setup` commands read from source (lowercase) and
+install to target locations (uppercase).
+This keeps a single source of truth in the package while allowing consistent uppercase
+naming in user-visible installed locations.
 
 **Note**: DocCache is placed in `file/` (not `lib/`) because it uses `fs/promises` for
 file operations. Per guidelines, `lib/` should remain node-free for library/CLI hybrids.
@@ -776,9 +799,10 @@ Future optimization if needed:
 | `file/doc-cache.ts` | Path-ordered markdown document cache with lookup |
 | `lib/paths.ts` | Centralized path constants (extended, not new file) |
 | `config.yml` docs.paths | User-configurable doc directories |
-| `tbd shortcut` | CLI command: `<query>`, `--list`, `--list --all` |
+| `tbd shortcut` | CLI command: `<query>`, `--list`, `--list --all`, `--refresh` |
 | `.tbd/docs/shortcuts/system/` | System docs (skill.md, shortcut-explanation.md) |
 | `.tbd/docs/shortcuts/standard/` | Standard shortcut templates (new-plan-spec.md, etc.) |
+| `.tbd/cache/shortcut-directory.md` | Cached shortcut directory for embedding in skill output |
 
 **Key principles**:
 - Configuration in `config.yml`, constants in `paths.ts`, no hardcoded paths
@@ -802,4 +826,268 @@ Future optimization if needed:
 
 **System vs Standard docs**:
 - `system/` - Core docs like skill.md, skill-brief.md, shortcut-explanation.md
+  (lowercase sources)
 - `standard/` - Workflow shortcuts like new-plan-spec.md, commit-code.md
+
+**Source file reorganization required:**
+- Move `packages/tbd/src/docs/SKILL.md` →
+  `packages/tbd/src/docs/shortcuts/system/skill.md`
+- Move `packages/tbd/src/docs/skill-brief.md` →
+  `packages/tbd/src/docs/shortcuts/system/skill-brief.md`
+- Remove `docs/skill.md` (becomes an installed copy at `docs/SKILL.md` via setup)
+- Replace `packages/tbd/src/docs/CURSOR.mdc` with `docs/install/cursor-header.md` (YAML
+  only)
+
+**Header-only files for tool-specific frontmatter** (in `docs/install/`):
+- `install/cursor-header.md` - Contains only Cursor-specific YAML frontmatter
+- `install/claude-header.md` - Contains only Claude-specific YAML frontmatter (if
+  needed)
+
+When installing, the setup command combines: header (from install/) + skill.md +
+shortcut directory. This avoids duplicating skill content across multiple files.
+
+## Part 4: Shortcut Directory Integration with Skill Output
+
+### Problem Statement
+
+When agents receive the SKILL.md content (via `tbd skill`, `tbd prime`, or installed
+hook files), they only see the core workflow instructions.
+They don’t know what shortcuts are available unless they run `tbd shortcut --list`
+separately.
+
+For optimal agent experience, the skill output should include a complete directory of
+all available shortcuts with their names and descriptions.
+This way agents immediately know what shortcuts exist and what each one does.
+
+### Solution: Cached Shortcut Directory
+
+1. **Shortcut Directory Cache** - A generated file `.tbd/cache/shortcut-directory.md`
+   that contains a formatted list of all shortcuts with names and descriptions
+2. **Enhanced Skill Output** - `tbd skill` appends the shortcut directory to the base
+   SKILL.md content
+3. **Refresh Flag** - `tbd shortcut --refresh` regenerates the cache and updates all
+   installed skill files
+4. **Auto-refresh** - `tbd setup` and `tbd init` automatically run refresh
+
+### Shortcut Directory Format
+
+The cached shortcut directory is a markdown section appended to skill output:
+
+```markdown
+## Available Shortcuts
+
+Run `tbd shortcut <name>` to use any of these shortcuts:
+
+| Name | Description |
+|------|-------------|
+| new-plan-spec | Create a new feature planning specification document |
+| new-research-brief | Start a research brief for investigating a topic |
+| commit-code | Stage and commit changes with proper message format |
+| review-pr | Review a pull request and provide feedback |
+| ... | ... |
+
+Use `tbd shortcut --list` to see full paths and detect any shadowed shortcuts.
+```
+
+### File Structure Addition
+
+```
+.tbd/
+├── cache/
+│   └── shortcut-directory.md    # Generated: formatted shortcut list
+├── docs/
+│   └── shortcuts/
+│       ├── system/              # System docs
+│       └── standard/            # Standard shortcuts
+└── config.yml
+```
+
+### New Flag: `tbd shortcut --refresh`
+
+Add `--refresh` flag to the existing shortcut command:
+
+```typescript
+// packages/tbd/src/cli/commands/shortcut.ts (extend existing)
+program
+  .command('shortcut [query]')
+  .description('Find and output documentation shortcuts')
+  .option('--list', 'List all available shortcuts')
+  .option('--all', 'Include shadowed shortcuts (use with --list)')
+  .option('--refresh', 'Refresh the cached shortcut directory and update installed skill files')
+  .option('--quiet', 'Suppress output (use with --refresh)')
+  .option('--json', 'Output as JSON')
+  .action(async (query, options, command) => {
+    const ctx = getCommandContext(command);
+    const out = createOutput(ctx);
+
+    if (options.refresh) {
+      // Refresh mode: regenerate cache and update skill files
+      const cache = await loadDocCache();
+      await cache.load();
+      const docs = cache.list();
+
+      // Generate shortcut directory markdown
+      const directory = generateShortcutDirectory(docs);
+
+      // Write to .tbd/cache/shortcut-directory.md
+      const cachePath = join(tbdRoot, '.tbd', 'cache', 'shortcut-directory.md');
+      await ensureDir(dirname(cachePath));
+      await atomically.writeFile(cachePath, directory);
+
+      // Update installed skill files (SKILL.md in various locations)
+      await updateInstalledSkillFiles(tbdRoot, directory);
+
+      if (!options.quiet) {
+        out.log(`Refreshed shortcut directory with ${docs.length} shortcuts`);
+      }
+      return;
+    }
+
+    // ... existing list/query logic ...
+  });
+```
+
+### Enhanced Skill Output Flow
+
+When `tbd skill` is called:
+
+1. Read base SKILL.md content from package or `.tbd/docs/shortcuts/system/`
+2. Read cached shortcut directory from `.tbd/cache/shortcut-directory.md`
+3. If cache doesn’t exist, generate it on-the-fly (and optionally write cache)
+4. Concatenate base content + shortcut directory
+5. Output combined result
+
+```typescript
+// In skill.ts command
+async function getSkillContent(tbdRoot: string): Promise<string> {
+  // Read base skill content
+  const baseContent = await readBaseSkillContent();
+
+  // Read or generate shortcut directory
+  const cacheFile = join(tbdRoot, '.tbd', 'cache', 'shortcut-directory.md');
+  let directory: string;
+
+  try {
+    directory = await fs.readFile(cacheFile, 'utf-8');
+  } catch {
+    // Cache doesn't exist - generate on the fly
+    const cache = await loadDocCache();
+    await cache.load();
+    directory = generateShortcutDirectory(cache.list());
+  }
+
+  return baseContent + '\n\n' + directory;
+}
+```
+
+### Installation and Setup Integration
+
+**During `tbd init`:**
+1. Create directories: `.tbd/docs/shortcuts/{system,standard}/`, `.tbd/cache/`
+2. Copy built-in docs to shortcuts directories
+3. Run `tbd shortcut --refresh --quiet` to generate initial cache
+
+**During `tbd setup`:**
+
+The unified `tbd setup` command (with `--auto` or `--interactive` flags) handles all
+editor/tool integrations.
+It automatically runs `tbd shortcut --refresh --quiet` before installing/updating skill
+files, ensuring they always contain the latest shortcut directory.
+
+1. Copy/update built-in docs as needed
+2. Run `tbd shortcut --refresh --quiet` to update cache
+3. Install skill files with embedded shortcut directory to all configured targets:
+   - `.claude/skills/tbd.md` - Claude Code skill file
+   - `.cursor/rules/tbd.mdc` - Cursor rules file
+   - `AGENTS.md` - Codex agents file
+   - `docs/SKILL.md` - Project documentation copy
+
+### Installed Skill File Updates
+
+When `tbd shortcut --refresh` runs, it updates these locations (if they exist):
+
+1. `.claude/skills/tbd.md` - Claude Code skill file
+2. `.cursor/rules/tbd.mdc` - Cursor rules file
+3. `AGENTS.md` - Codex agents file
+4. `docs/SKILL.md` - Project documentation copy
+
+The unified `tbd setup` command installs to all these locations based on detected editor
+configurations and user preferences (via `--auto` or `--interactive` flags).
+
+Each update replaces only the shortcut directory section (identified by marker
+comments):
+
+```markdown
+<!-- BEGIN SHORTCUT DIRECTORY -->
+## Available Shortcuts
+...
+<!-- END SHORTCUT DIRECTORY -->
+```
+
+### Acceptance Criteria (Part 4)
+
+1. `tbd skill` outputs base SKILL.md + shortcut directory appended
+2. `tbd shortcut --refresh` regenerates cache and updates installed skill files
+3. `tbd prime` includes the full shortcut directory in its output
+4. `tbd init` and `tbd setup` automatically run refresh
+5. Cache file stored at `.tbd/cache/shortcut-directory.md`
+6. Installed skill files contain embedded shortcut directory
+7. Shortcut directory includes name and description for each shortcut
+8. Marker comments allow incremental updates without overwriting user content
+
+### Implementation Phases for Part 4
+
+### Phase 6: Source File Reorganization
+
+Move source files to consistent locations in `shortcuts/system/` (lowercase):
+
+- [ ] **tbd-q92d** Move `packages/tbd/src/docs/SKILL.md` → `shortcuts/system/skill.md`
+- [ ] **tbd-46ni** Move `packages/tbd/src/docs/skill-brief.md` →
+  `shortcuts/system/skill-brief.md`
+- [ ] **tbd-f87x** Remove `docs/skill.md` (replaced by installed `docs/SKILL.md` via
+  setup)
+- [ ] **tbd-eu4p** Update `copy-docs.mjs` script to reflect new source locations
+- [ ] **tbd-2cw3** Replace `CURSOR.mdc` with `docs/install/cursor-header.md` (YAML only)
+- [ ] **tbd-7ips** Update setup to combine header + skill.md + shortcut directory when
+  installing
+
+### Phase 7: Shortcut Directory Cache
+
+- [ ] **tbd-2n5d** Create `generateShortcutDirectory()` function in `file/doc-cache.ts`
+  - Takes list of CachedDoc, returns formatted markdown table
+  - Include name, title/description columns
+  - Add header text explaining usage
+- [ ] **tbd-6hfi** Add `.tbd/cache/` directory support in paths.ts
+  - `TBD_CACHE_DIR = '.tbd/cache'`
+  - `SHORTCUT_DIRECTORY_CACHE = '.tbd/cache/shortcut-directory.md'`
+- [ ] **tbd-uscp** Implement cache read/write in DocCache or separate utility
+
+### Phase 8: Shortcut Refresh Flag
+
+- [ ] **tbd-iztq** Add `--refresh` flag to existing shortcut command
+  - Load shortcuts via DocCache
+  - Generate directory markdown
+  - Write to cache file
+  - Update installed skill files (with marker-based replacement)
+  - Add `--quiet` flag for use during setup/init
+
+### Phase 9: Enhanced Skill Output
+
+- [ ] **tbd-3e26** Update `tbd skill` to append shortcut directory from cache
+  - Read cache file, or generate on-the-fly if missing
+  - Concatenate with base SKILL.md content
+- [ ] **tbd-q0la** Update `tbd prime` to include shortcut directory in output
+
+### Phase 10: Setup/Init Integration
+
+- [ ] **tbd-0v2s** Update `tbd init` to create `.tbd/cache/` and run refresh
+- [ ] **tbd-liz9** Update `tbd setup` to run refresh before installing skill files
+  - Applies to all targets (Claude, Cursor, Codex) via unified setup command
+  - Embed shortcut directory in all installed skill files
+
+### Phase 11: Testing for Part 4
+
+- [ ] **tbd-f8ih** Unit tests for `generateShortcutDirectory()`
+- [ ] **tbd-79bl** Integration tests for `shortcuts refresh` command
+- [ ] **tbd-pf9l** Golden tests for skill output with embedded directory
+- [ ] **tbd-a62h** Test marker-based replacement in installed files

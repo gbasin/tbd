@@ -17,8 +17,13 @@ import { findTbdRoot, readConfig } from '../../file/config.js';
 import { stripFrontmatter } from '../../utils/markdown-utils.js';
 import { VERSION } from '../lib/version.js';
 import { listIssues } from '../../file/storage.js';
-import { resolveDataSyncDir } from '../../lib/paths.js';
+import { resolveDataSyncDir, DEFAULT_DOC_PATHS } from '../../lib/paths.js';
 import type { Issue } from '../../lib/types.js';
+import {
+  DocCache,
+  readShortcutDirectoryCache,
+  generateShortcutDirectory,
+} from '../../file/doc-cache.js';
 
 interface PrimeOptions {
   export?: boolean;
@@ -132,7 +137,12 @@ class PrimeHandler extends BaseCommand {
     // --full: output full SKILL.md content (legacy behavior)
     if (options.full) {
       const primeContent = await loadPrimeContent();
-      console.log(primeContent);
+      const shortcutDir = await this.getShortcutDirectory(tbdRoot);
+      if (shortcutDir) {
+        console.log(primeContent.trimEnd() + '\n\n' + shortcutDir);
+      } else {
+        console.log(primeContent);
+      }
       return;
     }
 
@@ -180,7 +190,7 @@ class PrimeHandler extends BaseCommand {
     if (hooksInstalled) {
       console.log(`${colors.success('✓')} Hooks installed`);
     } else {
-      console.log(`${colors.dim('✗')} Hooks not installed (run: tbd setup claude)`);
+      console.log(`${colors.dim('✗')} Hooks not installed (run: tbd setup --auto)`);
     }
     console.log('');
 
@@ -320,6 +330,29 @@ class PrimeHandler extends BaseCommand {
       // No .beads/ directory, no warning needed
       return null;
     }
+  }
+
+  /**
+   * Get the shortcut directory from cache or generate on-the-fly.
+   */
+  private async getShortcutDirectory(tbdRoot: string): Promise<string | null> {
+    // Try to read from cache first
+    const cached = await readShortcutDirectoryCache(tbdRoot);
+    if (cached) {
+      return cached;
+    }
+
+    // Generate on-the-fly if cache doesn't exist
+    const cache = new DocCache(DEFAULT_DOC_PATHS, tbdRoot);
+    await cache.load();
+    const docs = cache.list();
+
+    // If no docs loaded, skip directory
+    if (docs.length === 0) {
+      return null;
+    }
+
+    return generateShortcutDirectory(docs);
   }
 }
 

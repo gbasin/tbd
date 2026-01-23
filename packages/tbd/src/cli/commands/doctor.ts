@@ -462,7 +462,7 @@ class DoctorHandler extends BaseCommand {
         status: 'warn',
         message: 'not installed',
         path: skillRelPath,
-        suggestion: 'Run: tbd setup claude',
+        suggestion: 'Run: tbd setup --auto',
       };
     }
   }
@@ -479,7 +479,7 @@ class DoctorHandler extends BaseCommand {
         status: 'warn',
         message: 'not installed',
         path: rulesRelPath,
-        suggestion: 'Run: tbd setup cursor',
+        suggestion: 'Run: tbd setup --auto',
       };
     }
   }
@@ -498,7 +498,7 @@ class DoctorHandler extends BaseCommand {
         status: 'warn',
         message: 'exists but missing tbd integration',
         path: agentsRelPath,
-        suggestion: 'Run: tbd setup codex',
+        suggestion: 'Run: tbd setup --auto',
       };
     } catch {
       return {
@@ -506,7 +506,7 @@ class DoctorHandler extends BaseCommand {
         status: 'warn',
         message: 'not installed',
         path: agentsRelPath,
-        suggestion: 'Run: tbd setup codex',
+        suggestion: 'Run: tbd setup --auto',
       };
     }
   }

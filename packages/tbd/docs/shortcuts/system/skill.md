@@ -1,9 +1,3 @@
----
-description: tbd workflow rules for git-native issue tracking. Apply when working with tasks, issues, bugs, or project management.
-alwaysApply: false
----
-# tbd Workflow
-
 `tbd` provides lightweight, git-native task and issue tracking using beads, which are
 just lightweight issues managed from the CLI.
 
@@ -12,7 +6,7 @@ just lightweight issues managed from the CLI.
 
 # SESSION CLOSING PROTOCOL
 
-**CRITICAL**: Before saying "done" or "complete", you MUST run this checklist:
+**CRITICAL**: Before saying “done” or “complete”, you MUST run this checklist:
 
 ```
 [ ] 1. Stage and commit: git add + git commit
@@ -29,7 +23,7 @@ just lightweight issues managed from the CLI.
 ### CI: Wait for `--watch` to finish
 
 The `--watch` flag blocks until ALL checks complete.
-Do NOT see "passing" in early output and move on—wait for the **final summary** showing
+Do NOT see “passing” in early output and move on—wait for the **final summary** showing
 all checks passed.
 
 ### tbd: Update issues and sync
@@ -73,7 +67,7 @@ Every session must end with tbd in a clean state:
 
 - `tbd dep add <issue> <depends-on>` - Add dependency (issue depends on depends-on)
 - `tbd blocked` - Show all blocked issues
-- `tbd show <id>` - See what's blocking/blocked by this issue
+- `tbd show <id>` - See what’s blocking/blocked by this issue
 
 ### Sync & Collaboration
 
@@ -114,10 +108,9 @@ tbd dep add <tests-id> <feature-id>   # Tests depend on feature
 
 ## Setup Commands
 
-- `tbd setup claude` - Install Claude Code hooks and skill file
-- `tbd setup cursor` - Create Cursor IDE rules file
-- `tbd setup codex` - Create/update AGENTS.md for Codex
-- `tbd setup beads --disable` - Migrate from Beads to tbd
+- `tbd setup --auto` - Non-interactive setup with smart defaults (for agents/scripts)
+- `tbd setup --interactive` - Interactive setup with prompts (for humans)
+- `tbd setup --from-beads` - Migrate from Beads to tbd
 
 ## Quick Reference
 

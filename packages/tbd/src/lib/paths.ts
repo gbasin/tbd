@@ -36,6 +36,9 @@ export const CONFIG_FILE = join(TBD_DIR, 'config.yml');
 /** The local cache directory (gitignored) */
 export const CACHE_DIR = join(TBD_DIR, 'cache');
 
+/** Cached shortcut directory for embedding in skill output */
+export const SHORTCUT_DIRECTORY_CACHE = join(CACHE_DIR, 'shortcut-directory.md');
+
 /** The worktree directory name */
 export const WORKTREE_DIR_NAME = 'data-sync-worktree';
 
@@ -106,9 +109,15 @@ export const TBD_SHORTCUTS_SYSTEM = join(TBD_SHORTCUTS_DIR, SYSTEM_DIR);
 /** Full path to standard shortcuts: .tbd/docs/shortcuts/standard/ */
 export const TBD_SHORTCUTS_STANDARD = join(TBD_SHORTCUTS_DIR, STANDARD_DIR);
 
-/** Built-in docs source paths (relative to package src/docs/) */
+/** Built-in docs source paths (relative to package docs/) */
 export const BUILTIN_SHORTCUTS_SYSTEM = join(SHORTCUTS_DIR, SYSTEM_DIR);
 export const BUILTIN_SHORTCUTS_STANDARD = join(SHORTCUTS_DIR, STANDARD_DIR);
+
+/** Install directory name (header files for tool-specific installation) */
+export const INSTALL_DIR = 'install';
+
+/** Built-in install source path (relative to package docs/) */
+export const BUILTIN_INSTALL_DIR = INSTALL_DIR;
 
 /**
  * Default doc lookup paths (searched in order, relative to tbd root).
@@ -220,4 +229,48 @@ export async function resolveAtticDir(baseDir: string = process.cwd()): Promise<
 export function clearPathCache(): void {
   _resolvedDataSyncDir = null;
   _resolvedBaseDir = null;
+}
+
+// =============================================================================
+// Doc Path Resolution
+// =============================================================================
+
+import { isAbsolute } from 'node:path';
+import { homedir } from 'node:os';
+
+/**
+ * Resolve a doc path for consistent handling across the codebase.
+ *
+ * Path resolution rules:
+ * - Absolute paths (starting with /): used as-is
+ * - Home directory paths (starting with ~/): expanded to user home directory
+ * - Relative paths: resolved from tbd root (baseDir)
+ *
+ * @param docPath - The path to resolve
+ * @param baseDir - The tbd root directory (parent of .tbd/), defaults to cwd
+ * @returns Resolved absolute path
+ *
+ * @example
+ * // Absolute path - returned as-is
+ * resolveDocPath('/usr/local/docs/file.md') // => '/usr/local/docs/file.md'
+ *
+ * // Home path - expanded
+ * resolveDocPath('~/docs/file.md') // => '/Users/username/docs/file.md'
+ *
+ * // Relative path - resolved from baseDir
+ * resolveDocPath('docs/file.md', '/project') // => '/project/docs/file.md'
+ */
+export function resolveDocPath(docPath: string, baseDir: string = process.cwd()): string {
+  // Handle home directory expansion
+  if (docPath.startsWith('~/')) {
+    return join(homedir(), docPath.slice(2));
+  }
+
+  // Absolute paths used as-is
+  if (isAbsolute(docPath)) {
+    return docPath;
+  }
+
+  // Relative paths resolved from baseDir (tbd root)
+  return join(baseDir, docPath);
 }

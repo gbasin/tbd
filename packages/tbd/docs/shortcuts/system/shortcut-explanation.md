@@ -26,20 +26,23 @@ These may include:
 
 ## Example Workflow
 
-User: “I want to create a new research brief” Agent:
-1. Run `tbd shortcut new-research-brief`
-2. Follow the instructions in the output
+User: “I want to create a new research brief”
+
+Agent:
+1. Runs `tbd shortcut new-research-brief`
+2. Follows the instructions in the output
 3. The instructions may say to create a bead, copy a template, etc.
 
 ## Shortcut Locations
 
 Shortcuts are loaded from directories in the doc path (searched in order):
+
 - `.tbd/docs/shortcuts/system/` - Core system docs (skill.md, etc.)
 - `.tbd/docs/shortcuts/standard/` - Standard workflow shortcuts
 
-Earlier directories take precedence.
-If you add a shortcut with the same name in an earlier directory, it will “shadow” the
-one in a later directory.
+Directories earlier in the doc path take precedence.
+If you add a shortcut with the same name in an earlier directory, it will take
+precedence over a same-named shortcut in a later directory.
 
 ## Creating Custom Shortcuts
 
