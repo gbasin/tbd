@@ -2,19 +2,19 @@
 /* global process */
 
 /**
- * Cross-platform script to copy docs for build.
+ * Cross-platform script to copy and compose docs for build.
  *
  * Source files live in packages/tbd/docs/ (lowercase filenames):
  * - docs/tbd-docs.md, docs/tbd-design.md, etc. - packaged documentation
- * - docs/install/ - header files for composing skill files at setup time
+ * - docs/install/ - header files for composing skill files
  * - docs/shortcuts/ - system and standard shortcuts
  *
  * During build:
  * - prebuild: Copy README.md to package root for npm publishing
- * - postbuild: Copy source docs to dist/docs/ for bundled CLI
+ * - postbuild: Copy source docs to dist/docs/ and compose SKILL.md
  *
- * Note: SKILL.md and CURSOR.mdc are NOT built here. They are dynamically
- * generated at setup/install time by tbd setup or tbd shortcut --refresh.
+ * Note: SKILL.md is composed here for `tbd prime --full`. The full skill
+ * file with shortcuts is dynamically generated at `tbd setup` time.
  *
  * Uses atomic writes to prevent partial/corrupted files if process crashes.
  */
@@ -95,10 +95,12 @@ if (phase === 'prebuild') {
     }
   }
 
-  // Note: SKILL.md and CURSOR.mdc are NOT pre-built here.
-  // They are dynamically generated at setup/install time by combining
-  // header (from install/) + skill.md + shortcut directory.
-  // See: tbd setup, tbd shortcut --refresh
+  // Compose SKILL.md from header + skill.md (needed by tbd prime --full)
+  // Note: The full skill file with shortcuts is dynamically generated at setup time.
+  // This is a minimal version without shortcuts for prime --full output.
+  const claudeHeader = readFileSync(join(INSTALL_DIR, 'claude-header.md'), 'utf-8');
+  const skillContent = readFileSync(join(SHORTCUTS_SYSTEM_DIR, 'skill.md'), 'utf-8');
+  await writeFile(join(distDocs, 'SKILL.md'), claudeHeader + skillContent);
 
   // Copy skill-brief.md from shortcuts/system to dist/docs
   // (needed by `tbd skill --brief` command)
