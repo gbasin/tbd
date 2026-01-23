@@ -1,6 +1,12 @@
 /**
  * Tests for integration file formats (Cursor, Claude, Codex).
- * Ensures all integration files have proper format and content.
+ * Ensures source files have proper format and content for dynamic composition.
+ *
+ * Note: SKILL.md and CURSOR.mdc are NOT pre-built in dist/docs.
+ * They are dynamically generated at setup/install time by combining:
+ * - Header (from dist/docs/install/*)
+ * - Base skill content (from dist/docs/shortcuts/system/skill.md)
+ * - Shortcut directory (generated from available shortcuts)
  */
 
 import { describe, it, expect } from 'vitest';
@@ -10,13 +16,16 @@ import { fileURLToPath } from 'node:url';
 import { parseFrontmatter } from '../src/utils/markdown-utils.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const docsDir = join(__dirname, '..', 'src', 'docs');
+// Source files are in dist/docs after build
+const docsDir = join(__dirname, '..', 'dist', 'docs');
+const installDir = join(docsDir, 'install');
+const shortcutsSystemDir = join(docsDir, 'shortcuts', 'system');
 
 describe('integration file formats', () => {
-  describe('CURSOR.mdc', () => {
+  describe('cursor-header.md (source for CURSOR.mdc)', () => {
     it('has valid MDC frontmatter with required fields', async () => {
-      const cursorPath = join(docsDir, 'CURSOR.mdc');
-      const content = await readFile(cursorPath, 'utf-8');
+      const headerPath = join(installDir, 'cursor-header.md');
+      const content = await readFile(headerPath, 'utf-8');
 
       const frontmatter = parseFrontmatter(content);
       expect(frontmatter).not.toBeNull();
@@ -25,22 +34,12 @@ describe('integration file formats', () => {
       expect(frontmatter).toContain('description:');
       expect(frontmatter).toContain('alwaysApply:');
     });
-
-    it('contains tbd workflow content', async () => {
-      const cursorPath = join(docsDir, 'CURSOR.mdc');
-      const content = await readFile(cursorPath, 'utf-8');
-
-      // Should contain key workflow sections
-      expect(content).toContain('tbd');
-      expect(content).toContain('SESSION CLOSING PROTOCOL');
-      expect(content).toContain('tbd sync');
-    });
   });
 
-  describe('SKILL.md', () => {
+  describe('claude-header.md (source for SKILL.md)', () => {
     it('has valid Claude Code skill frontmatter', async () => {
-      const skillPath = join(docsDir, 'SKILL.md');
-      const content = await readFile(skillPath, 'utf-8');
+      const headerPath = join(installDir, 'claude-header.md');
+      const content = await readFile(headerPath, 'utf-8');
 
       const frontmatter = parseFrontmatter(content);
       expect(frontmatter).not.toBeNull();
@@ -49,13 +48,26 @@ describe('integration file formats', () => {
       expect(frontmatter).toContain('name:');
       expect(frontmatter).toContain('description:');
     });
+  });
 
+  describe('skill.md (shared skill content)', () => {
     it('contains tbd workflow content', async () => {
-      const skillPath = join(docsDir, 'SKILL.md');
+      const skillPath = join(shortcutsSystemDir, 'skill.md');
       const content = await readFile(skillPath, 'utf-8');
 
       expect(content).toContain('tbd');
       expect(content).toContain('SESSION CLOSING PROTOCOL');
+      expect(content).toContain('tbd sync');
+    });
+
+    it('contains essential command documentation', async () => {
+      const skillPath = join(shortcutsSystemDir, 'skill.md');
+      const content = await readFile(skillPath, 'utf-8');
+
+      // Essential commands should be documented
+      expect(content).toContain('tbd ready');
+      expect(content).toContain('tbd create');
+      expect(content).toContain('tbd close');
     });
   });
 });

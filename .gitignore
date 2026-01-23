@@ -9,6 +9,12 @@ tmp/
 .tbd/sync-worktree/
 *.tmp.*
 
+# Generated skill files (created by tbd setup / tbd shortcut --refresh)
+docs/SKILL.md
+.claude/skills/tbd.md
+.cursor/rules/tbd.mdc
+AGENTS.md
+
 attic/
 
 # Build output

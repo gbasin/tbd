@@ -59,20 +59,42 @@ async function loadDocContent(filename: string): Promise<string> {
 class SkillHandler extends BaseCommand {
   async run(options: SkillOptions): Promise<void> {
     await this.execute(async () => {
-      const filename = options.brief ? 'skill-brief.md' : 'SKILL.md';
-      const content = await loadDocContent(filename);
-
-      // For full skill (not brief), append shortcut directory
-      if (!options.brief) {
-        const directory = await this.getShortcutDirectory();
-        if (directory) {
-          console.log(content.trimEnd() + '\n\n' + directory);
-          return;
-        }
+      if (options.brief) {
+        // Brief mode: just output skill-brief.md
+        const content = await loadDocContent('skill-brief.md');
+        console.log(content);
+        return;
       }
 
+      // Full mode: compose header + skill.md + shortcut directory
+      const content = await this.composeFullSkill();
       console.log(content);
     }, 'Failed to output skill content');
+  }
+
+  /**
+   * Compose the full skill output by combining:
+   * 1. Claude header (YAML frontmatter)
+   * 2. Base skill content (skill.md from shortcuts/system)
+   * 3. Shortcut directory (from cache or generated on-the-fly)
+   */
+  private async composeFullSkill(): Promise<string> {
+    // Load header (YAML frontmatter for Claude)
+    const header = await loadDocContent('install/claude-header.md');
+
+    // Load base skill content
+    const baseSkill = await loadDocContent('shortcuts/system/skill.md');
+
+    // Get shortcut directory
+    const directory = await this.getShortcutDirectory();
+
+    // Compose: header + base skill + (optional) shortcut directory
+    let result = header + baseSkill;
+    if (directory) {
+      result = result.trimEnd() + '\n\n' + directory;
+    }
+
+    return result;
   }
 
   /**

@@ -2,16 +2,19 @@
 /* global process */
 
 /**
- * Cross-platform script to copy and compose docs for build.
+ * Cross-platform script to copy docs for build.
  *
  * Source files live in packages/tbd/docs/ (lowercase filenames):
  * - docs/tbd-docs.md, docs/tbd-design.md, etc. - packaged documentation
- * - docs/install/ - header files for composing SKILL.md and CURSOR.mdc
+ * - docs/install/ - header files for composing skill files at setup time
  * - docs/shortcuts/ - system and standard shortcuts
  *
  * During build:
  * - prebuild: Copy README.md to package root for npm publishing
- * - postbuild: Compose and copy all docs to dist/docs/ for bundled CLI
+ * - postbuild: Copy source docs to dist/docs/ for bundled CLI
+ *
+ * Note: SKILL.md and CURSOR.mdc are NOT built here. They are dynamically
+ * generated at setup/install time by tbd setup or tbd shortcut --refresh.
  *
  * Uses atomic writes to prevent partial/corrupted files if process crashes.
  */
@@ -42,15 +45,6 @@ const PACKAGED_DOCS = [
 ];
 
 /**
- * Composed documentation files (header + shared content).
- * Format: { header: absolute path to header file, content: absolute path to content file, dest: output filename }
- */
-const COMPOSED_FILES = [
-  { header: join(INSTALL_DIR, 'claude-header.md'), content: join(SHORTCUTS_SYSTEM_DIR, 'skill.md'), dest: 'SKILL.md' },
-  { header: join(INSTALL_DIR, 'cursor-header.md'), content: join(SHORTCUTS_SYSTEM_DIR, 'skill.md'), dest: 'CURSOR.mdc' },
-];
-
-/**
  * Atomically copy a file by reading content and writing via atomically library.
  * @param {string} src - Source file path
  * @param {string} dest - Destination file path
@@ -63,18 +57,6 @@ async function atomicCopy(src, dest, preserveMode = false) {
     const srcStat = statSync(src);
     chmodSync(dest, srcStat.mode);
   }
-}
-
-/**
- * Compose a file from header + content and write atomically.
- * @param {string} headerPath - Path to header file (contains frontmatter + intro)
- * @param {string} contentPath - Path to shared content file
- * @param {string} destPath - Destination file path
- */
-async function composeFile(headerPath, contentPath, destPath) {
-  const header = readFileSync(headerPath, 'utf-8');
-  const content = readFileSync(contentPath, 'utf-8');
-  await writeFile(destPath, header + content);
 }
 
 /**
@@ -113,14 +95,10 @@ if (phase === 'prebuild') {
     }
   }
 
-  // Compose SKILL.md and CURSOR.mdc directly to dist/docs
-  for (const file of COMPOSED_FILES) {
-    await composeFile(
-      file.header,
-      file.content,
-      join(distDocs, file.dest),
-    );
-  }
+  // Note: SKILL.md and CURSOR.mdc are NOT pre-built here.
+  // They are dynamically generated at setup/install time by combining
+  // header (from install/) + skill.md + shortcut directory.
+  // See: tbd setup, tbd shortcut --refresh
 
   // Copy skill-brief.md from shortcuts/system to dist/docs
   // (needed by `tbd skill --brief` command)
