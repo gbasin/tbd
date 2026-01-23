@@ -30,8 +30,8 @@ import { IssueSchema } from '../lib/schemas.js';
 export const matterOptions = {
   engines: {
     yaml: {
-      parse: (str: string) => parseYaml(str),
-      stringify: (obj: object) => stringifyYaml(obj),
+      parse: (str: string): object => parseYaml(str) as object,
+      stringify: (obj: object): string => stringifyYaml(obj),
     },
   },
 };
