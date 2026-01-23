@@ -60,20 +60,16 @@ describe('setup flows', () => {
   });
 
   describe('fresh repo setup', () => {
-    it('tbd setup --auto initializes and configures integrations', async () => {
+    it('tbd setup --auto requires --prefix flag', () => {
       initGitRepo();
 
-      // Set up a remote to enable prefix auto-detection
-      execSync('git remote add origin https://github.com/testuser/myproject.git', { cwd: tempDir });
-
+      // No --prefix provided, no beads to migrate from
       const result = runTbd(['setup', '--auto']);
 
-      // Should complete successfully
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain('Setup complete');
-
-      // Should have created .tbd directory
-      await expect(access(join(tempDir, '.tbd'))).resolves.not.toThrow();
+      // Should fail with helpful error message
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('--prefix');
+      expect(result.stderr).toContain('required');
     });
 
     it('tbd setup --auto --prefix=custom uses provided prefix', async () => {

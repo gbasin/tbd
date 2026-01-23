@@ -23,7 +23,7 @@ import { stripFrontmatter } from '../../utils/markdown-utils.js';
 import { pathExists } from '../../utils/file-utils.js';
 import { type DiagnosticResult, renderDiagnostics } from '../lib/diagnostics.js';
 import { fileURLToPath } from 'node:url';
-import { autoDetectPrefix, isValidPrefix, getBeadsPrefix } from '../lib/prefix-detection.js';
+import { isValidPrefix, getBeadsPrefix } from '../lib/prefix-detection.js';
 import { initConfig, isInitialized, readConfig } from '../../file/config.js';
 import { VERSION } from '../lib/version.js';
 import { TBD_DIR, WORKTREE_DIR_NAME, DATA_SYNC_DIR_NAME } from '../../lib/paths.js';
@@ -995,15 +995,26 @@ class SetupDefaultHandler extends BaseCommand {
       console.log('');
     }
 
-    // Get prefix from beads config or auto-detect
+    // Get prefix from beads config or use provided --prefix
     const beadsPrefix = await getBeadsPrefix(cwd);
-    const prefix = options.prefix ?? beadsPrefix ?? (await autoDetectPrefix(cwd));
+    const prefix = options.prefix ?? beadsPrefix;
+
+    if (!prefix) {
+      console.error(colors.warn('Error: Could not read prefix from beads config.'));
+      console.error('');
+      console.error('Please specify a prefix:');
+      console.error('  tbd setup --auto --prefix=myapp');
+      process.exit(1);
+    }
 
     if (!isValidPrefix(prefix)) {
-      console.log(colors.warn('Error: Could not determine a valid prefix.'));
-      console.log('');
-      console.log('Please specify a prefix:');
-      console.log('  tbd setup --auto --prefix=myapp');
+      console.error(colors.warn('Error: Invalid prefix format.'));
+      console.error(
+        'Prefix must be 1-10 lowercase alphanumeric characters, starting with a letter.',
+      );
+      console.error('');
+      console.error('Please specify a valid prefix:');
+      console.error('  tbd setup --auto --prefix=myapp');
       process.exit(1);
     }
 
@@ -1054,19 +1065,37 @@ class SetupDefaultHandler extends BaseCommand {
   ): Promise<void> {
     const colors = this.output.getColors();
 
-    // Auto-detect or use provided prefix
-    const prefix = options.prefix ?? (await autoDetectPrefix(cwd));
+    // Require --prefix for fresh setup (no auto-detection)
+    const prefix = options.prefix;
 
-    if (!isValidPrefix(prefix)) {
-      console.log(colors.warn('Error: Could not auto-detect project prefix.'));
-      console.log('No git remote found and directory name is not a valid prefix.');
-      console.log('');
-      console.log('Please specify a prefix:');
-      console.log('  tbd setup --auto --prefix=myapp');
+    if (!prefix) {
+      console.error(colors.warn('Error: --prefix is required for tbd setup --auto'));
+      console.error('');
+      console.error(
+        'The --prefix flag specifies your project name for issue IDs (e.g., myapp-abc1).',
+      );
+      console.error('');
+      console.error('Example:');
+      console.error('  tbd setup --auto --prefix=myapp');
+      console.error('');
+      console.error(
+        'Note: If migrating from beads, the prefix is automatically read from your beads config.',
+      );
       process.exit(1);
     }
 
-    console.log(`Initializing with auto-detected prefix "${prefix}"...`);
+    if (!isValidPrefix(prefix)) {
+      console.error(colors.warn('Error: Invalid prefix format.'));
+      console.error(
+        'Prefix must be 1-10 lowercase alphanumeric characters, starting with a letter.',
+      );
+      console.error('');
+      console.error('Example:');
+      console.error('  tbd setup --auto --prefix=myapp');
+      process.exit(1);
+    }
+
+    console.log(`Initializing with prefix "${prefix}"...`);
 
     await this.initializeTbd(cwd, prefix);
 
