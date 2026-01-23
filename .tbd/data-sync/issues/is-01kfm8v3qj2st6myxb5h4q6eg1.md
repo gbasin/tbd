@@ -1,4 +1,6 @@
 ---
+close_reason: Removed dead importFromBeads code and updated help text to reference 'tbd setup --auto --from-beads'
+closed_at: 2026-01-23T02:12:20.028Z
 created_at: 2026-01-23T01:52:29.937Z
 dependencies: []
 id: is-01kfm8v3qj2st6myxb5h4q6eg1
@@ -7,11 +9,11 @@ labels:
   - cli
   - docs
 priority: 2
-status: open
+status: closed
 title: Remove deprecated import --from-beads option
 type: is
-updated_at: 2026-01-23T01:52:29.937Z
-version: 1
+updated_at: 2026-01-23T02:12:20.029Z
+version: 3
 ---
 ## Task
 

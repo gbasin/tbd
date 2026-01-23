@@ -1,4 +1,6 @@
 ---
+close_reason: "Fixed: setup command now uses only flags (--auto, --interactive), no subcommands. Commander.js properly routes flags when no subcommands exist."
+closed_at: 2026-01-23T02:11:22.422Z
 created_at: 2026-01-23T01:52:22.103Z
 dependencies: []
 id: is-01kfm8tw2rf5jd0rmapbx6f9gn
@@ -7,31 +9,26 @@ labels:
   - cli
   - docs
 priority: 1
-status: open
+status: closed
 title: "Fix setup command: use flags not subcommands"
 type: is
-updated_at: 2026-01-23T01:52:22.103Z
-version: 1
+updated_at: 2026-01-23T02:11:22.423Z
+version: 4
 ---
+## Intended Behavior
+
+```bash
+tbd setup                    # Shows help about setup
+tbd setup --auto             # Auto setup for agents (uses smart defaults)
+tbd setup --auto --prefix=X  # Auto setup with explicit prefix
+tbd setup --interactive      # Interactive setup for humans (prompts for info)
+tbd setup claude             # Configure Claude integration only (subcommand)
+tbd setup cursor             # Configure Cursor integration only (subcommand)
+tbd setup codex              # Configure Codex integration only (subcommand)
+```
+
 ## Problem
+Commander.js doesn't route parent command options when subcommands exist. `tbd setup --auto` fails with 'unknown option'.
 
-The setup command currently uses subcommands (`tbd setup auto`, `tbd setup claude`, etc.) but it should use FLAGS on the main command.
-
-### Current (broken):
-- `tbd setup auto` - works as subcommand
-- `tbd setup --auto` - ERROR: unknown option
-
-### Expected:
-- `tbd setup --auto` - should work
-- `tbd setup --interactive` - should work  
-- `tbd setup --from-beads` - should work (or remove if deprecated)
-- `tbd setup` (no flags) - should print help about required flags
-- `tbd setup claude`, `tbd setup cursor`, `tbd setup codex`, `tbd setup beads` - keep as subcommands for individual integrations
-
-### Root Cause
-Commander.js doesn't properly route parent command options when subcommands are added. The options ARE defined (lines 1347-1350 in setup.ts) but don't work.
-
-### Also Fix
-- Remove deprecated `import --from-beads` option
-- Update tbd-docs.md to match actual behavior
-- Update tbd-design.md to match actual behavior
+## Solution
+Intercept argv in cli.ts before Commander parses. When `setup --auto` or `setup --interactive` is detected, handle it specially.

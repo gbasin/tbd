@@ -1,15 +1,17 @@
 ---
+close_reason: Spec updates completed - removed prefix auto-detection references
+closed_at: 2026-01-23T02:11:25.412Z
 created_at: 2026-01-23T01:51:42.186Z
 dependencies: []
 id: is-01kfm8sn3bbp08b2tck4ctsa60
 kind: task
 labels: []
 priority: 1
-status: open
+status: closed
 title: Remove prefix auto-detection from spec
 type: is
-updated_at: 2026-01-23T01:51:42.186Z
-version: 1
+updated_at: 2026-01-23T02:11:25.413Z
+version: 3
 ---
 Update the design spec to remove all references to prefix auto-detection feature.
 

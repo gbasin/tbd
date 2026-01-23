@@ -1,15 +1,17 @@
 ---
+close_reason: SKILL.md updated with prefix requirement
+closed_at: 2026-01-23T02:14:08.715Z
 created_at: 2026-01-23T01:51:51.172Z
 dependencies: []
 id: is-01kfm8sxw5a0wckwm1vtk3rqqr
 kind: task
 labels: []
 priority: 1
-status: open
+status: closed
 title: Update SKILL.md to clarify prefix requirement
 type: is
-updated_at: 2026-01-23T01:51:51.172Z
-version: 1
+updated_at: 2026-01-23T02:14:08.716Z
+version: 3
 ---
 Update the agent instructions (SKILL.md and related docs) to make it clear that --prefix is required unless migrating from beads.
 
