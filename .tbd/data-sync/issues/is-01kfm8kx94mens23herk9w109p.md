@@ -11,6 +11,8 @@ dependencies:
     type: blocks
   - target: is-01kfm8yhtjp0fvdm2ptmgtr0dz
     type: blocks
+  - target: is-01kf7j53z1gahrqswh8x4v4b6t
+    type: blocks
 id: is-01kfm8kx94mens23herk9w109p
 kind: feature
 labels: []
@@ -18,6 +20,19 @@ priority: 2
 status: open
 title: Consolidate SKILL.md and CURSOR.mdc into single source of truth
 type: is
-updated_at: 2026-01-23T01:54:27.003Z
-version: 6
+updated_at: 2026-01-23T02:46:43.769Z
+version: 8
 ---
+Create single source of truth for agent docs:
+
+**Target structure:**
+- docs/skill.md - Main skill content (shared across all platforms)
+- docs/skill-brief.md - Brief version (already exists, clean markdown)
+- docs/headers/claude.md - Claude YAML frontmatter (name, description, allowed-tools)
+- docs/headers/cursor.md - Cursor YAML frontmatter (description, alwaysApply)
+
+**Build output:**
+- SKILL.md = headers/claude.md + skill.md
+- CURSOR.mdc = headers/cursor.md + skill.md
+
+This eliminates duplication between SKILL.md and CURSOR.mdc which currently have nearly identical content with different frontmatter.

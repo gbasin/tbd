@@ -1,6 +1,8 @@
 ---
 created_at: 2026-01-19T08:19:39.508Z
-dependencies: []
+dependencies:
+  - target: is-01kf7j53z1gahrqswh8x4v4b6t
+    type: blocks
 id: is-01kfand4w69rjj307g3m1j9kh1
 kind: bug
 labels: []
@@ -8,8 +10,8 @@ priority: 1
 status: open
 title: tbd setup auto should update skill files, not skip them
 type: is
-updated_at: 2026-01-19T08:19:48.678Z
-version: 2
+updated_at: 2026-01-23T02:45:46.407Z
+version: 3
 ---
 ## Problem
 

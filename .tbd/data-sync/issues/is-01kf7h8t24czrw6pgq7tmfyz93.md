@@ -1,6 +1,8 @@
 ---
 created_at: 2026-01-18T03:09:39.779Z
-dependencies: []
+dependencies:
+  - target: is-01kf7j53z1gahrqswh8x4v4b6t
+    type: blocks
 id: is-01kf7h8t24czrw6pgq7tmfyz93
 kind: feature
 labels: []
@@ -8,8 +10,8 @@ priority: 2
 status: open
 title: Research and implement Cursor skills integration
 type: is
-updated_at: 2026-01-18T03:09:47.573Z
-version: 2
+updated_at: 2026-01-23T02:45:46.517Z
+version: 3
 ---
 Research the best way to provide tbd workflow context to Cursor IDE through skills or similar mechanism. Currently Cursor uses .cursor/rules/tbd.mdc for rules, but may support more advanced skill integrations.
 

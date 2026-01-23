@@ -1,6 +1,8 @@
 ---
 created_at: 2026-01-18T03:16:51.253Z
-dependencies: []
+dependencies:
+  - target: is-01kf7j53z1gahrqswh8x4v4b6t
+    type: blocks
 id: is-01kf7hnzdpcrp8db39nxemw8ej
 kind: task
 labels: []
@@ -8,8 +10,8 @@ priority: 2
 status: open
 title: Consolidate hardcoded constants into shared settings.ts
 type: is
-updated_at: 2026-01-18T03:17:00.488Z
-version: 2
+updated_at: 2026-01-23T02:45:46.169Z
+version: 3
 ---
 Review the entire codebase for hardcoded constants and settings, then consolidate them into a shared settings.ts file.
 

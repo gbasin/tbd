@@ -1,6 +1,8 @@
 ---
 created_at: 2026-01-23T01:45:48.227Z
-dependencies: []
+dependencies:
+  - target: is-01kf7j53z1gahrqswh8x4v4b6t
+    type: blocks
 id: is-01kfm8eve425bgw4sy713xe53v
 kind: task
 labels:
@@ -10,8 +12,8 @@ priority: 3
 status: open
 title: Verify skill command (internal) docs consistency
 type: is
-updated_at: 2026-01-23T01:45:48.227Z
-version: 1
+updated_at: 2026-01-23T02:45:46.067Z
+version: 2
 ---
 The skill command is a new internal command not exposed in main CLI help. Verify:
 - Internal documentation/comments are accurate
