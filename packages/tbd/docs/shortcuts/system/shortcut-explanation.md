@@ -20,7 +20,7 @@ instructions.
 Each shortcut is a markdown document with step-by-step instructions.
 These may include:
 - Creating issues with `tbd create`
-- Running other shortcuts
+- Running other shortcuts via `tbd shortcut <name>`
 - File operations and git workflows
 - Prompts for gathering information from the user
 

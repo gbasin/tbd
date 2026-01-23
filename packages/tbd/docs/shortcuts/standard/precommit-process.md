@@ -1,5 +1,8 @@
 Shortcut: Pre-Commit Process
 
+We track issues with tbd.
+Run `tbd` for more on using tbd and current status.
+
 Instructions:
 
 This process must be followed before committing code!

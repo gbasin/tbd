@@ -4,6 +4,9 @@ description: Create a new feature planning specification document
 ---
 Shortcut: New Plan Spec
 
+We track issues with tbd.
+Run `tbd` for more on using tbd and current status.
+
 Instructions:
 
 Create a to-do list with the following items then perform all of them:
