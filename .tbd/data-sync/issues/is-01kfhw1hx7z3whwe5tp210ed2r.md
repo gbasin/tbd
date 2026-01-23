@@ -1,4 +1,6 @@
 ---
+close_reason: Implemented resolveDocPath() utility in paths.ts for consistent path handling
+closed_at: 2026-01-23T04:24:06.319Z
 created_at: 2026-01-22T03:30:20.710Z
 dependencies:
   - target: is-01kfhw1ynx7qg6d5bfzsx8g557
@@ -10,10 +12,10 @@ kind: task
 labels: []
 parent_id: is-01kfhvzn1vbsam9xckr0njfbqg
 priority: 1
-status: open
+status: closed
 title: Implement path resolution utility
 type: is
-updated_at: 2026-01-23T02:57:03.192Z
-version: 5
+updated_at: 2026-01-23T04:24:06.320Z
+version: 6
 ---
 Implement resolveDocPath() utility in paths.ts for consistent path handling: relative paths resolved from tbd root (parent of .tbd/), absolute paths used as-is, ~/ paths expanded to user home directory.

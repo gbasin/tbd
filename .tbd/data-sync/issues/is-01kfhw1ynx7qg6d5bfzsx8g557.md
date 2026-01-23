@@ -1,4 +1,6 @@
 ---
+close_reason: Updated tbd init to create .tbd/docs/shortcuts/{system,standard}/ directories
+closed_at: 2026-01-23T04:37:44.225Z
 created_at: 2026-01-22T03:30:33.788Z
 dependencies:
   - target: is-01kfhw2351x98m0f4xmj6jzc1n
@@ -10,10 +12,10 @@ kind: task
 labels: []
 parent_id: is-01kfhvzn1vbsam9xckr0njfbqg
 priority: 1
-status: open
+status: closed
 title: Update tbd init to create docs directories
 type: is
-updated_at: 2026-01-23T02:57:03.431Z
-version: 4
+updated_at: 2026-01-23T04:37:44.225Z
+version: 6
 ---
-Update tbd init command to create .tbd/docs/shortcuts/system/ and .tbd/docs/shortcuts/standard/ directories. Copy built-in docs to respective directories.
+Update tbd init to create .tbd/docs/shortcuts/system/ and .tbd/docs/shortcuts/standard/ directories for shortcut storage.
