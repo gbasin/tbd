@@ -147,8 +147,8 @@ class ListHandler extends BaseCommand {
     }
 
     return issues.filter((issue) => {
-      // By default, exclude closed issues unless --all
-      if (!options.all && issue.status === 'closed') {
+      // By default, exclude closed issues unless --all or --status closed
+      if (!options.all && options.status !== 'closed' && issue.status === 'closed') {
         return false;
       }
 
