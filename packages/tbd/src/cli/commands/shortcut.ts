@@ -18,7 +18,9 @@ import {
   generateShortcutDirectory,
   writeShortcutDirectoryCache,
 } from '../../file/doc-cache.js';
-import { DEFAULT_DOC_PATHS } from '../../lib/paths.js';
+import { DEFAULT_SHORTCUT_PATHS } from '../../lib/paths.js';
+import { truncate } from '../../lib/truncate.js';
+import { getTerminalWidth } from '../lib/output.js';
 
 interface ShortcutOptions {
   list?: boolean;
@@ -34,7 +36,7 @@ class ShortcutHandler extends BaseCommand {
       const tbdRoot = await requireInit();
 
       // Create and load the doc cache with proper base directory
-      const cache = new DocCache(DEFAULT_DOC_PATHS, tbdRoot);
+      const cache = new DocCache(DEFAULT_SHORTCUT_PATHS, tbdRoot);
       await cache.load();
 
       // Refresh mode: regenerate cache and update skill files
@@ -116,18 +118,116 @@ class ShortcutHandler extends BaseCommand {
       return;
     }
 
+    const maxWidth = getTerminalWidth();
+
     for (const doc of docs) {
       const shadowed = cache.isShadowed(doc);
-      const title = doc.frontmatter?.title ?? doc.name;
+      const name = doc.name;
+      const title = doc.frontmatter?.title;
+      const description = doc.frontmatter?.description ?? this.extractFallbackText(doc.content);
 
       if (shadowed) {
         // Muted style for shadowed entries
-        console.log(pc.dim(`  ${title}  (${doc.sourceDir}) [shadowed]`));
+        const line = `${name} (${doc.sourceDir}) [shadowed]`;
+        console.log(pc.dim(truncate(line, maxWidth)));
       } else {
-        console.log(title);
-        console.log(pc.dim(`  ${doc.sourceDir}`));
+        // Line 1: name (bold) + (sourceDir) (dimmed)
+        console.log(`${pc.bold(name)} ${pc.dim(`(${doc.sourceDir})`)}`);
+
+        // Line 2+: Indented "Title: Description"
+        // Only truncate fallback body text; never truncate actual title/description
+        const hasFrontmatter = title ?? doc.frontmatter?.description;
+        const content =
+          title && description ? `${title}: ${description}` : (title ?? description ?? '');
+        if (content) {
+          this.printWrappedDescription(content, maxWidth, !hasFrontmatter);
+        }
       }
     }
+  }
+
+  /**
+   * Extract fallback text from content when no frontmatter description exists.
+   * Strips frontmatter and markdown syntax, takes first text, condenses whitespace.
+   */
+  private extractFallbackText(content: string): string | undefined {
+    // Strip YAML frontmatter if present
+    let text = content;
+    if (text.startsWith('---')) {
+      const endIndex = text.indexOf('---', 3);
+      if (endIndex !== -1) {
+        text = text.slice(endIndex + 3);
+      }
+    }
+
+    // Strip markdown headers (# Title -> Title)
+    text = text.replace(/^#+\s*/gm, '');
+    // Strip bold/italic markers
+    text = text.replace(/\*\*|__|\*|_/g, '');
+    // Strip code blocks
+    text = text.replace(/```[\s\S]*?```/g, '');
+    // Strip inline code
+    text = text.replace(/`[^`]+`/g, '');
+    // Strip blockquotes
+    text = text.replace(/^>\s*/gm, '');
+
+    // Condense all whitespace to single spaces and trim
+    text = text.replace(/\s+/g, ' ').trim();
+
+    // Return first chunk of text (up to ~200 chars for reasonable fallback)
+    if (text.length === 0) return undefined;
+    return text.slice(0, 200);
+  }
+
+  /**
+   * Print description indented, wrapped across lines.
+   * @param text - Text to print
+   * @param maxWidth - Terminal width
+   * @param shouldTruncate - If true, truncate to two lines; if false, wrap all lines
+   */
+  private printWrappedDescription(text: string, maxWidth: number, shouldTruncate: boolean): void {
+    const indent = '   ';
+    const availableWidth = maxWidth - indent.length;
+
+    if (text.length <= availableWidth) {
+      // Fits on one line
+      console.log(`${indent}${text}`);
+      return;
+    }
+
+    if (shouldTruncate) {
+      // Truncate to two lines max (for fallback body text)
+      const firstLine = this.wrapAtWord(text, availableWidth);
+      const remainder = text.slice(firstLine.length).trimStart();
+      console.log(`${indent}${firstLine}`);
+      if (remainder) {
+        console.log(`${indent}${truncate(remainder, availableWidth)}`);
+      }
+    } else {
+      // Wrap all lines without truncation (for title/description)
+      let remaining = text;
+      while (remaining.length > 0) {
+        if (remaining.length <= availableWidth) {
+          console.log(`${indent}${remaining}`);
+          break;
+        }
+        const line = this.wrapAtWord(remaining, availableWidth);
+        console.log(`${indent}${line}`);
+        remaining = remaining.slice(line.length).trimStart();
+      }
+    }
+  }
+
+  /**
+   * Wrap text at word boundary to fit within maxWidth.
+   */
+  private wrapAtWord(text: string, maxWidth: number): string {
+    if (text.length <= maxWidth) return text;
+    const lastSpace = text.lastIndexOf(' ', maxWidth);
+    if (lastSpace > 0) {
+      return text.slice(0, lastSpace);
+    }
+    return text.slice(0, maxWidth);
   }
 
   /**

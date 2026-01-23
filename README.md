@@ -161,15 +161,26 @@ tbd setup --auto             # Recommended: full setup including Claude hooks
 This configures a SessionStart hook that runs `tbd prime` at session start, injecting
 workflow context so the agent remembers to use tbd.
 
-### Shortcuts
+### Shortcuts, Guidelines, and Templates
 
-tbd includes shortcuts—reusable instruction documents for common workflows.
-Agents can invoke shortcuts to follow standardized processes.
+tbd includes three types of documentation agents can invoke:
+
+- **Shortcuts** — Reusable instruction documents for common workflows
+- **Guidelines** — Coding rules and best practices
+- **Templates** — Document templates for specs, research, architecture
 
 ```bash
+# Shortcuts
 tbd shortcut --list              # List all shortcuts
 tbd shortcut new-plan-spec       # Run a shortcut by name
-tbd shortcut "create a plan"     # Fuzzy search by description
+
+# Guidelines
+tbd guidelines --list            # List all guidelines
+tbd guidelines typescript-rules  # Get TypeScript rules
+
+# Templates
+tbd template --list             # List all templates
+tbd template plan-spec > docs/project/specs/plan-2025-01-15-feature.md
 ```
 
 **Available Shortcuts:**
@@ -189,12 +200,26 @@ tbd shortcut "create a plan"     # Fuzzy search by description
 | `create-or-update-pr-simple` | Basic PR creation |
 | `create-or-update-pr-with-validation-plan` | PR with validation plan |
 
-**Guidelines** (coding rules referenced by review shortcuts):
+**Available Guidelines:**
 
 | Guideline | Description |
 | --- | --- |
-| `typescript-rules` | TypeScript coding rules and best practices |
-| `python-rules` | Python coding rules and best practices |
+| `typescript-rules` | TypeScript coding rules |
+| `python-rules` | Python coding rules |
+| `general-testing-rules` | General testing principles |
+| `general-tdd-guidelines` | TDD methodology |
+| `general-comment-rules` | Comment best practices |
+| `golden-testing-guidelines` | Golden/snapshot testing |
+| `typescript-monorepo-patterns` | TypeScript monorepo architecture |
+| `python-cli-patterns` | Python CLI architecture |
+
+**Available Templates:**
+
+| Template | Description |
+| --- | --- |
+| `plan-spec` | Feature planning specification |
+| `research-brief` | Research document |
+| `architecture` | Architecture document |
 
 ## Documentation
 

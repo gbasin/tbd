@@ -30,11 +30,14 @@ import {
   TBD_DIR,
   WORKTREE_DIR_NAME,
   DATA_SYNC_DIR_NAME,
-  DEFAULT_DOC_PATHS,
+  DEFAULT_SHORTCUT_PATHS,
   TBD_SHORTCUTS_SYSTEM,
   TBD_SHORTCUTS_STANDARD,
-  TBD_SHORTCUTS_GUIDELINES,
+  TBD_GUIDELINES_DIR,
+  TBD_TEMPLATES_DIR,
   CACHE_DIR,
+  BUILTIN_GUIDELINES_DIR,
+  BUILTIN_TEMPLATES_DIR,
 } from '../../lib/paths.js';
 import { initWorktree, isInGitRepo } from '../../file/git.js';
 import {
@@ -56,74 +59,111 @@ function getCursorPath(): string {
 }
 
 /**
- * Get paths to try for bundled shortcuts (with fallbacks for development).
+ * Get base docs path (with fallbacks for development).
  */
-function getShortcutsPaths(): string[] {
+function getDocsBasePath(): string[] {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
   return [
-    // Bundled location (dist/docs/shortcuts/)
-    join(__dirname, 'docs', 'shortcuts'),
-    // Development: packages/tbd/docs/shortcuts/
-    join(__dirname, '..', '..', '..', 'docs', 'shortcuts'),
+    // Bundled location (dist/docs/)
+    join(__dirname, 'docs'),
+    // Development: packages/tbd/docs/
+    join(__dirname, '..', '..', '..', 'docs'),
   ];
 }
 
 /**
- * Copy built-in docs from the bundled package to the user's project.
- * Copies shortcuts/system/ and shortcuts/standard/ to .tbd/docs/shortcuts/
+ * Copy all files from a source directory to a destination directory.
  */
-async function copyBuiltinDocs(targetDir: string): Promise<{ copied: number; errors: string[] }> {
+async function copyDirFiles(
+  srcDir: string,
+  destDir: string,
+): Promise<{ copied: number; errors: string[] }> {
   const errors: string[] = [];
   let copied = 0;
 
-  // Find the shortcuts directory
-  let shortcutsDir: string | null = null;
-  for (const path of getShortcutsPaths()) {
+  try {
+    await access(srcDir);
+    const entries = await readdir(srcDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.endsWith('.md')) {
+        const srcPath = join(srcDir, entry.name);
+        const destPath = join(destDir, entry.name);
+
+        try {
+          const content = await readFile(srcPath, 'utf-8');
+          await writeFile(destPath, content);
+          copied++;
+        } catch (err) {
+          errors.push(`Failed to copy ${entry.name}: ${(err as Error).message}`);
+        }
+      }
+    }
+  } catch {
+    // Directory doesn't exist, skip
+  }
+
+  return { copied, errors };
+}
+
+/**
+ * Copy built-in docs from the bundled package to the user's project.
+ * Copies:
+ * - shortcuts/system/ and shortcuts/standard/ to .tbd/docs/shortcuts/
+ * - guidelines/ to .tbd/docs/guidelines/
+ * - templates/ to .tbd/docs/templates/
+ */
+async function copyBuiltinDocs(targetDir: string): Promise<{ copied: number; errors: string[] }> {
+  const allErrors: string[] = [];
+  let totalCopied = 0;
+
+  // Find the docs base directory
+  let docsDir: string | null = null;
+  for (const path of getDocsBasePath()) {
     try {
       await access(path);
-      shortcutsDir = path;
+      docsDir = path;
       break;
     } catch {
       // Try next path
     }
   }
 
-  if (!shortcutsDir) {
-    errors.push('Could not find bundled shortcuts directory');
-    return { copied, errors };
+  if (!docsDir) {
+    allErrors.push('Could not find bundled docs directory');
+    return { copied: totalCopied, errors: allErrors };
   }
 
-  // Copy system, standard, and guidelines directories
-  const subdirs = ['system', 'standard', 'guidelines'];
-  for (const subdir of subdirs) {
-    const srcDir = join(shortcutsDir, subdir);
+  // Copy shortcuts (system and standard subdirs)
+  const shortcutSubdirs = ['system', 'standard'];
+  for (const subdir of shortcutSubdirs) {
+    const srcDir = join(docsDir, 'shortcuts', subdir);
     const destDir = join(targetDir, TBD_SHORTCUTS_SYSTEM.replace('system', subdir));
-
-    try {
-      await access(srcDir);
-      const entries = await readdir(srcDir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        if (entry.isFile() && entry.name.endsWith('.md')) {
-          const srcPath = join(srcDir, entry.name);
-          const destPath = join(destDir, entry.name);
-
-          try {
-            const content = await readFile(srcPath, 'utf-8');
-            await writeFile(destPath, content);
-            copied++;
-          } catch (err) {
-            errors.push(`Failed to copy ${entry.name}: ${(err as Error).message}`);
-          }
-        }
-      }
-    } catch {
-      // Directory doesn't exist, skip
-    }
+    const { copied, errors } = await copyDirFiles(srcDir, destDir);
+    totalCopied += copied;
+    allErrors.push(...errors);
   }
 
-  return { copied, errors };
+  // Copy guidelines (top-level)
+  {
+    const srcDir = join(docsDir, BUILTIN_GUIDELINES_DIR);
+    const destDir = join(targetDir, TBD_GUIDELINES_DIR);
+    const { copied, errors } = await copyDirFiles(srcDir, destDir);
+    totalCopied += copied;
+    allErrors.push(...errors);
+  }
+
+  // Copy templates (top-level)
+  {
+    const srcDir = join(docsDir, BUILTIN_TEMPLATES_DIR);
+    const destDir = join(targetDir, TBD_TEMPLATES_DIR);
+    const { copied, errors } = await copyDirFiles(srcDir, destDir);
+    totalCopied += copied;
+    allErrors.push(...errors);
+  }
+
+  return { copied: totalCopied, errors: allErrors };
 }
 
 /**
@@ -146,7 +186,7 @@ async function getShortcutDirectory(): Promise<string | null> {
   }
 
   // Generate on-the-fly if cache doesn't exist
-  const cache = new DocCache(DEFAULT_DOC_PATHS, tbdRoot);
+  const cache = new DocCache(DEFAULT_SHORTCUT_PATHS, tbdRoot);
   await cache.load();
   const docs = cache.list();
 
@@ -1292,13 +1332,14 @@ class SetupAutoHandler extends BaseCommand {
     // Ensure docs directories exist
     await mkdir(join(cwd, TBD_SHORTCUTS_SYSTEM), { recursive: true });
     await mkdir(join(cwd, TBD_SHORTCUTS_STANDARD), { recursive: true });
-    await mkdir(join(cwd, TBD_SHORTCUTS_GUIDELINES), { recursive: true });
+    await mkdir(join(cwd, TBD_GUIDELINES_DIR), { recursive: true });
+    await mkdir(join(cwd, TBD_TEMPLATES_DIR), { recursive: true });
     await mkdir(join(cwd, CACHE_DIR), { recursive: true });
 
     // Copy built-in docs from the bundled package to the user's project
     const { copied, errors } = await copyBuiltinDocs(cwd);
     if (copied > 0) {
-      console.log(colors.dim(`Copied ${copied} built-in doc(s) to .tbd/docs/shortcuts/`));
+      console.log(colors.dim(`Copied ${copied} built-in doc(s) to .tbd/docs/`));
     }
     if (errors.length > 0) {
       for (const err of errors) {
@@ -1307,7 +1348,7 @@ class SetupAutoHandler extends BaseCommand {
     }
 
     // Generate/refresh shortcut directory cache
-    const cache = new DocCache(DEFAULT_DOC_PATHS, cwd);
+    const cache = new DocCache(DEFAULT_SHORTCUT_PATHS, cwd);
     await cache.load();
     const directory = generateShortcutDirectory(cache.list());
     await writeShortcutDirectoryCache(directory, cwd);

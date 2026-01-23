@@ -5,26 +5,8 @@ allowed-tools: Bash(tbd:*), Read, Write
 ---
 # tbd Workflow
 
-## Installation
-
-If `tbd` is not installed, install and set up in one command:
-
-```bash
-npm install -g tbd-git@latest && tbd setup --auto
-```
-
-This initializes tbd and configures your coding agent automatically.
-
-**IMPORTANT FOR AGENTS:** Always use `--auto` flag.
-The command `tbd setup` without flags shows help and requires a mode flag.
-Use `--interactive` for humans, `--auto` for agents.
-Agents should ALWAYS run `tbd setup --auto`.
-
-Other non-interactive options:
-- `tbd setup --from-beads` - Migrate from beads without prompts
-
 `tbd` provides lightweight, git-native task and issue tracking using beads, which are
-just lightweight issues managed from the CLI.
+lightweight issues managed from the CLI.
 
 > **Context Recovery**: Run `tbd prime` after compaction, clear, or new session.
 > Hooks auto-call this in Claude Code when .tbd/ detected.
@@ -131,6 +113,33 @@ tbd create "Write tests for X" --type task
 tbd dep add <tests-id> <feature-id>   # Tests depend on feature
 ```
 
+## Documentation Commands
+
+### Shortcuts
+
+Reusable instruction templates for common tasks:
+
+- `tbd shortcut <name>` - Output a shortcut by name
+- `tbd shortcut --list` - List all available shortcuts
+
+### Guidelines
+
+Coding rules and best practices:
+
+- `tbd guidelines <name>` - Output a guideline by name
+- `tbd guidelines --list` - List all available guidelines
+
+Example: `tbd guidelines typescript-rules`
+
+### Templates
+
+Document templates for specs, research, architecture:
+
+- `tbd template <name>` - Output a template by name
+- `tbd template --list` - List all available templates
+
+Example: `tbd template plan-spec > docs/project/specs/active/plan-YYYY-MM-DD-feature.md`
+
 ## Setup Commands
 
 - `tbd setup --auto` - Non-interactive setup with smart defaults (for agents/scripts)
@@ -143,3 +152,25 @@ tbd dep add <tests-id> <feature-id>   # Tests depend on feature
 - **Issue types**: task, bug, feature, epic
 - **Status values**: open, in_progress, closed
 - **JSON output**: Add `--json` to any command for machine-readable output
+
+<!-- BEGIN SHORTCUT DIRECTORY -->
+## Available Shortcuts
+
+Run `tbd shortcut <name>` to use any of these shortcuts:
+
+| Name | Title | Description |
+| --- | --- | --- |
+| commit-code | Commit Code | Run pre-commit checks, review changes, and commit code |
+| create-or-update-pr-simple | Create or Update PR (Simple) | Create or update a pull request with a concise summary |
+| create-or-update-pr-with-validation-plan | Create or Update PR with Validation Plan | Create or update a pull request with a detailed test/validation plan |
+| implement-beads | Implement Beads | Implement issues from a spec, following TDD and project rules |
+| new-architecture-doc | New Architecture Doc | Create an architecture document for a system or component design |
+| new-implementation-beads-from-spec | New Implementation Beads from Spec | Create implementation issues (beads) from a feature planning spec |
+| new-plan-spec | New Plan Spec | Create a new feature planning specification document |
+| new-research-doc | New Research Doc | Create a research document for investigating a topic or technology |
+| new-validation-plan | New Validation Plan | Create a validation/test plan for a feature or change |
+| precommit-process | Pre-Commit Process | Full pre-commit checklist including spec sync, code review, and testing |
+| review-code-python | Review Code (Python) | Perform a code review for Python code following best practices |
+| review-code-typescript | Review Code (TypeScript) | Perform a code review for TypeScript code following best practices |
+
+<!-- END SHORTCUT DIRECTORY -->

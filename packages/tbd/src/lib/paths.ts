@@ -100,6 +100,9 @@ export const STANDARD_DIR = 'standard';
 /** Guidelines directory name (coding rules and best practices) */
 export const GUIDELINES_DIR = 'guidelines';
 
+/** Templates directory name (document templates) */
+export const TEMPLATES_DIR = 'templates';
+
 /** Full path to docs directory: .tbd/docs/ */
 export const TBD_DOCS_DIR = join(TBD_DIR, DOCS_DIR);
 
@@ -112,13 +115,27 @@ export const TBD_SHORTCUTS_SYSTEM = join(TBD_SHORTCUTS_DIR, SYSTEM_DIR);
 /** Full path to standard shortcuts: .tbd/docs/shortcuts/standard/ */
 export const TBD_SHORTCUTS_STANDARD = join(TBD_SHORTCUTS_DIR, STANDARD_DIR);
 
-/** Full path to guidelines: .tbd/docs/shortcuts/guidelines/ */
-export const TBD_SHORTCUTS_GUIDELINES = join(TBD_SHORTCUTS_DIR, GUIDELINES_DIR);
+/** Full path to guidelines: .tbd/docs/guidelines/ (top-level, not under shortcuts) */
+export const TBD_GUIDELINES_DIR = join(TBD_DOCS_DIR, GUIDELINES_DIR);
+
+/** Full path to templates: .tbd/docs/templates/ (top-level, not under shortcuts) */
+export const TBD_TEMPLATES_DIR = join(TBD_DOCS_DIR, TEMPLATES_DIR);
+
+/** @deprecated Use TBD_GUIDELINES_DIR instead */
+export const TBD_SHORTCUTS_GUIDELINES = TBD_GUIDELINES_DIR;
+
+/** @deprecated Use TBD_TEMPLATES_DIR instead */
+export const TBD_SHORTCUTS_TEMPLATES = TBD_TEMPLATES_DIR;
 
 /** Built-in docs source paths (relative to package docs/) */
 export const BUILTIN_SHORTCUTS_SYSTEM = join(SHORTCUTS_DIR, SYSTEM_DIR);
 export const BUILTIN_SHORTCUTS_STANDARD = join(SHORTCUTS_DIR, STANDARD_DIR);
-export const BUILTIN_SHORTCUTS_GUIDELINES = join(SHORTCUTS_DIR, GUIDELINES_DIR);
+
+/** Built-in guidelines source path (relative to package docs/) */
+export const BUILTIN_GUIDELINES_DIR = GUIDELINES_DIR;
+
+/** Built-in templates source path (relative to package docs/) */
+export const BUILTIN_TEMPLATES_DIR = TEMPLATES_DIR;
 
 /** Install directory name (header files for tool-specific installation) */
 export const INSTALL_DIR = 'install';
@@ -127,13 +144,37 @@ export const INSTALL_DIR = 'install';
 export const BUILTIN_INSTALL_DIR = INSTALL_DIR;
 
 /**
- * Default doc lookup paths (searched in order, relative to tbd root).
+ * Default shortcut lookup paths (searched in order, relative to tbd root).
  * Earlier paths take precedence over later paths.
+ * Note: Guidelines and templates are now separate top-level directories.
  */
-export const DEFAULT_DOC_PATHS = [
+export const DEFAULT_SHORTCUT_PATHS = [
   TBD_SHORTCUTS_SYSTEM, // .tbd/docs/shortcuts/system/
   TBD_SHORTCUTS_STANDARD, // .tbd/docs/shortcuts/standard/
-  TBD_SHORTCUTS_GUIDELINES, // .tbd/docs/shortcuts/guidelines/
+];
+
+/**
+ * Default guidelines lookup paths (relative to tbd root).
+ */
+export const DEFAULT_GUIDELINES_PATHS = [
+  TBD_GUIDELINES_DIR, // .tbd/docs/guidelines/
+];
+
+/**
+ * Default template lookup paths (relative to tbd root).
+ */
+export const DEFAULT_TEMPLATE_PATHS = [
+  TBD_TEMPLATES_DIR, // .tbd/docs/templates/
+];
+
+/**
+ * @deprecated Use DEFAULT_SHORTCUT_PATHS instead.
+ * Legacy alias that includes all doc types for backward compatibility.
+ */
+export const DEFAULT_DOC_PATHS = [
+  ...DEFAULT_SHORTCUT_PATHS,
+  ...DEFAULT_GUIDELINES_PATHS,
+  ...DEFAULT_TEMPLATE_PATHS,
 ];
 
 /**

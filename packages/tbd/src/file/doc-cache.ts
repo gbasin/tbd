@@ -332,7 +332,7 @@ export const SHORTCUT_DIRECTORY_END = '<!-- END SHORTCUT DIRECTORY -->';
  * The output includes:
  * 1. Marker comments for incremental updates
  * 2. A header explaining how to use shortcuts
- * 3. A markdown table with name and description columns
+ * 3. A markdown table with name, title, and description columns
  *
  * @param docs - Array of CachedDoc objects from DocCache.list()
  * @returns Formatted markdown string with shortcut directory
@@ -345,9 +345,9 @@ export const SHORTCUT_DIRECTORY_END = '<!-- END SHORTCUT DIRECTORY -->';
  * // <!-- BEGIN SHORTCUT DIRECTORY -->
  * // ## Available Shortcuts
  * // Run `tbd shortcut <name>` to use any of these shortcuts:
- * // | Name | Description |
- * // |------|-------------|
- * // | new-plan-spec | Create a new technical plan specification document |
+ * // | Name | Title | Description |
+ * // |------|-------|-------------|
+ * // | new-plan-spec | New Plan Spec | Create a new feature planning specification document |
  * // ...
  * // <!-- END SHORTCUT DIRECTORY -->
  */
@@ -365,13 +365,14 @@ export function generateShortcutDirectory(docs: CachedDoc[]): string {
     }
 
     const name = doc.name;
-    const description =
-      doc.frontmatter?.description ?? doc.frontmatter?.title ?? '(no description)';
+    const title = doc.frontmatter?.title ?? '';
+    const description = doc.frontmatter?.description ?? '';
 
-    // Escape pipe characters in description to avoid breaking the table
+    // Escape pipe characters to avoid breaking the table
+    const escapedTitle = title.replace(/\|/g, '\\|');
     const escapedDescription = description.replace(/\|/g, '\\|');
 
-    rows.push(`| ${name} | ${escapedDescription} |`);
+    rows.push(`| ${name} | ${escapedTitle} | ${escapedDescription} |`);
   }
 
   // If no shortcuts to list, return a minimal directory
@@ -393,8 +394,8 @@ export function generateShortcutDirectory(docs: CachedDoc[]): string {
     '',
     'Run `tbd shortcut <name>` to use any of these shortcuts:',
     '',
-    '| Name | Description |',
-    '|------|-------------|',
+    '| Name | Title | Description |',
+    '|------|-------|-------------|',
     ...rows,
     '',
     SHORTCUT_DIRECTORY_END,

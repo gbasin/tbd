@@ -41,6 +41,8 @@ import { uninstallCommand } from './commands/uninstall.js';
 import { primeCommand } from './commands/prime.js';
 import { skillCommand } from './commands/skill.js';
 import { shortcutCommand } from './commands/shortcut.js';
+import { guidelinesCommand } from './commands/guidelines.js';
+import { templateCommand } from './commands/template.js';
 import { setupCommand } from './commands/setup.js';
 import { CLIError } from './lib/errors.js';
 
@@ -78,6 +80,8 @@ function createProgram(): Command {
   program.addCommand(primeCommand);
   program.addCommand(skillCommand);
   program.addCommand(shortcutCommand);
+  program.addCommand(guidelinesCommand);
+  program.addCommand(templateCommand);
   program.addCommand(closeProtocolCommand);
   program.addCommand(docsCommand);
   program.addCommand(designCommand);

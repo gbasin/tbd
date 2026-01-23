@@ -22,8 +22,9 @@ import {
   SYNC_BRANCH,
   TBD_SHORTCUTS_SYSTEM,
   TBD_SHORTCUTS_STANDARD,
-  TBD_SHORTCUTS_GUIDELINES,
-  DEFAULT_DOC_PATHS,
+  TBD_GUIDELINES_DIR,
+  TBD_TEMPLATES_DIR,
+  DEFAULT_SHORTCUT_PATHS,
 } from '../../lib/paths.js';
 import { initWorktree, checkGitVersion, MIN_GIT_VERSION } from '../../file/git.js';
 import {
@@ -95,11 +96,12 @@ class InitHandler extends BaseCommand {
       await mkdir(join(cwd, CACHE_DIR), { recursive: true });
       this.output.debug(`Created ${CACHE_DIR}/`);
 
-      // 4. Create docs directories for shortcuts
+      // 4. Create docs directories for shortcuts, guidelines, and templates
       await mkdir(join(cwd, TBD_SHORTCUTS_SYSTEM), { recursive: true });
       await mkdir(join(cwd, TBD_SHORTCUTS_STANDARD), { recursive: true });
-      await mkdir(join(cwd, TBD_SHORTCUTS_GUIDELINES), { recursive: true });
-      this.output.debug(`Created shortcuts directories`);
+      await mkdir(join(cwd, TBD_GUIDELINES_DIR), { recursive: true });
+      await mkdir(join(cwd, TBD_TEMPLATES_DIR), { recursive: true });
+      this.output.debug(`Created docs directories`);
 
       // 5. Initialize the hidden worktree for tbd-sync branch
       // This creates .tbd/data-sync-worktree/ with the sync branch checkout
@@ -141,7 +143,7 @@ class InitHandler extends BaseCommand {
 
       // 6. Generate initial shortcut directory cache
       // This loads any shortcuts in the new directories and creates the cache
-      const cache = new DocCache(DEFAULT_DOC_PATHS, cwd);
+      const cache = new DocCache(DEFAULT_SHORTCUT_PATHS, cwd);
       await cache.load();
       const directory = generateShortcutDirectory(cache.list());
       await writeShortcutDirectoryCache(directory, cwd);

@@ -23,6 +23,7 @@ import {
 } from '../lib/issue-format.js';
 import { parsePriority } from '../../lib/priority.js';
 import { buildIssueTree, renderIssueTree } from '../lib/tree-view.js';
+import { getTerminalWidth } from '../lib/output.js';
 
 interface ListOptions {
   status?: IssueStatusType;
@@ -112,7 +113,7 @@ class ListHandler extends BaseCommand {
         const tree = buildIssueTree(displayIssues as (IssueForDisplay & { parentId?: string })[]);
         const lines = renderIssueTree(tree, colors, {
           long: options.long,
-          maxWidth: process.stdout.columns ?? 80,
+          maxWidth: getTerminalWidth(),
         });
         for (const line of lines) {
           console.log(line);

@@ -79,10 +79,18 @@ export function getColorOptionFromArgv(): ColorOption {
 }
 
 /**
- * Maximum width for help text. We cap at 88 characters for readability,
- * but use narrower if the terminal is smaller.
+ * Maximum width for help text and formatted output. We cap at 88 characters
+ * for readability, but use narrower if the terminal is smaller.
  */
 export const MAX_HELP_WIDTH = 88;
+
+/**
+ * Get terminal width capped at MAX_HELP_WIDTH.
+ * Use this for all formatted CLI output to ensure consistent width handling.
+ */
+export function getTerminalWidth(): number {
+  return Math.min(MAX_HELP_WIDTH, process.stdout.columns ?? 80);
+}
 
 /**
  * Create colored help configuration for Commander.js.
@@ -95,7 +103,7 @@ export function createColoredHelpConfig(colorOption: ColorOption = 'auto') {
   const colors = pc.createColors(shouldColorize(colorOption));
 
   return {
-    helpWidth: Math.min(MAX_HELP_WIDTH, process.stdout.columns || 80),
+    helpWidth: getTerminalWidth(),
     styleTitle: (str: string) => colors.bold(colors.cyan(str)),
     styleCommandText: (str: string) => colors.green(str),
     styleOptionText: (str: string) => colors.yellow(str),
@@ -192,7 +200,7 @@ export function renderMarkdown(content: string, colorOption: ColorOption = 'auto
   // but types still claim it returns TerminalRenderer. Cast to work around this.
   marked.use(
     markedTerminal({
-      width: Math.min(MAX_HELP_WIDTH, process.stdout.columns || 80),
+      width: getTerminalWidth(),
       reflowText: true,
     }) as unknown as Parameters<typeof marked.use>[0],
   );
