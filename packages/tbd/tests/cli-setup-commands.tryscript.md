@@ -467,11 +467,7 @@ Use --verbose to show status messages.
 
 ```console
 $ tbd setup claude --check --verbose
-[..]Global hooks[..]
-[..]Project hooks[..]
-[..]Run: tbd setup claude[..]
-[..]Skill file - not found[..]
-    Run: tbd setup claude
+...
 ? 0
 ```
 
