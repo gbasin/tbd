@@ -323,8 +323,8 @@ export class DocCache {
  * Marker comments for shortcut directory section in skill files.
  * Used for incremental updates without overwriting user content.
  */
-export const SHORTCUT_DIRECTORY_BEGIN = '<!-- BEGIN SHORTCUT DIRECTORY -->';
-export const SHORTCUT_DIRECTORY_END = '<!-- END SHORTCUT DIRECTORY -->';
+const SHORTCUT_DIRECTORY_BEGIN = '<!-- BEGIN SHORTCUT DIRECTORY -->';
+const SHORTCUT_DIRECTORY_END = '<!-- END SHORTCUT DIRECTORY -->';
 
 /**
  * Generate a formatted markdown shortcut directory from a list of cached documents.
@@ -450,35 +450,4 @@ export async function writeShortcutDirectoryCache(
 
   // Write atomically
   await writeFile(cachePath, content);
-}
-
-/**
- * Replace the shortcut directory section in existing content using marker comments.
- *
- * If the content doesn't have marker comments, appends the directory at the end.
- *
- * @param existingContent - The existing file content (e.g., SKILL.md)
- * @param newDirectory - The new shortcut directory to insert
- * @returns Updated content with new shortcut directory
- */
-export function replaceShortcutDirectorySection(
-  existingContent: string,
-  newDirectory: string,
-): string {
-  const beginMarker = SHORTCUT_DIRECTORY_BEGIN;
-  const endMarker = SHORTCUT_DIRECTORY_END;
-
-  const beginIndex = existingContent.indexOf(beginMarker);
-  const endIndex = existingContent.indexOf(endMarker);
-
-  // If both markers exist, replace the section
-  if (beginIndex !== -1 && endIndex !== -1) {
-    const before = existingContent.slice(0, beginIndex);
-    const after = existingContent.slice(endIndex + endMarker.length);
-    return before + newDirectory + after;
-  }
-
-  // If only begin marker exists (malformed), append at end
-  // If no markers exist, append at end
-  return existingContent.trimEnd() + '\n\n' + newDirectory;
 }
