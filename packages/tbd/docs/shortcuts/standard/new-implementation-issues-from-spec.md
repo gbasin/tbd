@@ -1,6 +1,6 @@
 ---
-title: New Implementation Beads from Spec
-description: Create implementation issues (beads) from a feature planning spec
+title: New Implementation Issues from Spec
+description: Create implementation issues from a feature planning spec
 ---
 Shortcut: New Implementation Issues from Spec
 
@@ -25,4 +25,4 @@ Create a to-do list with the following items then perform all of them:
    you write. Be sure to track dependencies between issues correctly.
 
 4. Summarize what you have done and ask the user to review and if you should begin
-   implementation using `tbd shortcut implement-spec`.
+   implementation using `tbd shortcut implement-issues`.
