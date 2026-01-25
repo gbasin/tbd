@@ -106,7 +106,6 @@ The agent should understand that tbd provides capabilities in these categories:
 **When the agent should use it**:
 - Writing TypeScript CLI code → `tbd guidelines typescript-cli-tool-rules`
 - Writing tests → `tbd guidelines general-tdd-guidelines`
-- Working with Convex → `tbd guidelines convex-rules`
 
 #### 3. Spec-Driven Workflows
 
@@ -543,7 +542,6 @@ These are **informational commands** - they display guidance the agent should fo
 | `tbd guidelines golden-testing-guidelines` | Golden Tests | Golden/snapshot testing guidelines |
 | `tbd guidelines general-coding-rules` | General Coding | Constants, magic numbers, practices |
 | `tbd guidelines general-comment-rules` | Comments | Clean, maintainable comment rules |
-| `tbd guidelines convex-rules` | Convex | Convex database and API best practices |
 | `tbd guidelines backward-compatibility-rules` | Compatibility | Backward compatibility guidelines |
 
 ## Templates (Document Templates)
