@@ -19,11 +19,7 @@ import { VERSION } from '../lib/version.js';
 import { listIssues } from '../../file/storage.js';
 import { resolveDataSyncDir, DEFAULT_DOC_PATHS } from '../../lib/paths.js';
 import type { Issue } from '../../lib/types.js';
-import {
-  DocCache,
-  readShortcutDirectoryCache,
-  generateShortcutDirectory,
-} from '../../file/doc-cache.js';
+import { DocCache, generateShortcutDirectory } from '../../file/doc-cache.js';
 
 interface PrimeOptions {
   export?: boolean;
@@ -333,16 +329,10 @@ class PrimeHandler extends BaseCommand {
   }
 
   /**
-   * Get the shortcut directory from cache or generate on-the-fly.
+   * Generate the shortcut directory on-the-fly.
    */
   private async getShortcutDirectory(tbdRoot: string): Promise<string | null> {
-    // Try to read from cache first
-    const cached = await readShortcutDirectoryCache(tbdRoot);
-    if (cached) {
-      return cached;
-    }
-
-    // Generate on-the-fly if cache doesn't exist
+    // Generate on-the-fly from installed shortcuts
     const cache = new DocCache(DEFAULT_DOC_PATHS, tbdRoot);
     await cache.load();
     const docs = cache.list();

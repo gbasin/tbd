@@ -11,11 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import { BaseCommand } from '../lib/base-command.js';
 import { findTbdRoot } from '../../file/config.js';
-import {
-  DocCache,
-  readShortcutDirectoryCache,
-  generateShortcutDirectory,
-} from '../../file/doc-cache.js';
+import { DocCache, generateShortcutDirectory } from '../../file/doc-cache.js';
 import { DEFAULT_DOC_PATHS } from '../../lib/paths.js';
 
 interface SkillOptions {
@@ -98,7 +94,7 @@ class SkillHandler extends BaseCommand {
   }
 
   /**
-   * Get the shortcut directory from cache or generate on-the-fly.
+   * Generate the shortcut directory on-the-fly.
    */
   private async getShortcutDirectory(): Promise<string | null> {
     // Try to find tbd root (may not be initialized)
@@ -107,13 +103,7 @@ class SkillHandler extends BaseCommand {
       return null;
     }
 
-    // Try to read from cache first
-    const cached = await readShortcutDirectoryCache(tbdRoot);
-    if (cached) {
-      return cached;
-    }
-
-    // Generate on-the-fly if cache doesn't exist
+    // Generate on-the-fly from installed shortcuts
     const cache = new DocCache(DEFAULT_DOC_PATHS, tbdRoot);
     await cache.load();
     const docs = cache.list();

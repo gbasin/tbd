@@ -12,12 +12,7 @@ import pc from 'picocolors';
 
 import { BaseCommand } from '../lib/base-command.js';
 import { requireInit } from '../lib/errors.js';
-import {
-  DocCache,
-  SCORE_PREFIX_MATCH,
-  generateShortcutDirectory,
-  writeShortcutDirectoryCache,
-} from '../../file/doc-cache.js';
+import { DocCache, SCORE_PREFIX_MATCH } from '../../file/doc-cache.js';
 import { DEFAULT_SHORTCUT_PATHS } from '../../lib/paths.js';
 import { truncate } from '../../lib/truncate.js';
 import { getTerminalWidth } from '../lib/output.js';
@@ -63,16 +58,11 @@ class ShortcutHandler extends BaseCommand {
   }
 
   /**
-   * Handle --refresh mode: regenerate cache and update installed skill files.
+   * Handle --refresh mode: no-op since shortcuts are now generated on-the-fly.
+   * Kept for backward compatibility.
    */
-  private async handleRefresh(cache: DocCache, tbdRoot: string, quiet?: boolean): Promise<void> {
+  private async handleRefresh(cache: DocCache, _tbdRoot: string, quiet?: boolean): Promise<void> {
     const docs = cache.list();
-
-    // Generate shortcut directory markdown
-    const directory = generateShortcutDirectory(docs);
-
-    // Write to cache file
-    await writeShortcutDirectoryCache(directory, tbdRoot);
 
     // Count shortcuts (excluding system docs)
     const shortcutCount = docs.filter(
@@ -84,10 +74,10 @@ class ShortcutHandler extends BaseCommand {
         this.output.data({
           refreshed: true,
           shortcutCount,
-          cacheFile: '.tbd/cache/shortcut-directory.md',
+          message: 'Shortcuts are now generated on-the-fly (no cache)',
         });
       } else {
-        console.log(`Refreshed shortcut directory with ${shortcutCount} shortcut(s)`);
+        console.log(`${shortcutCount} shortcut(s) available (generated on-the-fly)`);
       }
     }
   }

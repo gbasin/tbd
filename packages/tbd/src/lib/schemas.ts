@@ -221,7 +221,7 @@ export const MetaSchema = z.object({
 // =============================================================================
 
 /**
- * Per-node state stored in .tbd/cache/state.yml (gitignored).
+ * Per-node state stored in .tbd/state.yml (gitignored).
  * Only last_sync_at is currently used. Additional fields reserved for future.
  */
 export const LocalStateSchema = z.object({

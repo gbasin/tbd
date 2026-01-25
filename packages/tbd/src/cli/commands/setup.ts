@@ -28,6 +28,7 @@ import { initConfig, isInitialized, readConfig, findTbdRoot } from '../../file/c
 import { VERSION } from '../lib/version.js';
 import {
   TBD_DIR,
+  TBD_DOCS_DIR,
   WORKTREE_DIR_NAME,
   DATA_SYNC_DIR_NAME,
   DEFAULT_SHORTCUT_PATHS,
@@ -36,17 +37,11 @@ import {
   TBD_SHORTCUTS_STANDARD,
   TBD_GUIDELINES_DIR,
   TBD_TEMPLATES_DIR,
-  CACHE_DIR,
   BUILTIN_GUIDELINES_DIR,
   BUILTIN_TEMPLATES_DIR,
 } from '../../lib/paths.js';
 import { initWorktree, isInGitRepo } from '../../file/git.js';
-import {
-  DocCache,
-  generateShortcutDirectory,
-  writeShortcutDirectoryCache,
-  readShortcutDirectoryCache,
-} from '../../file/doc-cache.js';
+import { DocCache, generateShortcutDirectory } from '../../file/doc-cache.js';
 
 /**
  * Get base docs path (with fallbacks for development).
@@ -163,7 +158,7 @@ async function copyBuiltinDocs(targetDir: string): Promise<{ copied: number; err
 
 /**
  * Get the shortcut directory content for appending to installed skill files.
- * Tries to read from cache first, then generates on-the-fly if needed.
+ * Always generates on-the-fly from installed shortcuts.
  */
 async function getShortcutDirectory(): Promise<string | null> {
   const cwd = process.cwd();
@@ -174,13 +169,7 @@ async function getShortcutDirectory(): Promise<string | null> {
     return null;
   }
 
-  // Try to read from cache first
-  const cached = await readShortcutDirectoryCache(tbdRoot);
-  if (cached) {
-    return cached;
-  }
-
-  // Generate on-the-fly if cache doesn't exist
+  // Generate on-the-fly from installed shortcuts
   const cache = new DocCache(DEFAULT_SHORTCUT_PATHS, tbdRoot);
   await cache.load();
   const docs = cache.list();
@@ -1124,14 +1113,17 @@ class SetupDefaultHandler extends BaseCommand {
 
     // 2. Create .tbd/.gitignore
     const gitignoreContent = [
-      '# Local cache (not shared)',
-      'cache/',
+      '# Installed documentation (regenerated on setup)',
+      'docs/',
       '',
       '# Hidden worktree for tbd-sync branch',
       `${WORKTREE_DIR_NAME}/`,
       '',
       '# Data sync directory (only exists in worktree)',
       `${DATA_SYNC_DIR_NAME}/`,
+      '',
+      '# Local state',
+      'state.yml',
       '',
       '# Temporary files',
       '*.tmp',
@@ -1199,24 +1191,18 @@ class SetupAutoHandler extends BaseCommand {
     await mkdir(join(cwd, TBD_SHORTCUTS_STANDARD), { recursive: true });
     await mkdir(join(cwd, TBD_GUIDELINES_DIR), { recursive: true });
     await mkdir(join(cwd, TBD_TEMPLATES_DIR), { recursive: true });
-    await mkdir(join(cwd, CACHE_DIR), { recursive: true });
+    console.log(colors.dim(`Created ${TBD_DOCS_DIR}/ directories`));
 
     // Copy built-in docs from the bundled package to the user's project
     const { copied, errors } = await copyBuiltinDocs(cwd);
     if (copied > 0) {
-      console.log(colors.dim(`Copied ${copied} built-in doc(s) to .tbd/docs/`));
+      console.log(colors.dim(`Copied ${copied} built-in doc(s) to ${TBD_DOCS_DIR}/`));
     }
     if (errors.length > 0) {
       for (const err of errors) {
         console.log(colors.warn(`Warning: ${err}`));
       }
     }
-
-    // Generate/refresh shortcut directory cache
-    const cache = new DocCache(DEFAULT_SHORTCUT_PATHS, cwd);
-    await cache.load();
-    const directory = generateShortcutDirectory(cache.list());
-    await writeShortcutDirectoryCache(directory, cwd);
 
     // Detect and set up Claude Code
     const claudeResult = await this.setupClaudeIfDetected(cwd);

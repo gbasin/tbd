@@ -16,7 +16,6 @@ import { VERSION } from '../lib/version.js';
 import { initConfig } from '../../file/config.js';
 import {
   TBD_DIR,
-  CACHE_DIR,
   WORKTREE_DIR_NAME,
   DATA_SYNC_DIR_NAME,
   SYNC_BRANCH,
@@ -24,14 +23,9 @@ import {
   TBD_SHORTCUTS_STANDARD,
   TBD_GUIDELINES_DIR,
   TBD_TEMPLATES_DIR,
-  DEFAULT_SHORTCUT_PATHS,
+  TBD_DOCS_DIR,
 } from '../../lib/paths.js';
 import { initWorktree, checkGitVersion, MIN_GIT_VERSION } from '../../file/git.js';
-import {
-  DocCache,
-  generateShortcutDirectory,
-  writeShortcutDirectoryCache,
-} from '../../file/doc-cache.js';
 
 interface InitOptions {
   prefix?: string;
@@ -74,16 +68,19 @@ class InitHandler extends BaseCommand {
       this.output.debug(`Created ${TBD_DIR}/config.yml with prefix '${options.prefix}'`);
 
       // 2. Create .tbd/.gitignore
-      // Per spec §2.3: Must ignore cache/, data-sync-worktree/, and data-sync/
+      // Per spec: Must ignore docs/, data-sync-worktree/, and data-sync/
       const gitignoreContent = [
-        '# Local cache (not shared)',
-        'cache/',
+        '# Installed documentation (regenerated on setup)',
+        'docs/',
         '',
         '# Hidden worktree for tbd-sync branch',
         `${WORKTREE_DIR_NAME}/`,
         '',
         '# Data sync directory (only exists in worktree)',
         `${DATA_SYNC_DIR_NAME}/`,
+        '',
+        '# Local state',
+        'state.yml',
         '',
         '# Temporary files',
         '*.tmp',
@@ -92,18 +89,14 @@ class InitHandler extends BaseCommand {
       await writeFile(join(cwd, TBD_DIR, '.gitignore'), gitignoreContent);
       this.output.debug(`Created ${TBD_DIR}/.gitignore`);
 
-      // 3. Create .tbd/cache/ directory
-      await mkdir(join(cwd, CACHE_DIR), { recursive: true });
-      this.output.debug(`Created ${CACHE_DIR}/`);
-
-      // 4. Create docs directories for shortcuts, guidelines, and templates
+      // 3. Create docs directories for shortcuts, guidelines, and templates
       await mkdir(join(cwd, TBD_SHORTCUTS_SYSTEM), { recursive: true });
       await mkdir(join(cwd, TBD_SHORTCUTS_STANDARD), { recursive: true });
       await mkdir(join(cwd, TBD_GUIDELINES_DIR), { recursive: true });
       await mkdir(join(cwd, TBD_TEMPLATES_DIR), { recursive: true });
-      this.output.debug(`Created docs directories`);
+      this.output.debug(`Created ${TBD_DOCS_DIR}/ directories`);
 
-      // 5. Initialize the hidden worktree for tbd-sync branch
+      // 4. Initialize the hidden worktree for tbd-sync branch
       // This creates .tbd/data-sync-worktree/ with the sync branch checkout
       const remote = options.remote ?? 'origin';
       const syncBranch = options.syncBranch ?? SYNC_BRANCH;
@@ -140,14 +133,6 @@ class InitHandler extends BaseCommand {
         // Log warning but don't fail init (supports non-git usage)
         this.output.debug(`Note: Worktree not created (${worktreeResult.error})`);
       }
-
-      // 6. Generate initial shortcut directory cache
-      // This loads any shortcuts in the new directories and creates the cache
-      const cache = new DocCache(DEFAULT_SHORTCUT_PATHS, cwd);
-      await cache.load();
-      const directory = generateShortcutDirectory(cache.list());
-      await writeShortcutDirectoryCache(directory, cwd);
-      this.output.debug('Generated shortcut directory cache');
     }, 'Failed to initialize tbd');
 
     this.output.data({ initialized: true, version: VERSION, prefix: options.prefix }, () => {

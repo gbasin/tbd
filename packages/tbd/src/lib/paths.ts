@@ -6,8 +6,9 @@
  * On main/dev branches:
  *   .tbd/
  *     config.yml              - Project configuration (tracked)
- *     .gitignore              - Ignores cache/, data-sync-worktree/, data-sync/
- *     cache/                  - Local state (gitignored)
+ *     state.yml               - Local state (gitignored)
+ *     .gitignore              - Ignores docs/, data-sync-worktree/, data-sync/
+ *     docs/                   - Installed documentation (gitignored, regenerated on setup)
  *     data-sync-worktree/     - Hidden worktree checkout of tbd-sync branch
  *       .tbd/
  *         data-sync/
@@ -33,11 +34,8 @@ export const TBD_DIR = '.tbd';
 /** The config file path */
 export const CONFIG_FILE = join(TBD_DIR, 'config.yml');
 
-/** The local cache directory (gitignored) */
-export const CACHE_DIR = join(TBD_DIR, 'cache');
-
-/** Cached shortcut directory for embedding in skill output */
-export const SHORTCUT_DIRECTORY_CACHE = join(CACHE_DIR, 'shortcut-directory.md');
+/** The local state file (gitignored) */
+export const STATE_FILE = join(TBD_DIR, 'state.yml');
 
 /** The worktree directory name */
 export const WORKTREE_DIR_NAME = 'data-sync-worktree';
