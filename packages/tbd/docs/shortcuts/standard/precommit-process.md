@@ -25,7 +25,7 @@ Create a to-do list with the following items then perform all of them:
 2. **Code style enforcement:**
 
    Before code is committed all changes must be reviewed and ensure they comply with the
-   coding rules in docs/general/agent-rules/
+   coding rules. Run `tbd guidelines --list` to see available guidelines.
 
 3. **Code review:**
 
@@ -41,24 +41,24 @@ Create a to-do list with the following items then perform all of them:
 
    - Step 3.1: Ensure code follows general rules:
 
-     - docs/general/agent-rules/general-eng-assistant-rules.md
+     - `tbd guidelines general-eng-assistant-rules`
 
-     - docs/general/agent-rules/general-coding-rules.md
+     - `tbd guidelines general-coding-rules`
 
-     - docs/general/agent-rules/general-comment-rules.md
+     - `tbd guidelines general-comment-rules`
 
-     - docs/general/agent-rules/general-style-rules.md
+     - `tbd guidelines general-style-rules`
 
-     - docs/general/agent-rules/general-testing-rules.md
+     - `tbd guidelines general-testing-rules`
 
    - Step 3.2: Ensure code follows language-specific rules:
-     - docs/general/agent-rules/typescript-rules.md
+     - `tbd guidelines typescript-rules`
 
-   - Step 3.3: Ensure code follows framework-specific rules:
-     - docs/general/agent-rules/convex-rules.md
+   - Step 3.3: Ensure code follows framework-specific rules (if applicable):
+     - `tbd guidelines convex-rules`
 
    - Step 3.4: Ensure code follows backward-compatibility rules:
-     - docs/general/agent-rules/backward-compatibility-rules.md
+     - `tbd guidelines backward-compatibility-rules`
 
 4. **Unit testing and integration testing:**
 

@@ -11,9 +11,10 @@ Instructions:
 
 Create a to-do list with the following items then perform all of them:
 
-1. Review docs/general/agent-rules/ for relevant rules relevant to implementing this
-   spec and docs/general/agent-guidelines/general-tdd-guidelines.md to understand all
-   project and testing rules.
+1. Run `tbd guidelines --list` to see available guidelines, then review relevant ones
+   for implementing this spec.
+   In particular run `tbd guidelines general-tdd-guidelines` to understand project and
+   testing rules.
 
 2. IMPORTANT: *Track all work with issues using tbd.* Use `tbd create` to create issues,
    `tbd ready` to find work, and `tbd close` when done.

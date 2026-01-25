@@ -17,8 +17,8 @@ Create a to-do list with the following items then perform all of them:
    - Or review specific files the user mentions
 
 2. Review the TypeScript rules and guidelines:
-   - Read `tbd guidelines typescript-rules` for language-specific rules
-   - Read docs/general/agent-rules/general-coding-rules.md for general rules
+   - Run `tbd guidelines typescript-rules` for language-specific rules
+   - Run `tbd guidelines general-coding-rules` for general rules
 
 3. Check for common TypeScript issues:
    - [ ] Types are properly defined (avoid `any` unless necessary)

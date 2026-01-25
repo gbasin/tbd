@@ -142,7 +142,7 @@ These rules apply to all CLI tools, command-line scripts, and terminal utilities
   - `p.log.step()` for step-by-step progress
 
 - **Use appropriate emojis for status:** Follow emoji conventions from
-  `@docs/general/agent-rules/general-style-rules.md`:
+  `tbd guidelines general-style-rules`:
 
   - ✅ for success
 
