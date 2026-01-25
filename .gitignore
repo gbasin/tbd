@@ -4,12 +4,13 @@ attic/
 # Temporary test directories
 tmp/
 
-# tbd-specific
-.tbd/cache/
-.tbd/sync-worktree/
+# tbd-specific (see .tbd/.gitignore for tbd's internal gitignores)
 *.tmp.*
 
-attic/
+# Generated skill files (created by tbd setup)
+docs/SKILL.md
+.claude/skills/tbd/
+AGENTS.md
 
 # Build output
 dist/

@@ -268,7 +268,7 @@ settings:
 ```console
 $ tbd config show --json
 {
-  "tbd_version": [..],
+  "tbd_version": "[..]",
   "sync": {
     "branch": "tbd-sync",
     "remote": "origin"
@@ -278,6 +278,12 @@ $ tbd config show --json
   },
   "settings": {
     "auto_sync": false
+  },
+  "docs": {
+    "paths": [
+      ".tbd/docs/shortcuts/system",
+      ".tbd/docs/shortcuts/standard"
+    ]
   }
 }
 ? 0
@@ -479,7 +485,7 @@ Commands:
   help [command]           display help for command
 
 Getting Started:
-  npm install -g tbd-git@latest && tbd setup --auto
+  npm install -g tbd-git@latest && tbd setup --auto --prefix=<name>
 
   This initializes tbd and configures your coding agents automatically.
   For interactive setup: tbd setup --interactive
@@ -522,7 +528,7 @@ Commands:
   help [command]               display help for command
 
 Getting Started:
-  npm install -g tbd-git@latest && tbd setup --auto
+  npm install -g tbd-git@latest && tbd setup --auto --prefix=<name>
 
   This initializes tbd and configures your coding agents automatically.
   For interactive setup: tbd setup --interactive
@@ -562,7 +568,7 @@ Commands:
   help [command]     display help for command
 
 Getting Started:
-  npm install -g tbd-git@latest && tbd setup --auto
+  npm install -g tbd-git@latest && tbd setup --auto --prefix=<name>
 
   This initializes tbd and configures your coding agents automatically.
   For interactive setup: tbd setup --interactive
@@ -603,7 +609,7 @@ Commands:
   help [command]            display help for command
 
 Getting Started:
-  npm install -g tbd-git@latest && tbd setup --auto
+  npm install -g tbd-git@latest && tbd setup --auto --prefix=<name>
 
   This initializes tbd and configures your coding agents automatically.
   For interactive setup: tbd setup --interactive

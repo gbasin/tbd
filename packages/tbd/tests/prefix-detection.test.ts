@@ -1,5 +1,5 @@
 /**
- * Tests for prefix auto-detection module.
+ * Tests for prefix validation and beads prefix extraction.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -71,37 +71,6 @@ describe('prefix-detection', () => {
     });
   });
 
-  describe('extractRepoNameFromRemote', () => {
-    it('extracts from HTTPS URL', async () => {
-      const { extractRepoNameFromRemote } = await import('../src/cli/lib/prefix-detection.js');
-      expect(extractRepoNameFromRemote('https://github.com/jlevy/tbd.git')).toBe('tbd');
-      expect(extractRepoNameFromRemote('https://github.com/jlevy/tbd')).toBe('tbd');
-    });
-
-    it('extracts from SSH URL', async () => {
-      const { extractRepoNameFromRemote } = await import('../src/cli/lib/prefix-detection.js');
-      expect(extractRepoNameFromRemote('git@github.com:jlevy/tbd.git')).toBe('tbd');
-      expect(extractRepoNameFromRemote('git@github.com:jlevy/my-app.git')).toBe('myapp');
-    });
-
-    it('extracts from GitLab URLs', async () => {
-      const { extractRepoNameFromRemote } = await import('../src/cli/lib/prefix-detection.js');
-      expect(extractRepoNameFromRemote('https://gitlab.com/user/project.git')).toBe('project');
-      expect(extractRepoNameFromRemote('git@gitlab.com:user/project.git')).toBe('project');
-    });
-
-    it('handles nested paths (monorepos)', async () => {
-      const { extractRepoNameFromRemote } = await import('../src/cli/lib/prefix-detection.js');
-      expect(extractRepoNameFromRemote('https://github.com/org/mono/packages/app.git')).toBe('app');
-    });
-
-    it('returns null for invalid URLs', async () => {
-      const { extractRepoNameFromRemote } = await import('../src/cli/lib/prefix-detection.js');
-      expect(extractRepoNameFromRemote('')).toBeNull();
-      expect(extractRepoNameFromRemote('not-a-url')).toBeNull();
-    });
-  });
-
   describe('getBeadsPrefix', () => {
     it('returns null when no beads config exists', async () => {
       const { getBeadsPrefix } = await import('../src/cli/lib/prefix-detection.js');
@@ -128,28 +97,6 @@ describe('prefix-detection', () => {
       const { getBeadsPrefix } = await import('../src/cli/lib/prefix-detection.js');
       const result = await getBeadsPrefix(tempDir);
       expect(result).toBeNull();
-    });
-  });
-
-  describe('autoDetectPrefix', () => {
-    it('uses beads prefix when available', async () => {
-      // Create .beads/config.yaml with a prefix
-      const beadsDir = join(tempDir, '.beads');
-      await mkdir(beadsDir, { recursive: true });
-      await writeFile(join(beadsDir, 'config.yaml'), 'display:\n  id_prefix: beadsproj\n');
-
-      const { autoDetectPrefix } = await import('../src/cli/lib/prefix-detection.js');
-      const result = await autoDetectPrefix(tempDir);
-      expect(result).toBe('beadsproj');
-    });
-
-    it('falls back to directory name when no beads or remote', async () => {
-      const { autoDetectPrefix } = await import('../src/cli/lib/prefix-detection.js');
-      const result = await autoDetectPrefix(tempDir);
-      // tempDir is something like /tmp/tbd-prefix-test-XXXX
-      // Result should be normalized version of the last path component
-      expect(result).toBeTruthy();
-      expect(result.length).toBeLessThanOrEqual(10);
     });
   });
 });

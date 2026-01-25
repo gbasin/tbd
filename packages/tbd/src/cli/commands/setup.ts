@@ -1,16 +1,16 @@
 /**
  * `tbd setup` - Configure tbd integration with editors and tools.
  *
- * Subcommands:
- * - `tbd setup claude` - Configure Claude Code hooks
- * - `tbd setup cursor` - Create Cursor IDE rules file
- * - `tbd setup codex` - Create/update AGENTS.md for Codex
+ * Options:
+ * - `tbd setup --auto` - Non-interactive setup (for agents/scripts)
+ * - `tbd setup --interactive` - Interactive setup with prompts (for humans)
+ * - `tbd setup --from-beads` - Migrate from Beads to tbd
  *
  * See: tbd-design.md §6.4.2 Claude Code Integration
  */
 
 import { Command } from 'commander';
-import { readFile, mkdir, access, rm, rename, chmod } from 'node:fs/promises';
+import { readFile, mkdir, access, rm, rename, chmod, readdir } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
@@ -21,58 +21,166 @@ import { CLIError } from '../lib/errors.js';
 import { loadSkillContent } from './prime.js';
 import { stripFrontmatter } from '../../utils/markdown-utils.js';
 import { pathExists } from '../../utils/file-utils.js';
+import { ensureGitignorePatterns } from '../../utils/gitignore-utils.js';
 import { type DiagnosticResult, renderDiagnostics } from '../lib/diagnostics.js';
 import { fileURLToPath } from 'node:url';
-import { autoDetectPrefix, isValidPrefix, getBeadsPrefix } from '../lib/prefix-detection.js';
-import { initConfig, isInitialized, readConfig } from '../../file/config.js';
+import { isValidPrefix, getBeadsPrefix } from '../lib/prefix-detection.js';
+import { initConfig, isInitialized, readConfig, findTbdRoot } from '../../file/config.js';
 import { VERSION } from '../lib/version.js';
-import { TBD_DIR, WORKTREE_DIR_NAME, DATA_SYNC_DIR_NAME } from '../../lib/paths.js';
+import {
+  TBD_DIR,
+  TBD_DOCS_DIR,
+  WORKTREE_DIR_NAME,
+  DATA_SYNC_DIR_NAME,
+  DEFAULT_SHORTCUT_PATHS,
+  TBD_SHORTCUTS_DIR,
+  TBD_SHORTCUTS_SYSTEM,
+  TBD_SHORTCUTS_STANDARD,
+  TBD_GUIDELINES_DIR,
+  TBD_TEMPLATES_DIR,
+  BUILTIN_GUIDELINES_DIR,
+  BUILTIN_TEMPLATES_DIR,
+} from '../../lib/paths.js';
 import { initWorktree, isInGitRepo } from '../../file/git.js';
+import { DocCache, generateShortcutDirectory } from '../../file/doc-cache.js';
 
 /**
- * Get the path to the bundled CURSOR.mdc file.
+ * Get base docs path (with fallbacks for development).
  */
-function getCursorPath(): string {
+function getDocsBasePath(): string[] {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
-  // When bundled, runs from dist/bin.mjs or dist/cli.mjs
-  // Docs are at dist/docs/CURSOR.mdc (same level as the bundle)
-  return join(__dirname, 'docs', 'CURSOR.mdc');
+  return [
+    // Bundled location (dist/docs/)
+    join(__dirname, 'docs'),
+    // Development: packages/tbd/docs/
+    join(__dirname, '..', '..', '..', 'docs'),
+  ];
 }
 
 /**
- * Load the Cursor rules content from the bundled CURSOR.mdc file with fallbacks.
- * Unlike SKILL.md, CURSOR.mdc includes its own frontmatter which is required for Cursor.
+ * Copy all files from a source directory to a destination directory.
  */
-async function loadCursorContent(): Promise<string> {
-  // Try bundled location first
+async function copyDirFiles(
+  srcDir: string,
+  destDir: string,
+): Promise<{ copied: number; errors: string[] }> {
+  const errors: string[] = [];
+  let copied = 0;
+
   try {
-    return await readFile(getCursorPath(), 'utf-8');
+    await access(srcDir);
+    const entries = await readdir(srcDir, { withFileTypes: true });
+
+    // Ensure destination directory exists before copying
+    if (entries.some((e) => e.isFile() && e.name.endsWith('.md'))) {
+      await mkdir(destDir, { recursive: true });
+    }
+
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.endsWith('.md')) {
+        const srcPath = join(srcDir, entry.name);
+        const destPath = join(destDir, entry.name);
+
+        try {
+          const content = await readFile(srcPath, 'utf-8');
+          await writeFile(destPath, content);
+          copied++;
+        } catch (err) {
+          errors.push(`Failed to copy ${entry.name}: ${(err as Error).message}`);
+        }
+      }
+    }
   } catch {
-    // Fallback: try to read from source location during development
+    // Directory doesn't exist, skip
   }
 
-  // Fallback for development without bundle
-  try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const devPath = join(__dirname, '..', '..', 'docs', 'CURSOR.mdc');
-    return await readFile(devPath, 'utf-8');
-  } catch {
-    // Fallback: try repo-level docs
+  return { copied, errors };
+}
+
+/**
+ * Copy built-in docs from the bundled package to the user's project.
+ * Copies:
+ * - shortcuts/system/ and shortcuts/standard/ to .tbd/docs/shortcuts/
+ * - guidelines/ to .tbd/docs/guidelines/
+ * - templates/ to .tbd/docs/templates/
+ */
+async function copyBuiltinDocs(targetDir: string): Promise<{ copied: number; errors: string[] }> {
+  const allErrors: string[] = [];
+  let totalCopied = 0;
+
+  // Find the docs base directory
+  let docsDir: string | null = null;
+  for (const path of getDocsBasePath()) {
+    try {
+      await access(path);
+      docsDir = path;
+      break;
+    } catch {
+      // Try next path
+    }
   }
 
-  // Last fallback: repo-level docs
-  try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const repoPath = join(__dirname, '..', '..', '..', '..', '..', 'docs', 'SKILL.md');
-    // Fall back to SKILL.md if CURSOR.mdc not found (strips frontmatter)
-    const content = await readFile(repoPath, 'utf-8');
-    return stripFrontmatter(content);
-  } catch {
-    throw new Error('CURSOR.mdc content file not found. Please rebuild the CLI.');
+  if (!docsDir) {
+    allErrors.push('Could not find bundled docs directory');
+    return { copied: totalCopied, errors: allErrors };
   }
+
+  // Copy shortcuts (system and standard subdirs)
+  const shortcutSubdirs = ['system', 'standard'];
+  for (const subdir of shortcutSubdirs) {
+    const srcDir = join(docsDir, 'shortcuts', subdir);
+    const destDir = join(targetDir, TBD_SHORTCUTS_DIR, subdir);
+    const { copied, errors } = await copyDirFiles(srcDir, destDir);
+    totalCopied += copied;
+    allErrors.push(...errors);
+  }
+
+  // Copy guidelines (top-level)
+  {
+    const srcDir = join(docsDir, BUILTIN_GUIDELINES_DIR);
+    const destDir = join(targetDir, TBD_GUIDELINES_DIR);
+    const { copied, errors } = await copyDirFiles(srcDir, destDir);
+    totalCopied += copied;
+    allErrors.push(...errors);
+  }
+
+  // Copy templates (top-level)
+  {
+    const srcDir = join(docsDir, BUILTIN_TEMPLATES_DIR);
+    const destDir = join(targetDir, TBD_TEMPLATES_DIR);
+    const { copied, errors } = await copyDirFiles(srcDir, destDir);
+    totalCopied += copied;
+    allErrors.push(...errors);
+  }
+
+  return { copied: totalCopied, errors: allErrors };
+}
+
+/**
+ * Get the shortcut directory content for appending to installed skill files.
+ * Always generates on-the-fly from installed shortcuts.
+ */
+async function getShortcutDirectory(): Promise<string | null> {
+  const cwd = process.cwd();
+
+  // Try to find tbd root (may not be initialized)
+  const tbdRoot = await findTbdRoot(cwd);
+  if (!tbdRoot) {
+    return null;
+  }
+
+  // Generate on-the-fly from installed shortcuts
+  const cache = new DocCache(DEFAULT_SHORTCUT_PATHS, tbdRoot);
+  await cache.load();
+  const docs = cache.list();
+
+  // If no docs loaded, skip directory
+  if (docs.length === 0) {
+    return null;
+  }
+
+  return generateShortcutDirectory(docs);
 }
 
 /**
@@ -81,24 +189,15 @@ async function loadCursorContent(): Promise<string> {
  */
 async function getCodexTbdSection(): Promise<string> {
   const skillContent = await loadSkillContent();
-  const content = stripFrontmatter(skillContent);
+  let content = stripFrontmatter(skillContent);
+  const directory = await getShortcutDirectory();
+  if (directory) {
+    content = content.trimEnd() + '\n\n' + directory + '\n';
+  }
   return `<!-- BEGIN TBD INTEGRATION -->\n${content}<!-- END TBD INTEGRATION -->\n`;
 }
 
-/**
- * Get the Cursor rules content from CURSOR.mdc.
- * CURSOR.mdc has its own MDC-specific frontmatter which is required for Cursor to recognize the file.
- */
-async function getCursorRulesContent(): Promise<string> {
-  return loadCursorContent();
-}
-
 interface SetupClaudeOptions {
-  check?: boolean;
-  remove?: boolean;
-}
-
-interface SetupCursorOptions {
   check?: boolean;
   remove?: boolean;
 }
@@ -167,8 +266,6 @@ fi
 
 exit 0
 `;
-
-// Cursor rules content is now generated dynamically from SKILL.md via getCursorRulesContent()
 
 /**
  * AGENTS.md integration markers for Codex/Factory.ai
@@ -317,7 +414,7 @@ class SetupClaudeHandler extends BaseCommand {
         status: 'warn',
         message: 'partially configured',
         path: settingsPath.replace(homedir(), '~'),
-        suggestion: 'Run: tbd setup claude',
+        suggestion: 'Run: tbd setup --auto',
       });
     } else {
       diagnostics.push({
@@ -325,7 +422,7 @@ class SetupClaudeHandler extends BaseCommand {
         status: 'warn',
         message: 'not configured',
         path: settingsPath.replace(homedir(), '~'),
-        suggestion: 'Run: tbd setup claude',
+        suggestion: 'Run: tbd setup --auto',
       });
     }
 
@@ -344,7 +441,7 @@ class SetupClaudeHandler extends BaseCommand {
         status: 'warn',
         message: 'partially configured',
         path: projectSettingsRelPath,
-        suggestion: 'Run: tbd setup claude',
+        suggestion: 'Run: tbd setup --auto',
       });
     } else {
       diagnostics.push({
@@ -352,7 +449,7 @@ class SetupClaudeHandler extends BaseCommand {
         status: 'warn',
         message: 'not configured',
         path: projectSettingsRelPath,
-        suggestion: 'Run: tbd setup claude',
+        suggestion: 'Run: tbd setup --auto',
       });
     }
 
@@ -370,7 +467,7 @@ class SetupClaudeHandler extends BaseCommand {
         status: 'warn',
         message: 'not found',
         path: skillRelPath,
-        suggestion: 'Run: tbd setup claude',
+        suggestion: 'Run: tbd setup --auto',
       });
     }
 
@@ -578,15 +675,23 @@ class SetupClaudeHandler extends BaseCommand {
       await writeFile(projectSettingsPath, JSON.stringify(projectSettings, null, 2) + '\n');
       this.output.success('Installed project hooks');
 
+      // Add .claude/.gitignore to ignore backup files
+      const claudeGitignorePath = join(cwd, '.claude', '.gitignore');
+      await ensureGitignorePatterns(claudeGitignorePath, ['# Backup files', '*.bak']);
+
       // Install hook script
       await mkdir(dirname(hookScriptPath), { recursive: true });
       await writeFile(hookScriptPath, TBD_CLOSE_PROTOCOL_SCRIPT);
       await chmod(hookScriptPath, 0o755);
       this.output.success('Installed sync reminder hook script');
 
-      // Install skill file in project
+      // Install skill file in project (with shortcut directory appended)
       await mkdir(dirname(skillPath), { recursive: true });
-      const skillContent = await loadSkillContent();
+      let skillContent = await loadSkillContent();
+      const directory = await getShortcutDirectory();
+      if (directory) {
+        skillContent = skillContent.trimEnd() + '\n\n' + directory;
+      }
       await writeFile(skillPath, skillContent);
       this.output.success('Installed skill file');
       this.output.info(`  ${skillPath}`);
@@ -596,87 +701,8 @@ class SetupClaudeHandler extends BaseCommand {
       this.output.info('  - Global hooks: SessionStart and PreCompact run `tbd prime`');
       this.output.info('  - Project hooks: PostToolUse reminds about `tbd sync` after git push');
       this.output.info('  - Project skill: .claude/skills/tbd/SKILL.md');
-      this.output.info('');
-      this.output.info('Use `tbd setup claude --check` to verify installation');
     } catch (error) {
       throw new CLIError(`Failed to install: ${(error as Error).message}`);
-    }
-  }
-}
-
-class SetupCursorHandler extends BaseCommand {
-  async run(options: SetupCursorOptions): Promise<void> {
-    const cwd = process.cwd();
-    const rulesPath = join(cwd, '.cursor', 'rules', 'tbd.mdc');
-
-    if (options.check) {
-      await this.checkCursorSetup(rulesPath);
-      return;
-    }
-
-    if (options.remove) {
-      await this.removeCursorRules(rulesPath);
-      return;
-    }
-
-    await this.installCursorRules(rulesPath);
-  }
-
-  private async checkCursorSetup(rulesPath: string): Promise<void> {
-    const rulesRelPath = '.cursor/rules/tbd.mdc';
-    try {
-      await access(rulesPath);
-      const diagnostic: DiagnosticResult = {
-        name: 'Cursor rules file',
-        status: 'ok',
-        path: rulesRelPath,
-      };
-      this.output.data({ installed: true, path: rulesPath }, () => {
-        const colors = this.output.getColors();
-        renderDiagnostics([diagnostic], colors);
-      });
-    } catch {
-      const diagnostic: DiagnosticResult = {
-        name: 'Cursor rules file',
-        status: 'warn',
-        message: 'not found',
-        path: rulesRelPath,
-        suggestion: 'Run: tbd setup cursor',
-      };
-      this.output.data({ installed: false, expectedPath: rulesPath }, () => {
-        const colors = this.output.getColors();
-        renderDiagnostics([diagnostic], colors);
-      });
-    }
-  }
-
-  private async removeCursorRules(rulesPath: string): Promise<void> {
-    try {
-      await rm(rulesPath);
-      this.output.success('Removed Cursor tbd rules file');
-    } catch {
-      this.output.info('Cursor rules file not found');
-    }
-  }
-
-  private async installCursorRules(rulesPath: string): Promise<void> {
-    if (this.checkDryRun('Would create Cursor rules file', { path: rulesPath })) {
-      return;
-    }
-
-    try {
-      // Ensure directory exists
-      await mkdir(dirname(rulesPath), { recursive: true });
-
-      const rulesContent = await getCursorRulesContent();
-      await writeFile(rulesPath, rulesContent);
-      this.output.success('Created Cursor rules file');
-      this.output.info(`  ${rulesPath}`);
-      this.output.info('');
-      this.output.info('Cursor will now see tbd workflow instructions.');
-      this.output.info('Use `tbd setup cursor --check` to verify installation');
-    } catch (error) {
-      throw new CLIError(`Failed to create rules file: ${(error as Error).message}`);
     }
   }
 }
@@ -722,7 +748,7 @@ class SetupCodexHandler extends BaseCommand {
           status: 'warn',
           message: 'exists but no tbd section',
           path: agentsRelPath,
-          suggestion: 'Run: tbd setup codex',
+          suggestion: 'Run: tbd setup --auto',
         };
         this.output.data({ installed: false, path: agentsPath, hastbdSection: false }, () => {
           const colors = this.output.getColors();
@@ -735,7 +761,7 @@ class SetupCodexHandler extends BaseCommand {
         status: 'warn',
         message: 'not found',
         path: agentsRelPath,
-        suggestion: 'Run: tbd setup codex',
+        suggestion: 'Run: tbd setup --auto',
       };
       this.output.data({ installed: false, expectedPath: agentsPath }, () => {
         const colors = this.output.getColors();
@@ -811,8 +837,6 @@ class SetupCodexHandler extends BaseCommand {
       this.output.info('');
       this.output.info('Codex and other AGENTS.md-compatible tools will automatically');
       this.output.info('read this file on session start.');
-      this.output.info('');
-      this.output.info('Use `tbd setup codex --check` to verify installation');
     } catch (error) {
       throw new CLIError(`Failed to update AGENTS.md: ${(error as Error).message}`);
     }
@@ -862,34 +886,6 @@ class SetupCodexHandler extends BaseCommand {
   }
 }
 
-// Create subcommands
-const claudeCommand = new Command('claude')
-  .description('Configure Claude Code (skill and hooks)')
-  .option('--check', 'Verify installation status')
-  .option('--remove', 'Remove tbd hooks')
-  .action(async (options, command) => {
-    const handler = new SetupClaudeHandler(command);
-    await handler.run(options);
-  });
-
-const cursorCommand = new Command('cursor')
-  .description('Configure Cursor IDE (rules file)')
-  .option('--check', 'Verify installation status')
-  .option('--remove', 'Remove tbd rules file')
-  .action(async (options, command) => {
-    const handler = new SetupCursorHandler(command);
-    await handler.run(options);
-  });
-
-const codexCommand = new Command('codex')
-  .description('Configure Codex and compatible tools (AGENTS.md)')
-  .option('--check', 'Verify installation status')
-  .option('--remove', 'Remove tbd section from AGENTS.md')
-  .action(async (options, command) => {
-    const handler = new SetupCodexHandler(command);
-    await handler.run(options);
-  });
-
 // ============================================================================
 // Setup Default Handler (for --auto and --interactive modes)
 // ============================================================================
@@ -937,15 +933,20 @@ class SetupDefaultHandler extends BaseCommand {
     // Check if in git repo
     const inGitRepo = await isInGitRepo(cwd);
     if (!inGitRepo) {
-      console.log(colors.warn('Error: Not a git repository.'));
-      console.log('');
-      console.log('tbd requires a git repository. Run `git init` first.');
-      process.exit(1);
+      throw new CLIError('Not a git repository. Run `git init` first.');
     }
 
     // Check current state
     const hasTbd = await isInitialized(cwd);
     const hasBeads = await pathExists(join(cwd, '.beads'));
+
+    // Validate --from-beads flag requires .beads/ directory
+    if (options.fromBeads && !hasBeads) {
+      throw new CLIError(
+        'The --from-beads flag requires a .beads/ directory to migrate from.\n' +
+          'For fresh setup, use: tbd setup --auto --prefix=<name>',
+      );
+    }
 
     console.log('Checking repository...');
     console.log(`  ${colors.success('✓')} Git repository detected`);
@@ -956,7 +957,7 @@ class SetupDefaultHandler extends BaseCommand {
       console.log(`  ${colors.success('✓')} tbd initialized (prefix: ${config.display.id_prefix})`);
       console.log('');
       await this.handleAlreadyInitialized(cwd, isAutoMode);
-    } else if (hasBeads && !options.prefix) {
+    } else if ((hasBeads || options.fromBeads) && !options.prefix) {
       // Beads migration flow (unless prefix override given)
       console.log(`  ${colors.dim('✗')} tbd not initialized`);
       console.log(`  ${colors.warn('!')} Beads detected (.beads/ directory found)`);
@@ -995,16 +996,26 @@ class SetupDefaultHandler extends BaseCommand {
       console.log('');
     }
 
-    // Get prefix from beads config or auto-detect
+    // Get prefix from beads config or use provided --prefix
     const beadsPrefix = await getBeadsPrefix(cwd);
-    const prefix = options.prefix ?? beadsPrefix ?? (await autoDetectPrefix(cwd));
+    const prefix = options.prefix ?? beadsPrefix;
+
+    if (!prefix) {
+      throw new CLIError(
+        'Could not read prefix from beads config.\n' +
+          'Please specify a prefix (2-4 letters recommended):\n' +
+          '  tbd setup --auto --prefix=tbd',
+      );
+    }
 
     if (!isValidPrefix(prefix)) {
-      console.log(colors.warn('Error: Could not determine a valid prefix.'));
-      console.log('');
-      console.log('Please specify a prefix:');
-      console.log('  tbd setup --auto --prefix=myapp');
-      process.exit(1);
+      throw new CLIError(
+        'Invalid prefix format.\n' +
+          'Prefix must be 1-10 lowercase alphanumeric characters, starting with a letter.\n' +
+          'Recommended: 2-4 letters for clear, readable issue IDs.\n' +
+          'Please specify a valid prefix:\n' +
+          '  tbd setup --auto --prefix=tbd',
+      );
     }
 
     // Initialize tbd first
@@ -1054,19 +1065,32 @@ class SetupDefaultHandler extends BaseCommand {
   ): Promise<void> {
     const colors = this.output.getColors();
 
-    // Auto-detect or use provided prefix
-    const prefix = options.prefix ?? (await autoDetectPrefix(cwd));
+    // Require --prefix for fresh setup (no auto-detection)
+    const prefix = options.prefix;
 
-    if (!isValidPrefix(prefix)) {
-      console.log(colors.warn('Error: Could not auto-detect project prefix.'));
-      console.log('No git remote found and directory name is not a valid prefix.');
-      console.log('');
-      console.log('Please specify a prefix:');
-      console.log('  tbd setup --auto --prefix=myapp');
-      process.exit(1);
+    if (!prefix) {
+      throw new CLIError(
+        '--prefix is required for tbd setup --auto\n\n' +
+          'The --prefix flag specifies your project name for issue IDs.\n' +
+          'Use a short 2-4 letter prefix so issue IDs stand out clearly.\n\n' +
+          'Example:\n' +
+          '  tbd setup --auto --prefix=tbd    # Issues: tbd-a1b2\n' +
+          '  tbd setup --auto --prefix=myp    # Issues: myp-c3d4\n\n' +
+          'Note: If migrating from beads, the prefix is automatically read from your beads config.',
+      );
     }
 
-    console.log(`Initializing with auto-detected prefix "${prefix}"...`);
+    if (!isValidPrefix(prefix)) {
+      throw new CLIError(
+        'Invalid prefix format.\n' +
+          'Prefix must be 1-10 lowercase alphanumeric characters, starting with a letter.\n' +
+          'Recommended: 2-4 letters for clear, readable issue IDs.\n\n' +
+          'Example:\n' +
+          '  tbd setup --auto --prefix=tbd',
+      );
+    }
+
+    console.log(`Initializing with prefix "${prefix}"...`);
 
     await this.initializeTbd(cwd, prefix);
 
@@ -1092,10 +1116,10 @@ class SetupDefaultHandler extends BaseCommand {
     await initConfig(cwd, VERSION, prefix);
     console.log(`  ${colors.success('✓')} Created .tbd/config.yml`);
 
-    // 2. Create .tbd/.gitignore
-    const gitignoreContent = [
-      '# Local cache (not shared)',
-      'cache/',
+    // 2. Create .tbd/.gitignore (idempotent)
+    await ensureGitignorePatterns(join(cwd, TBD_DIR, '.gitignore'), [
+      '# Installed documentation (regenerated on setup)',
+      'docs/',
       '',
       '# Hidden worktree for tbd-sync branch',
       `${WORKTREE_DIR_NAME}/`,
@@ -1103,19 +1127,18 @@ class SetupDefaultHandler extends BaseCommand {
       '# Data sync directory (only exists in worktree)',
       `${DATA_SYNC_DIR_NAME}/`,
       '',
+      '# Local state',
+      'state.yml',
+      '',
       '# Temporary files',
       '*.tmp',
       '*.temp',
-      '',
-    ].join('\n');
-
-    const gitignorePath = join(cwd, TBD_DIR, '.gitignore');
-    await writeFile(gitignorePath, gitignoreContent);
+    ]);
     console.log(`  ${colors.success('✓')} Created .tbd/.gitignore`);
 
     // 3. Initialize worktree for sync branch
     try {
-      await initWorktree(cwd, 'tbd-sync', 'origin');
+      await initWorktree(cwd);
       console.log(`  ${colors.success('✓')} Initialized sync branch`);
     } catch {
       // Non-fatal - sync will work, just not optimally
@@ -1164,15 +1187,29 @@ class SetupAutoHandler extends BaseCommand {
     const cwd = process.cwd();
     const results: AutoSetupResult[] = [];
 
+    // Ensure docs directories exist
+    await mkdir(join(cwd, TBD_SHORTCUTS_SYSTEM), { recursive: true });
+    await mkdir(join(cwd, TBD_SHORTCUTS_STANDARD), { recursive: true });
+    await mkdir(join(cwd, TBD_GUIDELINES_DIR), { recursive: true });
+    await mkdir(join(cwd, TBD_TEMPLATES_DIR), { recursive: true });
+    console.log(colors.dim(`Created ${TBD_DOCS_DIR}/ directories`));
+
+    // Copy built-in docs from the bundled package to the user's project
+    const { copied, errors } = await copyBuiltinDocs(cwd);
+    if (copied > 0) {
+      console.log(colors.dim(`Copied ${copied} built-in doc(s) to ${TBD_DOCS_DIR}/`));
+    }
+    if (errors.length > 0) {
+      for (const err of errors) {
+        console.log(colors.warn(`Warning: ${err}`));
+      }
+    }
+
     // Detect and set up Claude Code
     const claudeResult = await this.setupClaudeIfDetected(cwd);
     results.push(claudeResult);
 
-    // Detect and set up Cursor
-    const cursorResult = await this.setupCursorIfDetected(cwd);
-    results.push(cursorResult);
-
-    // Detect and set up Codex
+    // Detect and set up Codex/AGENTS.md (also used by Cursor since v1.6)
     const codexResult = await this.setupCodexIfDetected(cwd);
     results.push(codexResult);
 
@@ -1205,10 +1242,10 @@ class SetupAutoHandler extends BaseCommand {
     if (installed.length === 0 && alreadyInstalled.length === 0) {
       console.log(colors.dim('No coding agents detected.'));
       console.log('');
-      console.log('To manually configure:');
-      console.log('  tbd setup claude   # Claude Code hooks');
-      console.log('  tbd setup cursor   # Cursor IDE rules');
-      console.log('  tbd setup codex    # AGENTS.md for Codex');
+      console.log(
+        'Install a coding agent (Claude Code, Codex, or any AGENTS.md-compatible tool) and re-run:',
+      );
+      console.log('  tbd setup --auto');
     }
   }
 
@@ -1248,49 +1285,15 @@ class SetupAutoHandler extends BaseCommand {
           );
           if (hasTbdHook && (await pathExists(skillPath))) {
             result.alreadyInstalled = true;
-            result.installed = true;
-            return result;
+            // Note: We still run the handler to update the skill file content
+            // even if hooks are already installed. This ensures users get the
+            // latest skill file when running `tbd setup --auto`.
           }
         }
       }
 
-      // Install Claude Code setup
+      // Install/update Claude Code setup (always runs to update skill file)
       const handler = new SetupClaudeHandler(this.cmd);
-      await handler.run({});
-      result.installed = true;
-    } catch (error) {
-      result.error = (error as Error).message;
-    }
-
-    return result;
-  }
-
-  private async setupCursorIfDetected(cwd: string): Promise<AutoSetupResult> {
-    const result: AutoSetupResult = {
-      name: 'Cursor IDE',
-      detected: false,
-      installed: false,
-      alreadyInstalled: false,
-    };
-
-    // Detect Cursor: check for .cursor/ directory
-    const cursorDir = join(cwd, '.cursor');
-    if (!(await pathExists(cursorDir))) {
-      return result;
-    }
-
-    result.detected = true;
-
-    // Check if already installed
-    const rulesPath = join(cwd, '.cursor', 'rules', 'tbd.mdc');
-    if (await pathExists(rulesPath)) {
-      result.alreadyInstalled = true;
-      result.installed = true;
-      return result;
-    }
-
-    try {
-      const handler = new SetupCursorHandler(this.cmd);
       await handler.run({});
       result.installed = true;
     } catch (error) {
@@ -1324,12 +1327,14 @@ class SetupAutoHandler extends BaseCommand {
       const content = await readFile(agentsPath, 'utf-8');
       if (content.includes('BEGIN TBD INTEGRATION')) {
         result.alreadyInstalled = true;
-        result.installed = true;
-        return result;
+        // Note: We still run the handler to update the AGENTS.md content
+        // even if tbd section exists. This ensures users get the latest
+        // content when running `tbd setup --auto`.
       }
     }
 
     try {
+      // Install/update Codex AGENTS.md (always runs to update content)
       const handler = new SetupCodexHandler(this.cmd);
       await handler.run({});
       result.installed = true;
@@ -1347,10 +1352,7 @@ export const setupCommand = new Command('setup')
   .option('--auto', 'Non-interactive mode with smart defaults (for agents/scripts)')
   .option('--interactive', 'Interactive mode with prompts (for humans)')
   .option('--from-beads', 'Migrate from Beads to tbd')
-  .option('--prefix <name>', 'Override auto-detected project prefix')
-  .addCommand(claudeCommand)
-  .addCommand(cursorCommand)
-  .addCommand(codexCommand)
+  .option('--prefix <name>', 'Project prefix for issue IDs (required for fresh setup)')
   .action(async (options: SetupDefaultOptions, command) => {
     // If --auto or --interactive flag is set, run the default handler
     if (options.auto || options.interactive) {
@@ -1367,32 +1369,24 @@ export const setupCommand = new Command('setup')
     }
 
     // No flags provided - show help
-    console.log('Usage: tbd setup [options] [command]');
+    console.log('Usage: tbd setup [options]');
     console.log('');
-    console.log('Full setup: initialize tbd (if needed) and configure agent integrations.');
+    console.log('Initialize tbd and configure agent integrations.');
     console.log('');
-    console.log('IMPORTANT: You must specify a mode flag OR a subcommand.');
-    console.log('');
-    console.log('Modes:');
+    console.log('Modes (one required):');
     console.log(
       '  --auto              Non-interactive mode with smart defaults (for agents/scripts)',
     );
     console.log('  --interactive       Interactive mode with prompts (for humans)');
+    console.log('  --from-beads        Migrate from Beads to tbd (implies --auto)');
     console.log('');
     console.log('Options:');
-    console.log('  --from-beads        Migrate from Beads to tbd (non-interactive)');
-    console.log('  --prefix <name>     Override auto-detected project prefix');
-    console.log('');
-    console.log('Commands:');
-    console.log('  claude              Configure Claude Code integration only');
-    console.log('  cursor              Configure Cursor IDE integration only');
-    console.log('  codex               Configure AGENTS.md only');
+    console.log('  --prefix <name>     Project prefix for issue IDs (e.g., "tbd", "myapp")');
     console.log('');
     console.log('Examples:');
-    console.log('  tbd setup --auto              # Recommended: full automatic setup (for agents)');
-    console.log('  tbd setup --interactive       # Interactive setup with prompts (for humans)');
-    console.log('  tbd setup claude              # Add just Claude integration');
-    console.log('  tbd setup --from-beads        # Migrate from Beads');
+    console.log('  tbd setup --auto --prefix=tbd   # Full automatic setup with prefix');
+    console.log('  tbd setup --from-beads          # Migrate from Beads (uses beads prefix)');
+    console.log('  tbd setup --interactive         # Interactive setup with prompts');
     console.log('');
     console.log('For surgical initialization without integrations, see: tbd init --help');
   });
