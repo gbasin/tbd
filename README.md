@@ -119,8 +119,8 @@ for specs, issue tracking, code review, and testing—all from a single CLI.
   - `commit-code` — Run checks and commit
   - `create-or-update-pr-with-validation-plan` — Create PR with test plan
 - **Guidelines:** [Over 15 docs (~30 pages)](packages/tbd/docs/guidelines/) of coding
-  rules and best practices for TypeScript, Python, testing, TDD, backward compatibility,
-  and more.
+  rules and best practices for TypeScript, Python, Convex, testing, TDD, backward
+  compatibility, and more.
 - **Templates:** Document templates for planning specs, research briefs, architecture
   docs.
 
