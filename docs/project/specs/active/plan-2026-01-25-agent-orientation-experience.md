@@ -952,33 +952,25 @@ This is the most important phase - making `tbd` / `tbd prime` the complete orien
    context?
    - Deferred: This could be a future enhancement
 
-5. **Guidelines gap**: The spec references 11 guidelines but only 5 currently exist in
-   the codebase. Should we:
-   - (a) Create the missing guidelines as part of this work?
-   - (b) Remove references to non-existent guidelines from the spec?
-   - (c) List only existing guidelines and defer creation to future work?
-   - **Missing guidelines**: `typescript-rules`, `typescript-cli-tool-rules`,
-     `typescript-monorepo-patterns`, `python-rules`, `python-cli-patterns`,
-     `general-testing-rules`, `general-coding-rules`, `general-comment-rules`,
-     `backward-compatibility-rules`
-   - **Existing guidelines**: `general-tdd-guidelines`, `golden-testing-guidelines`,
-     `typescript-testing-guidelines`, `typescript-dependency-injection-guidelines`,
-     `release-notes-guidelines`
+5. **Guidelines gap**: ~~RESOLVED~~ - All guidelines exist in bundled docs and are
+   installed via `tbd setup --auto`. The 15 available guidelines include all those
+   referenced in the spec plus additional ones (convex-rules,
+   general-eng-assistant-rules, general-style-rules, etc.).
 
-6. **Shortcut naming inconsistencies**: Some shortcut names in the spec don’t match
-   actual names:
-   - Spec: `create-or-update-pr-simple` → Actual: `create-pr-simple`
-   - Spec: `new-research-doc` → Actual: `new-research-brief`
-   - Spec lists 12 shortcuts but there are actually 25 in the codebase
-   - **Decision needed**: Update spec to reflect actual names, or rename shortcuts?
+6. **Shortcut naming inconsistencies**: ~~RESOLVED~~ - Renamed shortcuts to match spec:
+   - `create-pr-simple` → `create-or-update-pr-simple`
+   - `new-research-brief` → `new-research-doc`
+   - There are 25 shortcuts in the codebase (spec showed subset of key shortcuts).
 
-7. **Template naming**: Actual templates have `template-` prefix (e.g.,
-   `template-plan-spec`) but spec refers to them without prefix (e.g., `plan-spec`). The
-   `tbd template` command may handle this, but worth verifying consistency.
+7. **Template naming**: ~~RESOLVED~~ - The `tbd template` command correctly maps
+   user-facing names (`plan-spec`, `architecture`, `research-brief`) to underlying files
+   (`template-plan-spec.md`, etc.). The spec uses the correct user-facing names.
 
-8. **Prefix requirement in setup**: Spec says `--prefix` is required for fresh projects,
-   but current `tbd setup --auto` docs don’t mention this as prominently.
-   Verify current behavior matches spec expectations.
+8. **Prefix requirement in setup**: ~~RESOLVED~~ - Updated SKILL.md files to clearly
+   emphasize that `--prefix` is REQUIRED for fresh projects and agents must ask users
+   for their preferred prefix.
+   Added clear instructions for the three scenarios: fresh projects, existing tbd
+   projects, and beads migrations.
 
 ## References
 

@@ -48,7 +48,7 @@ instructions.
 | Committing code | @shortcut-precommit-process.md → @shortcut-commit-code.md |
 | Creating a validation plan | @shortcut-create-or-update-validation-plan.md |
 | Creating a PR with validation | @shortcut-create-or-update-pr-with-validation-plan.md |
-| Creating a PR (simple, no validation plan) | @shortcut-create-pr-simple.md |
+| Creating a PR (simple, no validation plan) | @shortcut-create-or-update-pr-simple.md |
 
 ### Code Review
 
@@ -62,7 +62,7 @@ instructions.
 
 | If user request involves... | Use shortcut |
 | --- | --- |
-| Research or technical investigation | @shortcut-new-research-brief.md |
+| Research or technical investigation | @shortcut-new-research-doc.md |
 | Creating architecture documentation | @shortcut-new-architecture-doc.md |
 | Updating/revising architecture docs | @shortcut-revise-architecture-doc.md |
 

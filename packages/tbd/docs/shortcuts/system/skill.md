@@ -5,18 +5,25 @@ lightweight issues managed from the CLI.
 
 ## Installation
 
-If `tbd` is not installed, install and set up in one command:
+If `tbd` is not installed, install and set up:
 
 ```bash
-npm install -g tbd-git@latest && tbd setup --auto
+npm install -g tbd-git@latest
+tbd setup --auto --prefix=<name>   # Fresh project (--prefix REQUIRED)
+tbd setup --auto                   # Existing tbd project (prefix already set)
 ```
 
-This initializes tbd and configures your coding agent automatically.
+**CRITICAL: Prefix Requirement**
+- **Fresh projects**: `--prefix` is REQUIRED. Ask the user what prefix they want.
+- **Existing tbd projects** (`.tbd/` exists): No `--prefix` needed, just run
+  `tbd setup --auto`.
+- **Beads migration** (`.beads/` exists): Use `tbd setup --from-beads` (uses beads
+  prefix).
 
-**IMPORTANT FOR AGENTS:** Agents should ALWAYS run `tbd setup --auto` since it is
-non-interactive. Use `--interactive` for humans.
-If the user wishes to migrate from `bd`, the original beads implementation, you can use
-`tbd setup --from-beads`.
+**IMPORTANT FOR AGENTS:** NEVER guess or invent a prefix.
+Always ask the user first.
+The prefix appears in every issue ID (e.g., `myapp-a1b2`) and is a matter of user
+preference.
 
 > **Context Recovery**: Run `tbd prime` after compaction, clear, or new session.
 > Hooks auto-call this in Claude Code when .tbd/ detected.
