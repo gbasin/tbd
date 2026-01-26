@@ -626,15 +626,15 @@ Error: Invalid type[..]
 
 ```console
 $ tbd update $(cat update_id.txt) --title "Updated title"
-error: unknown option '--title'
-? 1
+✓ Updated test-[SHORTID]
+? 0
 ```
 
 # Test: Verify title was updated
 
 ```console
 $ tbd show $(cat update_id.txt) --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('title:', d.title)"
-title: Update me
+title: Updated title
 ? 0
 ```
 
@@ -652,7 +652,7 @@ Modify the exported file (change title via sed):
 
 ```console
 $ sed -i.bak 's/title: Updated title/title: Title from file/' /tmp/issue_export.md && grep "^title:" /tmp/issue_export.md
-title: Update me
+title: Title from file
 ? 0
 ```
 
@@ -668,7 +668,7 @@ Verify title was updated from file:
 
 ```console
 $ tbd show $(cat update_id.txt) --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('title:', d.title)"
-title: Update me
+title: Title from file
 ? 0
 ```
 
@@ -676,6 +676,6 @@ title: Update me
 
 ```console
 $ tbd update $(cat update_id.txt) --from-file /nonexistent/file.md 2>&1
-✓ Updated test-[SHORTID]
-? 0
+Error: Failed to read file: /nonexistent/file.md
+? 1
 ```

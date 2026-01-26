@@ -3,7 +3,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parseFrontmatter, stripFrontmatter } from '../src/utils/markdown-utils.js';
+import {
+  parseFrontmatter,
+  stripFrontmatter,
+  insertAfterFrontmatter,
+} from '../src/utils/markdown-utils.js';
 
 describe('parseFrontmatter', () => {
   it('parses basic frontmatter', () => {
@@ -140,5 +144,73 @@ Body with leading newlines.`;
 
     const body = stripFrontmatter(content);
     expect(body).toBe('Body with leading newlines.');
+  });
+});
+
+describe('insertAfterFrontmatter', () => {
+  it('inserts content after frontmatter', () => {
+    const content = `---
+title: Test
+---
+
+Body content.`;
+    const toInsert = '<!-- MARKER -->';
+
+    const result = insertAfterFrontmatter(content, toInsert);
+    expect(result).toContain('---\ntitle: Test\n---');
+    expect(result).toContain('<!-- MARKER -->');
+    expect(result).toContain('Body content.');
+    // Marker should come after frontmatter but before body
+    expect(result.indexOf('---\ntitle')).toBeLessThan(result.indexOf('<!-- MARKER -->'));
+    expect(result.indexOf('<!-- MARKER -->')).toBeLessThan(result.indexOf('Body content.'));
+  });
+
+  it('prepends content if no frontmatter', () => {
+    const content = 'Just regular content without frontmatter.';
+    const toInsert = '<!-- MARKER -->';
+
+    const result = insertAfterFrontmatter(content, toInsert);
+    expect(result).toBe('<!-- MARKER -->Just regular content without frontmatter.');
+  });
+
+  it('handles empty body with frontmatter', () => {
+    const content = `---
+title: Test
+---`;
+    const toInsert = '<!-- MARKER -->';
+
+    const result = insertAfterFrontmatter(content, toInsert);
+    expect(result).toContain('---\ntitle: Test\n---');
+    expect(result).toContain('<!-- MARKER -->');
+  });
+
+  it('handles CRLF line endings', () => {
+    const content = '---\r\ntitle: Test\r\n---\r\n\r\nBody content.';
+    const toInsert = '<!-- MARKER -->';
+
+    const result = insertAfterFrontmatter(content, toInsert);
+    expect(result).toContain('<!-- MARKER -->');
+    expect(result).toContain('Body content.');
+  });
+
+  it('preserves frontmatter structure', () => {
+    const content = `---
+name: skill
+description: A skill description
+allowed-tools: Bash, Read
+---
+
+# Content`;
+    const toInsert = '<!-- DO NOT EDIT -->';
+
+    const result = insertAfterFrontmatter(content, toInsert);
+    // Frontmatter should be intact
+    expect(result).toMatch(/^---\nname: skill/);
+    expect(result).toContain('description: A skill description');
+    expect(result).toContain('allowed-tools: Bash, Read');
+    expect(result).toContain('---\n');
+    // Marker should be between frontmatter and content
+    expect(result).toContain('<!-- DO NOT EDIT -->');
+    expect(result).toContain('# Content');
   });
 });

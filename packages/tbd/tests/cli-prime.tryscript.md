@@ -10,6 +10,7 @@ patterns:
   ULID: '[0-9a-z]{26}'
   SHORTID: '[0-9a-z]{4,5}'
   TIMESTAMP: "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z"
+  VERSION: 'v.+'
 ---
 # tbd CLI: Prime Command
 
@@ -31,7 +32,7 @@ Initialized empty Git repository in [..]
 
 ```console
 $ tbd prime
-tbd v0.1.5-dev.112.a298e5f-dirty
+tbd [VERSION]
 
 === NOT INITIALIZED ===
 ✗ tbd not initialized in this repository

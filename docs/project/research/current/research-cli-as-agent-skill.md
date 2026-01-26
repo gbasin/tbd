@@ -1015,36 +1015,51 @@ More levels create decision paralysis.
    constrained contexts
 5. **Separate skill from dashboard**: Different verbosity levels for different needs
 6. **Include context recovery instructions**: Agents need to know how to restore context
+7. **Two-level orientation only**: Full (default) and brief—avoid more granularity
 
 ### Self-Documentation
 
-7. **Provide documentation commands**: `readme`, `docs`, `design` as built-in commands
-8. **Include Getting Started in help epilog**: One-liner must be easily accessible
-9. **Use Markdown with terminal rendering**: Same content works in CLI and GitHub
+8. **Provide documentation commands**: `readme`, `docs`, `design` as built-in commands
+9. **Include Getting Started in help epilog**: One-liner must be easily accessible
+10. **Use Markdown with terminal rendering**: Same content works in CLI and GitHub
 
 ### Setup Flows
 
-10. **Two-tier command structure**: High-level (`setup`) and surgical (`init`)
-11. **Require explicit mode flags**: `--auto` for agents, `--interactive` for humans
-12. **Auto-detect when possible**: Prefix from git remote, agents from environment
+11. **Two-tier command structure**: High-level (`setup`) and surgical (`init`)
+12. **Require explicit mode flags**: `--auto` for agents, `--interactive` for humans
+13. **Never guess user preferences**: For taste-based config (prefixes), always ask
+14. **Support multi-contributor onboarding**: Detect already-initialized projects
 
 ### Agent Integration
 
-13. **Install hooks programmatically**: SessionStart, PreCompact, PostToolUse
-14. **Use skill directories**: `.claude/skills/`, `.cursor/rules/`
-15. **Support multiple agents**: Single CLI, multiple integration points
+15. **Install hooks programmatically**: SessionStart, PreCompact, PostToolUse
+16. **Use skill directories**: `.claude/skills/`, `.cursor/rules/`
+17. **Support multiple agents**: Single CLI, multiple integration points
 
 ### Output
 
-16. **Implement `--json` for all commands**: Machine-readable output is essential
-17. **Use `output.data()` pattern**: Single code path for JSON and human output
-18. **Provide `--quiet` mode**: For scripted usage without noise
+18. **Implement `--json` for all commands**: Machine-readable output is essential
+19. **Use `output.data()` pattern**: Single code path for JSON and human output
+20. **Provide `--quiet` mode**: For scripted usage without noise
 
 ### Error Handling
 
-19. **Include next steps in errors**: Actionable guidance, not just error messages
-20. **Graceful deprecation**: Keep old commands working with migration guidance
-21. **Explicit completion protocols**: Checklists prevent premature completion
+21. **Include next steps in errors**: Actionable guidance, not just error messages
+22. **Graceful deprecation**: Keep old commands working with migration guidance
+23. **Explicit completion protocols**: Checklists prevent premature completion
+
+### Agent Mental Model
+
+24. **Design for agent-as-partner**: Help agents serve users, not relay commands
+25. **Lead with value proposition**: Explain *why* before *how*
+26. **Distinguish action from informational commands**: Some commands teach, not do
+
+### Resource Libraries
+
+27. **Bundle guidelines, shortcuts, templates**: Ship curated knowledge with CLI
+28. **Show full commands in directories**: `cli shortcut X`, not just `X`
+29. **Organize resources by purpose**: Categories by workflow phase or domain
+30. **Enable on-demand knowledge queries**: Agents pull in relevant resources JIT
 
 * * *
 
@@ -1058,6 +1073,16 @@ More levels create decision paralysis.
 
 3. **Hook composition**: How should multiple CLIs with hooks interact?
 
+4. **Resource library curation**: What’s the right balance between comprehensive
+   resources and overwhelming agents with options?
+   How should resources be versioned and updated?
+
+5. **Proactive resource suggestion**: Should CLIs suggest relevant resources based on
+   context (e.g., "you’re writing TypeScript, consider `guidelines typescript-rules`")?
+
+6. **Cross-CLI resource sharing**: Could multiple CLIs share a common resource library
+   format, enabling ecosystem-wide best practices?
+
 * * *
 
 ## Recommendations
@@ -1067,16 +1092,25 @@ More levels create decision paralysis.
 Build CLIs as self-contained skill modules that can be installed via npm and
 automatically integrate with multiple AI coding agents.
 The key patterns are: bundled documentation, prime-first context management, two-tier
-setup flows, and multi-agent integration files.
+setup flows, multi-agent integration files, and resource libraries (guidelines,
+shortcuts, templates).
+
+The critical mental model shift: design CLIs to help agents serve users better, not just
+to relay commands. This means leading with value proposition, bundling reusable
+knowledge, and distinguishing action commands from informational commands.
 
 ### Recommended Approach
 
-1. **Start with SKILL.md**: Define the agent-facing documentation first
+1. **Start with SKILL.md**: Define the agent-facing documentation first, leading with
+   value proposition
 2. **Implement `prime` and `skill` commands**: Context management is foundational
 3. **Build two-tier setup**: `setup --auto` for agents, surgical `init` for advanced
    users
 4. **Add hooks installation**: Automatic context injection via SessionStart/PreCompact
-5. **Support JSON output**: Every command should have `--json` mode
+5. **Bundle resource libraries**: Guidelines, shortcuts, and templates as informational
+   commands
+6. **Organize resources by purpose**: Categories help agents find relevant knowledge
+7. **Support JSON output**: Every command should have `--json` mode
 
 ### Alternative Approaches
 
@@ -1110,7 +1144,10 @@ packages/tbd/
 │   │   │   ├── init.ts       # Surgical init
 │   │   │   ├── docs.ts       # Documentation
 │   │   │   ├── readme.ts     # README display
-│   │   │   └── closing.ts    # Session protocol
+│   │   │   ├── closing.ts    # Session protocol
+│   │   │   ├── shortcut.ts   # Workflow shortcuts (informational)
+│   │   │   ├── guidelines.ts # Coding guidelines (informational)
+│   │   │   └── template.ts   # Document templates (informational)
 │   │   ├── lib/
 │   │   │   ├── output.ts     # Output modes, colors, help epilog
 │   │   │   └── base-command.ts
@@ -1119,31 +1156,65 @@ packages/tbd/
 │       ├── SKILL.md          # Claude Code skill
 │       ├── CURSOR.mdc        # Cursor IDE rules
 │       ├── tbd-docs.md       # CLI reference
-│       └── tbd-closing.md    # Session protocol
+│       ├── tbd-closing.md    # Session protocol
+│       ├── shortcuts/        # Workflow instruction files
+│       │   ├── commit-code.md
+│       │   ├── new-plan-spec.md
+│       │   └── ...
+│       ├── guidelines/       # Coding best practice files
+│       │   ├── typescript-rules.md
+│       │   ├── general-tdd-guidelines.md
+│       │   └── ...
+│       └── templates/        # Document template files
+│           ├── template-plan-spec.md
+│           └── ...
 ├── dist/
 │   ├── bin.mjs               # Bundled CLI
 │   └── docs/                 # Bundled documentation
 │       ├── SKILL.md
 │       ├── CURSOR.mdc
 │       ├── README.md
+│       ├── shortcuts/
+│       ├── guidelines/
+│       ├── templates/
 │       └── ...
 └── package.json
 ```
 
 ### Appendix B: Integration Checklist for New CLIs
 
+**Agent Integration Files**
 - [ ] SKILL.md with YAML frontmatter (name, description, allowed-tools)
 - [ ] CURSOR.mdc with MDC frontmatter (description, alwaysApply)
 - [ ] AGENTS.md section with HTML markers
-- [ ] `prime` command with dashboard and brief modes
+
+**Context Management**
+- [ ] `prime` command with dashboard and brief modes (two levels only)
 - [ ] `skill` command for full documentation output
+- [ ] Value-first orientation in skill file (why before how)
+- [ ] Context recovery instructions in all docs
+- [ ] Session closing protocol checklist
+
+**Setup Flow**
 - [ ] `setup --auto` for agent-friendly installation
 - [ ] `init --prefix` for surgical initialization
+- [ ] Multi-contributor detection (skip init if already configured)
+- [ ] Never auto-detect user preferences (ask for prefix, etc.)
+
+**Hooks**
 - [ ] SessionStart hook to call `prime`
 - [ ] PreCompact hook to call `prime`
 - [ ] PostToolUse hook for session completion reminders
-- [ ] `--json` flag on all commands
+
+**Self-Documentation**
 - [ ] Help epilog with one-liner installation command
 - [ ] Documentation commands (`readme`, `docs`)
-- [ ] Context recovery instructions in all docs
-- [ ] Session closing protocol checklist
+- [ ] `--json` flag on all commands
+
+**Resource Libraries (Informational Commands)**
+- [ ] `shortcut` command with `--list` and category filtering
+- [ ] `guidelines` command with `--list` and category filtering
+- [ ] `template` command with `--list`
+- [ ] Resources organized by purpose/workflow phase
+- [ ] Resource directories in skill file showing full commands
+- [ ] Resources bundled with CLI distribution
