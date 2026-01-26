@@ -148,7 +148,7 @@ repetitive workflows.
 
 | Category | Shortcuts | Purpose |
 | --- | --- | --- |
-| **Planning** | `new-plan-spec`, `new-research-doc`, `new-architecture-doc` | Structure thinking before coding |
+| **Planning** | `new-plan-spec`, `new-research-brief`, `new-architecture-doc` | Structure thinking before coding |
 | **Issue Creation** | `new-implementation-beads-from-spec` | Break plans into trackable work |
 | **Implementation** | `implement-beads` | Execute planned work with TDD |
 | **Validation** | `new-validation-plan`, `precommit-process` | Ensure quality before shipping |
@@ -520,7 +520,7 @@ These are **informational commands** - they display guidance the agent should fo
 | `tbd shortcut create-or-update-pr-with-validation-plan` | Create PR with Tests | How to create PR with detailed validation plan |
 | `tbd shortcut implement-beads` | Implement Issues | How to implement issues from a spec with TDD |
 | `tbd shortcut new-plan-spec` | Plan Feature | How to create a feature planning specification |
-| `tbd shortcut new-research-doc` | Research Topic | How to create a research document |
+| `tbd shortcut new-research-brief` | Research Topic | How to create a research document |
 | `tbd shortcut new-architecture-doc` | Design Architecture | How to create an architecture document |
 | `tbd shortcut new-implementation-beads-from-spec` | Create Issues | How to break a spec into implementation issues |
 | `tbd shortcut new-validation-plan` | Validation Plan | How to create a test/validation plan |
@@ -575,7 +575,7 @@ CLI REFERENCE
 DEVELOPMENT WORKFLOWS (Shortcuts)
   Planning:
     new-plan-spec          Create feature planning document
-    new-research-doc       Research a topic or technology
+    new-research-brief       Research a topic or technology
     new-architecture-doc   Design system architecture
 
   Implementation:
@@ -951,6 +951,26 @@ This is the most important phase - making `tbd` / `tbd prime` the complete orien
 4. **Shortcut auto-suggestions**: Should tbd suggest relevant shortcuts based on
    context?
    - Deferred: This could be a future enhancement
+
+5. **Guidelines gap**: ~~RESOLVED~~ - All guidelines exist in bundled docs and are
+   installed via `tbd setup --auto`. The 15 available guidelines include all those
+   referenced in the spec plus additional ones (convex-rules,
+   general-eng-assistant-rules, general-style-rules, etc.).
+
+6. **Shortcut naming inconsistencies**: ~~RESOLVED~~ - Renamed shortcuts to match spec:
+   - `create-pr-simple` → `create-or-update-pr-simple`
+   - `new-research-brief` → `new-research-brief`
+   - There are 25 shortcuts in the codebase (spec showed subset of key shortcuts).
+
+7. **Template naming**: ~~RESOLVED~~ - The `tbd template` command correctly maps
+   user-facing names (`plan-spec`, `architecture`, `research-brief`) to underlying files
+   (`template-plan-spec.md`, etc.). The spec uses the correct user-facing names.
+
+8. **Prefix requirement in setup**: ~~RESOLVED~~ - Updated SKILL.md files to clearly
+   emphasize that `--prefix` is REQUIRED for fresh projects and agents must ask users
+   for their preferred prefix.
+   Added clear instructions for the three scenarios: fresh projects, existing tbd
+   projects, and beads migrations.
 
 ## References
 

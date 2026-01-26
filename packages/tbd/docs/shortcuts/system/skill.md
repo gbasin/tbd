@@ -5,21 +5,74 @@ lightweight issues managed from the CLI.
 
 ## Installation
 
-If `tbd` is not installed, install and set up in one command:
+If `tbd` is not installed, install and set up:
 
 ```bash
-npm install -g tbd-git@latest && tbd setup --auto
+npm install -g tbd-git@latest
+tbd setup --auto --prefix=<name>   # Fresh project (--prefix REQUIRED)
+tbd setup --auto                   # Existing tbd project (prefix already set)
 ```
 
-This initializes tbd and configures your coding agent automatically.
+**CRITICAL: Prefix Requirement**
+- **Fresh projects**: `--prefix` is REQUIRED. Ask the user what prefix they want.
+- **Existing tbd projects** (`.tbd/` exists): No `--prefix` needed, just run
+  `tbd setup --auto`.
+- **Beads migration** (`.beads/` exists): Use `tbd setup --from-beads` (uses beads
+  prefix).
+- **Refresh configs**: Run `tbd setup --auto` anytime to update skill files, hooks, and
+  get the latest shortcuts/guidelines/templates.
 
-**IMPORTANT FOR AGENTS:** Agents should ALWAYS run `tbd setup --auto` since it is
-non-interactive. Use `--interactive` for humans.
-If the user wishes to migrate from `bd`, the original beads implementation, you can use
-`tbd setup --from-beads`.
+**IMPORTANT FOR AGENTS:** NEVER guess or invent a prefix.
+Always ask the user first.
+The prefix appears in every issue ID (e.g., `myapp-a1b2`) and is a matter of user
+preference.
 
 > **Context Recovery**: Run `tbd prime` after compaction, clear, or new session.
 > Hooks auto-call this in Claude Code when .tbd/ detected.
+
+## Agent Orientation
+
+tbd provides four core capabilities to help users:
+
+1. **Issue Tracking**: Track tasks, bugs, and features as lightweight “beads” stored in
+   git. Never lose discovered work; maintain continuity across sessions.
+
+2. **Coding Guidelines**: A library of best practices for TypeScript, Python, testing,
+   and more. Pull them in when relevant to apply consistent quality.
+
+3. **Spec-Driven Workflows**: Write planning specs for features, then break them into
+   trackable issues and implement systematically.
+   This is the recommended way to handle non-trivial features.
+
+4. **Convenience Shortcuts**: Pre-built processes for common tasks like committing code,
+   creating PRs, and reviewing code.
+   Use them to work consistently.
+
+### How to Use tbd to Help Users
+
+**Don’t just tell users about commands.** Use tbd proactively:
+
+- User describes a bug → `tbd create "Bug: ..." --type=bug`
+- User wants a feature → Create a plan spec, then break into issues
+- Starting a session → Check `tbd ready` for available work
+- Completing work → `tbd close <id>` with clear reason
+- User asks what tbd does → Explain the four capabilities above
+
+### Quick Reference Table
+
+| User Need | Command | Notes |
+| --- | --- | --- |
+| "I found a bug" | `tbd create "..." --type=bug` | Creates issue |
+| "Let's plan this feature" | `tbd shortcut new-plan-spec` | Outputs instructions |
+| "What should I work on?" | `tbd ready` | Lists ready issues |
+| "Build a TypeScript CLI" | `tbd guidelines typescript-cli-tool-rules` | Outputs guidelines |
+| "Set up a monorepo" | `tbd guidelines typescript-monorepo-patterns` | Outputs guidelines |
+| "Add golden/snapshot tests" | `tbd guidelines golden-testing-guidelines` | Outputs guidelines |
+| "Review the TypeScript code" | `tbd guidelines typescript-rules` | Outputs guidelines |
+| "Ready to commit" | `tbd shortcut commit-code` | Outputs instructions |
+
+*“Outputs instructions/guidelines” = Read and follow the guidance.
+It tells you HOW to do something well.*
 
 # SESSION CLOSING PROTOCOL
 
@@ -155,6 +208,10 @@ Example: `tbd template plan-spec > docs/project/specs/active/plan-YYYY-MM-DD-fea
 - `tbd setup --auto` - Non-interactive setup with smart defaults (for agents/scripts)
 - `tbd setup --interactive` - Interactive setup with prompts (for humans)
 - `tbd setup --from-beads` - Migrate from Beads to tbd
+
+> **Refresh anytime:** Run `tbd setup --auto` to update skill files, hooks, and configs
+> with the latest shortcuts/guidelines/templates.
+> Safe to run repeatedly.
 
 ## Quick Reference
 

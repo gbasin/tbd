@@ -24,7 +24,6 @@ import { DocCache, generateShortcutDirectory } from '../../file/doc-cache.js';
 interface PrimeOptions {
   export?: boolean;
   brief?: boolean;
-  full?: boolean;
 }
 
 /**
@@ -43,31 +42,28 @@ function getSkillPath(): string {
  * This is exported for use by setup.ts for skill installation.
  */
 export async function loadSkillContent(): Promise<string> {
-  // Try bundled location first
+  // Try bundled location first (dist/docs/SKILL.md)
   try {
     return await readFile(getSkillPath(), 'utf-8');
   } catch {
-    // Fallback: try to read from source location during development
+    // Fallback: compose from source files during development
   }
 
-  // Fallback for development without bundle
+  // Dev fallback: compose SKILL.md from source files on-the-fly
+  // This mirrors what copy-docs.mjs does at build time
   try {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    const devPath = join(__dirname, '..', '..', 'docs', 'SKILL.md');
-    return await readFile(devPath, 'utf-8');
-  } catch {
-    // Fallback: try repo-level docs
-  }
+    // From packages/tbd/src/cli/commands/ go to packages/tbd/docs/
+    const docsDir = join(__dirname, '..', '..', '..', 'docs');
+    const headerPath = join(docsDir, 'install', 'claude-header.md');
+    const skillPath = join(docsDir, 'shortcuts', 'system', 'skill.md');
 
-  // Last fallback: repo-level docs
-  try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const repoPath = join(__dirname, '..', '..', '..', '..', '..', 'docs', 'SKILL.md');
-    return await readFile(repoPath, 'utf-8');
+    const header = await readFile(headerPath, 'utf-8');
+    const skill = await readFile(skillPath, 'utf-8');
+    return header + skill;
   } catch {
-    // If all else fails, throw an error
+    // If source files not found, throw error
     throw new Error('SKILL.md content file not found. Please rebuild the CLI.');
   }
 }
@@ -85,30 +81,55 @@ export async function loadPrimeContent(): Promise<string> {
 }
 
 /**
- * Brief prime content for minimal context (~200 tokens).
- * Useful for constrained context windows.
+ * Brief prime content for constrained context windows (~35 lines).
+ * Includes core workflow, session protocol, and key commands.
  */
-const BRIEF_PRIME_CONTENT = `# tbd Quick Reference
+const BRIEF_SKILL_CONTENT = `## Core Workflow
 
-\`tbd\` = git-native issue tracking. Use tbd commands, NOT bd commands.
+- Track all task work as issues using tbd
+- Check \`tbd ready\` for available work
+- Run \`tbd sync\` at session end
 
-## Session Closing Checklist (REQUIRED)
+## SESSION CLOSING (REQUIRED)
 
 1. git add + git commit
 2. git push
 3. gh pr checks <PR> --watch  # WAIT for completion
-4. tbd close/update <id>     # for issues worked on
+4. tbd close/update <id>
 5. tbd sync
 
-## Key Commands
+## Quick Reference
 
-- \`tbd list --pretty\` - view open issues
-- \`tbd show <id>\` - issue details
-- \`tbd update <id> --status in_progress\` - claim issue
-- \`tbd close <id>\` - complete issue
-- \`tbd sync\` - sync with remote
+tbd ready              Show issues ready to work
+tbd show <id>          View issue details
+tbd create "title"     Create new issue
+tbd close <id>         Mark issue complete
+tbd sync               Sync with remote
 
-Run \`tbd prime\` for full context.`;
+For full orientation: tbd prime
+For CLI reference: tbd --help`;
+
+/**
+ * Value proposition content for not-initialized state.
+ */
+const VALUE_PROPOSITION = `## WHAT tbd IS
+
+tbd is an AI-agent-optimized issue tracker and workflow assistant providing:
+1. Issue Tracking - Track tasks, bugs, features as git-native "beads"
+2. Coding Guidelines - Best practices for TypeScript, Python, testing
+3. Spec-Driven Workflows - Write specs, then implement using issues to track each part
+4. Convenience Shortcuts - Pre-built processes for common tasks (commit, PR, review)
+
+## SETUP
+
+To set up tbd in this project:
+
+  tbd setup --auto --prefix=<name>   # For agents (REQUIRES prefix for new projects)
+  tbd setup --interactive            # For humans (prompts for prefix)
+
+CRITICAL: Never guess a prefix. Always ask the user what prefix they want.
+
+After setup, run 'tbd' again to see project status and workflow guidance.`;
 
 class PrimeHandler extends BaseCommand {
   async run(options: PrimeOptions): Promise<void> {
@@ -117,9 +138,9 @@ class PrimeHandler extends BaseCommand {
     // Find tbd root (supports running from subdirectories)
     const tbdRoot = await findTbdRoot(cwd);
 
-    // Not initialized - show setup instructions
+    // Not initialized - show setup instructions with value proposition
     if (!tbdRoot) {
-      this.renderNotInitialized();
+      await this.renderNotInitialized();
       return;
     }
 
@@ -130,21 +151,9 @@ class PrimeHandler extends BaseCommand {
       console.log('');
     }
 
-    // --full: output full SKILL.md content (legacy behavior)
-    if (options.full) {
-      const primeContent = await loadPrimeContent();
-      const shortcutDir = await this.getShortcutDirectory(tbdRoot);
-      if (shortcutDir) {
-        console.log(primeContent.trimEnd() + '\n\n' + shortcutDir);
-      } else {
-        console.log(primeContent);
-      }
-      return;
-    }
-
-    // Brief mode: output minimal context (~200 tokens)
+    // Brief mode: dynamic status + abbreviated skill content
     if (options.brief) {
-      console.log(BRIEF_PRIME_CONTENT);
+      await this.renderBriefOrientation(tbdRoot);
       return;
     }
 
@@ -159,25 +168,25 @@ class PrimeHandler extends BaseCommand {
         console.log(customContent);
         return;
       } catch {
-        // No custom file, use default dashboard
+        // No custom file, use default full orientation
       }
     }
 
-    // Default: output dashboard format
-    await this.renderDashboard(tbdRoot);
+    // Default: full orientation (dynamic status + full skill content)
+    await this.renderFullOrientation(tbdRoot);
   }
 
   /**
-   * Render the dashboard for initialized repos.
+   * Render dynamic status section (installation + project status).
    */
-  private async renderDashboard(tbdRoot: string): Promise<void> {
+  private async renderDynamicStatus(tbdRoot: string): Promise<void> {
     const colors = this.output.getColors();
 
     console.log(`${colors.bold('tbd')} v${VERSION}`);
     console.log('');
 
-    // --- INSTALLATION ---
-    console.log(colors.bold('--- INSTALLATION ---'));
+    // === INSTALLATION ===
+    console.log(colors.bold('=== INSTALLATION ==='));
     console.log(`${colors.success('✓')} tbd installed (v${VERSION})`);
     console.log(`${colors.success('✓')} Initialized in this repo`);
 
@@ -190,8 +199,8 @@ class PrimeHandler extends BaseCommand {
     }
     console.log('');
 
-    // --- PROJECT STATUS ---
-    console.log(colors.bold('--- PROJECT STATUS ---'));
+    // === PROJECT STATUS ===
+    console.log(colors.bold('=== PROJECT STATUS ==='));
     try {
       const config = await readConfig(tbdRoot);
       console.log(`Repository: ${config.display.id_prefix || 'unknown'}`);
@@ -209,45 +218,57 @@ class PrimeHandler extends BaseCommand {
       console.log('Issues: (none)');
     }
     console.log('');
-
-    // --- WORKFLOW RULES ---
-    console.log(colors.bold('--- WORKFLOW RULES ---'));
-    console.log('- Track all task work as issues using tbd');
-    console.log('- Check `tbd ready` for available work');
-    console.log('- Run `tbd sync` at session end');
-    console.log('');
-
-    // --- QUICK REFERENCE ---
-    console.log(colors.bold('--- QUICK REFERENCE ---'));
-    console.log('tbd ready              Show issues ready to work');
-    console.log('tbd show <id>          View issue details');
-    console.log('tbd create "title"     Create new issue');
-    console.log('tbd close <id>         Mark issue complete');
-    console.log('tbd sync               Sync with remote');
-    console.log('');
-
-    console.log(`For full documentation: ${colors.bold('tbd skill')}`);
-    console.log(`For CLI reference: ${colors.bold('tbd --help')}`);
   }
 
   /**
-   * Render output for not initialized state.
+   * Render full orientation: dynamic status + full skill content.
    */
-  private renderNotInitialized(): void {
+  private async renderFullOrientation(tbdRoot: string): Promise<void> {
+    // Dynamic status
+    await this.renderDynamicStatus(tbdRoot);
+
+    // Full skill content
+    const primeContent = await loadPrimeContent();
+    console.log(primeContent);
+
+    // Shortcut directory
+    const shortcutDir = await this.getShortcutDirectory(tbdRoot);
+    if (shortcutDir) {
+      console.log('');
+      console.log(shortcutDir);
+    }
+
+    console.log('');
+    console.log(`For CLI reference: ${this.output.getColors().bold('tbd --help')}`);
+  }
+
+  /**
+   * Render brief orientation: dynamic status + abbreviated skill content.
+   */
+  private async renderBriefOrientation(tbdRoot: string): Promise<void> {
+    // Dynamic status
+    await this.renderDynamicStatus(tbdRoot);
+
+    // Abbreviated skill content
+    console.log(BRIEF_SKILL_CONTENT);
+  }
+
+  /**
+   * Render output for not initialized state with value proposition.
+   */
+  private async renderNotInitialized(): Promise<void> {
     const colors = this.output.getColors();
 
     console.log(`${colors.bold('tbd')} v${VERSION}`);
     console.log('');
-    console.log(colors.bold('--- PROJECT NOT INITIALIZED ---'));
-    console.log(`${colors.warn('✗')} Not initialized in this repository`);
+    console.log(colors.bold('=== NOT INITIALIZED ==='));
+    console.log(`${colors.warn('✗')} tbd not initialized in this repository`);
     console.log('');
-    console.log('To set up tbd in this project:');
+
+    // Value proposition
+    console.log(VALUE_PROPOSITION);
     console.log('');
-    console.log('  tbd setup --auto              # Non-interactive (for agents)');
-    console.log('  tbd setup --interactive       # Interactive (for humans)');
-    console.log('');
-    console.log("After setup, run 'tbd' again to see project status.");
-    console.log('');
+
     console.log(`For CLI reference: ${colors.bold('tbd --help')}`);
   }
 
@@ -347,10 +368,9 @@ class PrimeHandler extends BaseCommand {
 }
 
 export const primeCommand = new Command('prime')
-  .description('Show dashboard and workflow context (default when running `tbd`)')
+  .description('Show full orientation with workflow context (default when running `tbd`)')
   .option('--export', 'Output default content (ignores PRIME.md override)')
-  .option('--brief', 'Output minimal context (~200 tokens) for constrained contexts')
-  .option('--full', 'Output full SKILL.md content (for agents needing complete docs)')
+  .option('--brief', 'Output abbreviated orientation (~35 lines) for constrained contexts')
   .action(async (options: PrimeOptions, command) => {
     const handler = new PrimeHandler(command);
     await handler.run(options);

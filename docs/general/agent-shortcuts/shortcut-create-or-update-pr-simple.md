@@ -1,4 +1,6 @@
-Shortcut: New PR (simple process without precommit and validation planning)
+Shortcut: Create or Update PR (Simple)
+
+A simple PR process without full precommit and validation planning.
 
 Instructions:
 

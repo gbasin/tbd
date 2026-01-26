@@ -626,7 +626,7 @@ Error: Invalid type[..]
 
 ```console
 $ tbd update $(cat update_id.txt) --title "Updated title"
-✓ Updated [..]
+✓ Updated test-[SHORTID]
 ? 0
 ```
 

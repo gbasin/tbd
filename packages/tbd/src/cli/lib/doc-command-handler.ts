@@ -9,6 +9,7 @@ import type { Command } from 'commander';
 import pc from 'picocolors';
 
 import { BaseCommand } from './base-command.js';
+import { GUIDELINES_AGENT_HEADER } from './doc-prompts.js';
 import { requireInit } from './errors.js';
 import { DocCache, SCORE_PREFIX_MATCH } from '../../file/doc-cache.js';
 import { truncate } from '../../lib/truncate.js';
@@ -155,6 +156,18 @@ export abstract class DocCommandHandler extends BaseCommand {
   }
 
   /**
+   * Get the agent instruction header for the doc type.
+   * Returns undefined if no header should be shown.
+   */
+  protected getAgentHeader(): string | undefined {
+    if (this.config.typeName === 'guideline') {
+      return GUIDELINES_AGENT_HEADER;
+    }
+    // Templates and other types don't need a header
+    return undefined;
+  }
+
+  /**
    * Handle query: exact match first, then fuzzy.
    */
   protected async handleQuery(query: string): Promise<void> {
@@ -171,6 +184,10 @@ export abstract class DocCommandHandler extends BaseCommand {
           content: exactMatch.doc.content,
         });
       } else {
+        const header = this.getAgentHeader();
+        if (header) {
+          console.log(header + '\n');
+        }
         console.log(exactMatch.doc.content);
       }
       return;
@@ -207,6 +224,10 @@ export abstract class DocCommandHandler extends BaseCommand {
         content: best.doc.content,
       });
     } else {
+      const header = this.getAgentHeader();
+      if (header) {
+        console.log(header + '\n');
+      }
       console.log(best.doc.content);
     }
   }

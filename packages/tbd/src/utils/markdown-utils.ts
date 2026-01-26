@@ -38,6 +38,33 @@ export function parseFrontmatter(content: string): string | null {
 }
 
 /**
+ * Insert content after YAML frontmatter.
+ * If no frontmatter exists, prepends the content.
+ * Handles both LF and CRLF line endings.
+ */
+export function insertAfterFrontmatter(content: string, toInsert: string): string {
+  // Normalize CRLF to LF
+  const normalizedContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  // Match frontmatter: starts with ---, ends with --- on its own line
+  // Capture the full frontmatter block including delimiters
+  const frontmatterRegex = /^(---\n[\s\S]*?\n---)\n*/;
+  const match = frontmatterRegex.exec(normalizedContent);
+
+  if (!match) {
+    // No frontmatter found, just prepend
+    return toInsert + content;
+  }
+
+  // Found frontmatter - insert after it
+  const frontmatterBlock = match[1];
+  const afterFrontmatter = normalizedContent.slice(match[0].length);
+  const body = afterFrontmatter.replace(/^\n+/, ''); // Trim leading newlines from body
+
+  return frontmatterBlock + '\n\n' + toInsert + '\n\n' + body;
+}
+
+/**
  * Strip YAML frontmatter from markdown content.
  * Returns the body content without frontmatter, with leading newlines trimmed.
  * Handles both LF and CRLF line endings.
