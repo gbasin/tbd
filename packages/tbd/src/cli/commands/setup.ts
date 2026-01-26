@@ -103,83 +103,109 @@ interface SetupCodexOptions {
 }
 
 /**
- * Global script to ensure tbd CLI is installed.
- * Installed to ~/.claude/scripts/ensure-tbd-cli.sh
- * Runs on SessionStart before tbd prime to ensure tbd is available.
+ * Global script to ensure tbd CLI is installed and run tbd prime.
+ * Installed to ~/.claude/scripts/tbd-session.sh
+ * Runs on SessionStart and PreCompact to ensure tbd is available and provide orientation.
+ *
+ * Usage:
+ *   tbd-session.sh           # Ensure tbd + run tbd prime
+ *   tbd-session.sh --brief   # Ensure tbd + run tbd prime --brief (for PreCompact)
  */
-const TBD_ENSURE_CLI_SCRIPT = `#!/bin/bash
-# Ensure tbd CLI is installed for Claude Code sessions
+const TBD_SESSION_SCRIPT = `#!/bin/bash
+# Ensure tbd CLI is installed and run tbd prime for Claude Code sessions
 # Installed by: tbd setup --auto
-# This script runs on SessionStart to ensure tbd CLI is available
+# This script runs on SessionStart and PreCompact
 
-set -e
-
-# Add common binary locations to PATH
+# Add common binary locations to PATH (persists for entire script)
 export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
 
-# Check if tbd is already installed
-if command -v tbd &> /dev/null; then
-    echo "[tbd] CLI found at $(which tbd)"
-    exit 0
-fi
+# Function to ensure tbd is available
+ensure_tbd() {
+    # Check if tbd is already installed
+    if command -v tbd &> /dev/null; then
+        return 0
+    fi
 
-echo "[tbd] CLI not found, installing..."
+    echo "[tbd] CLI not found, installing..."
 
-# Try npm first (most common for Node.js tools)
-if command -v npm &> /dev/null; then
-    echo "[tbd] Installing via npm..."
-    npm install -g tbd-git 2>/dev/null || {
-        # If global install fails (permissions), try local install
-        echo "[tbd] Global npm install failed, trying user install..."
-        mkdir -p ~/.local/bin
-        npm install --prefix ~/.local tbd-git
-        # Create symlink if needed
-        if [ -f ~/.local/node_modules/.bin/tbd ]; then
-            ln -sf ~/.local/node_modules/.bin/tbd ~/.local/bin/tbd
-        fi
-    }
-elif command -v pnpm &> /dev/null; then
-    echo "[tbd] Installing via pnpm..."
-    pnpm add -g tbd-git
-elif command -v yarn &> /dev/null; then
-    echo "[tbd] Installing via yarn..."
-    yarn global add tbd-git
-else
-    echo "[tbd] ERROR: No package manager found (npm, pnpm, or yarn required)"
-    echo "[tbd] Please install Node.js and npm, then run: npm install -g tbd-git"
-    exit 1
-fi
+    # Try npm first (most common for Node.js tools)
+    if command -v npm &> /dev/null; then
+        echo "[tbd] Installing via npm..."
+        npm install -g tbd-git 2>/dev/null || {
+            # If global install fails (permissions), try local install
+            echo "[tbd] Global npm install failed, trying user install..."
+            mkdir -p ~/.local/bin
+            npm install --prefix ~/.local tbd-git
+            # Create symlink if needed
+            if [ -f ~/.local/node_modules/.bin/tbd ]; then
+                ln -sf ~/.local/node_modules/.bin/tbd ~/.local/bin/tbd
+            fi
+        }
+    elif command -v pnpm &> /dev/null; then
+        echo "[tbd] Installing via pnpm..."
+        pnpm add -g tbd-git
+    elif command -v yarn &> /dev/null; then
+        echo "[tbd] Installing via yarn..."
+        yarn global add tbd-git
+    else
+        echo "[tbd] ERROR: No package manager found (npm, pnpm, or yarn required)"
+        echo "[tbd] Please install Node.js and npm, then run: npm install -g tbd-git"
+        return 1
+    fi
 
-# Verify installation
-if command -v tbd &> /dev/null; then
-    echo "[tbd] Successfully installed to $(which tbd)"
-else
-    echo "[tbd] WARNING: tbd installed but not found in PATH"
-    echo "[tbd] Add ~/.local/bin to your PATH if not already"
-fi
+    # Verify installation
+    if command -v tbd &> /dev/null; then
+        echo "[tbd] Successfully installed to $(which tbd)"
+        return 0
+    else
+        echo "[tbd] WARNING: tbd installed but not found in PATH"
+        echo "[tbd] Checking common locations..."
+        # Try to find and add to path
+        for dir in ~/.local/bin ~/.local/node_modules/.bin /usr/local/bin; do
+            if [ -x "$dir/tbd" ]; then
+                export PATH="$dir:$PATH"
+                echo "[tbd] Found at $dir/tbd"
+                return 0
+            fi
+        done
+        echo "[tbd] Could not locate tbd after installation"
+        return 1
+    fi
+}
 
-exit 0
+# Main
+ensure_tbd || exit 1
+
+# Run tbd prime with any passed arguments (e.g., --brief for PreCompact)
+tbd prime "$@"
+`;
+
+/**
+ * Legacy script for backwards compatibility.
+ * Redirects to the new tbd-session.sh script.
+ */
+const TBD_ENSURE_CLI_SCRIPT = `#!/bin/bash
+# Legacy ensure-tbd-cli.sh - redirects to tbd-session.sh
+# This file exists for backwards compatibility
+exec "$HOME/.claude/scripts/tbd-session.sh" "$@"
 `;
 
 /**
  * Claude Code global hooks configuration (installed to ~/.claude/settings.json)
- * Runs ensure-tbd-cli.sh first to ensure tbd is available, then tbd prime for orientation.
+ * Uses tbd-session.sh which ensures tbd is installed and runs tbd prime with correct PATH.
  */
 const CLAUDE_GLOBAL_HOOKS = {
   hooks: {
     SessionStart: [
       {
         matcher: '',
-        hooks: [
-          { type: 'command', command: '$HOME/.claude/scripts/ensure-tbd-cli.sh' },
-          { type: 'command', command: 'tbd prime' },
-        ],
+        hooks: [{ type: 'command', command: '$HOME/.claude/scripts/tbd-session.sh' }],
       },
     ],
     PreCompact: [
       {
         matcher: '',
-        hooks: [{ type: 'command', command: 'tbd prime' }],
+        hooks: [{ type: 'command', command: '$HOME/.claude/scripts/tbd-session.sh --brief' }],
       },
     ],
   },
@@ -309,13 +335,20 @@ class SetupClaudeHandler extends BaseCommand {
     let postToolUseHook = false;
     let hookScriptInstalled = false;
 
-    // Check for global ensure-tbd-cli.sh script
-    const globalTbdScript = join(homedir(), '.claude', 'scripts', 'ensure-tbd-cli.sh');
+    // Check for global tbd-session.sh script (or legacy ensure-tbd-cli.sh)
+    const tbdSessionScript = join(homedir(), '.claude', 'scripts', 'tbd-session.sh');
+    const legacyTbdScript = join(homedir(), '.claude', 'scripts', 'ensure-tbd-cli.sh');
     try {
-      await access(globalTbdScript);
+      await access(tbdSessionScript);
       globalScriptInstalled = true;
     } catch {
-      // Script doesn't exist
+      // Try legacy script
+      try {
+        await access(legacyTbdScript);
+        globalScriptInstalled = true;
+      } catch {
+        // Neither script exists
+      }
     }
 
     // Check hooks in global settings
@@ -333,6 +366,7 @@ class SetupClaudeHandler extends BaseCommand {
           h.hooks?.some(
             (hook) =>
               (hook.command?.includes('tbd prime') ?? false) ||
+              (hook.command?.includes('tbd-session.sh') ?? false) ||
               (hook.command?.includes('ensure-tbd-cli.sh') ?? false),
           ),
         );
@@ -502,7 +536,7 @@ class SetupClaudeHandler extends BaseCommand {
         const hooks = settings.hooks as Record<string, unknown>;
 
         // Remove tbd hooks from SessionStart and PreCompact
-        // Matches both old 'tbd prime' only and new 'ensure-tbd-cli.sh' + 'tbd prime'
+        // Matches both old 'tbd prime' only and new 'tbd-session.sh'
         const filterHooks = (arr: { hooks?: { command?: string }[] }[] | undefined) => {
           if (!arr) return undefined;
           return arr.filter(
@@ -510,6 +544,7 @@ class SetupClaudeHandler extends BaseCommand {
               !h.hooks?.some(
                 (hook) =>
                   (hook.command?.includes('tbd prime') ?? false) ||
+                  (hook.command?.includes('tbd-session.sh') ?? false) ||
                   (hook.command?.includes('ensure-tbd-cli.sh') ?? false),
               ),
           );
@@ -585,10 +620,17 @@ class SetupClaudeHandler extends BaseCommand {
       // Hook script doesn't exist
     }
 
-    // Remove global ensure-tbd-cli.sh script
-    const globalTbdScript = join(homedir(), '.claude', 'scripts', 'ensure-tbd-cli.sh');
+    // Remove global tbd scripts (both new and legacy)
+    const tbdSessionScript = join(homedir(), '.claude', 'scripts', 'tbd-session.sh');
+    const legacyTbdScript = join(homedir(), '.claude', 'scripts', 'ensure-tbd-cli.sh');
     try {
-      await rm(globalTbdScript);
+      await rm(tbdSessionScript);
+      removedGlobalScript = true;
+    } catch {
+      // Script doesn't exist
+    }
+    try {
+      await rm(legacyTbdScript);
       removedGlobalScript = true;
     } catch {
       // Script doesn't exist
@@ -661,13 +703,21 @@ class SetupClaudeHandler extends BaseCommand {
       await writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n');
       this.output.success('Installed global hooks for Claude Code');
 
-      // Install global ensure-tbd-cli.sh script to ~/.claude/scripts/
+      // Install global tbd-session.sh script to ~/.claude/scripts/
       const globalScriptsDir = join(homedir(), '.claude', 'scripts');
-      const globalTbdScript = join(globalScriptsDir, 'ensure-tbd-cli.sh');
       await mkdir(globalScriptsDir, { recursive: true });
-      await writeFile(globalTbdScript, TBD_ENSURE_CLI_SCRIPT);
-      await chmod(globalTbdScript, 0o755);
-      this.output.success('Installed global tbd CLI script');
+
+      // Main script: tbd-session.sh (ensures tbd + runs prime)
+      const tbdSessionScript = join(globalScriptsDir, 'tbd-session.sh');
+      await writeFile(tbdSessionScript, TBD_SESSION_SCRIPT);
+      await chmod(tbdSessionScript, 0o755);
+
+      // Legacy redirect: ensure-tbd-cli.sh (for backwards compatibility)
+      const legacyScript = join(globalScriptsDir, 'ensure-tbd-cli.sh');
+      await writeFile(legacyScript, TBD_ENSURE_CLI_SCRIPT);
+      await chmod(legacyScript, 0o755);
+
+      this.output.success('Installed global tbd session script');
 
       // Install project-local hooks in .claude/settings.json
       const hookScriptPath = join(cwd, '.claude', 'hooks', 'tbd-closing-reminder.sh');
