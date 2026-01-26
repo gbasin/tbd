@@ -304,6 +304,23 @@ _Add your project-specific conventions here_
 `;
 }
 
+/**
+ * Legacy script patterns to clean up from .claude/scripts/
+ * These were used in older versions of tbd before hooks moved to `tbd prime`
+ */
+const LEGACY_TBD_SCRIPTS = ['setup-tbd.sh', 'ensure-tbd-cli.sh', 'ensure-tbd.sh', 'tbd-setup.sh'];
+
+/**
+ * Patterns to identify legacy tbd hooks that should be removed.
+ * These patterns match old-style commands that are no longer used.
+ */
+const LEGACY_TBD_HOOK_PATTERNS = [
+  /\.claude\/scripts\/.*tbd/i, // Any tbd-related script in .claude/scripts/
+  /tbd\s+setup\s+claude/i, // Old command: tbd setup claude
+  /setup-tbd\.sh/i, // Old script name
+  /ensure-tbd/i, // Old script names
+];
+
 class SetupClaudeHandler extends BaseCommand {
   async run(options: SetupClaudeOptions): Promise<void> {
     const settingsPath = join(homedir(), '.claude', 'settings.json');
@@ -615,6 +632,151 @@ class SetupClaudeHandler extends BaseCommand {
     }
   }
 
+  /**
+   * Clean up legacy scripts and hook entries from previous tbd versions.
+   * This ensures upgrades don't leave orphaned files or duplicate hooks.
+   */
+  private async cleanupLegacySetup(
+    globalSettingsPath: string,
+    projectSettingsPath: string,
+  ): Promise<{ scriptsRemoved: string[]; hooksRemoved: number }> {
+    const cwd = process.cwd();
+    const scriptsDir = join(cwd, '.claude', 'scripts');
+    const scriptsRemoved: string[] = [];
+    let hooksRemoved = 0;
+
+    // 1. Remove legacy scripts from .claude/scripts/
+    try {
+      await access(scriptsDir);
+      const entries = await readdir(scriptsDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (entry.isFile()) {
+          const filename = entry.name;
+          // Check against known legacy script names
+          if (LEGACY_TBD_SCRIPTS.includes(filename)) {
+            try {
+              await rm(join(scriptsDir, filename));
+              scriptsRemoved.push(filename);
+            } catch {
+              // Ignore removal errors
+            }
+          }
+        }
+      }
+    } catch {
+      // Scripts directory doesn't exist, nothing to clean
+    }
+
+    // 2. Clean up legacy hook entries from global settings
+    try {
+      await access(globalSettingsPath);
+      const content = await readFile(globalSettingsPath, 'utf-8');
+      const settings = JSON.parse(content) as Record<string, unknown>;
+
+      if (settings.hooks) {
+        const hooks = settings.hooks as Record<string, unknown>;
+        let modified = false;
+
+        // Clean SessionStart hooks
+        if (hooks.SessionStart) {
+          const sessionStart = hooks.SessionStart as { hooks?: { command?: string }[] }[];
+          const filtered = this.filterLegacyHooks(sessionStart);
+          if (filtered.length !== sessionStart.length) {
+            hooksRemoved += sessionStart.length - filtered.length;
+            modified = true;
+            if (filtered.length === 0) {
+              delete hooks.SessionStart;
+            } else {
+              hooks.SessionStart = filtered;
+            }
+          }
+        }
+
+        // Clean PreCompact hooks
+        if (hooks.PreCompact) {
+          const preCompact = hooks.PreCompact as { hooks?: { command?: string }[] }[];
+          const filtered = this.filterLegacyHooks(preCompact);
+          if (filtered.length !== preCompact.length) {
+            hooksRemoved += preCompact.length - filtered.length;
+            modified = true;
+            if (filtered.length === 0) {
+              delete hooks.PreCompact;
+            } else {
+              hooks.PreCompact = filtered;
+            }
+          }
+        }
+
+        if (modified) {
+          if (Object.keys(hooks).length === 0) {
+            delete settings.hooks;
+          }
+          await writeFile(globalSettingsPath, JSON.stringify(settings, null, 2) + '\n');
+        }
+      }
+    } catch {
+      // Global settings don't exist or couldn't be parsed
+    }
+
+    // 3. Clean up legacy hook entries from project settings
+    try {
+      await access(projectSettingsPath);
+      const content = await readFile(projectSettingsPath, 'utf-8');
+      const settings = JSON.parse(content) as Record<string, unknown>;
+
+      if (settings.hooks) {
+        const hooks = settings.hooks as Record<string, unknown>;
+        let modified = false;
+
+        // Clean all hook types for legacy patterns
+        for (const hookType of ['SessionStart', 'PreCompact', 'PostToolUse']) {
+          if (hooks[hookType]) {
+            const hookList = hooks[hookType] as { hooks?: { command?: string }[] }[];
+            const filtered = this.filterLegacyHooks(hookList);
+            if (filtered.length !== hookList.length) {
+              hooksRemoved += hookList.length - filtered.length;
+              modified = true;
+              if (filtered.length === 0) {
+                delete hooks[hookType];
+              } else {
+                hooks[hookType] = filtered;
+              }
+            }
+          }
+        }
+
+        if (modified) {
+          if (Object.keys(hooks).length === 0) {
+            delete settings.hooks;
+          }
+          await writeFile(projectSettingsPath, JSON.stringify(settings, null, 2) + '\n');
+        }
+      }
+    } catch {
+      // Project settings don't exist or couldn't be parsed
+    }
+
+    return { scriptsRemoved, hooksRemoved };
+  }
+
+  /**
+   * Filter out hook entries that match legacy tbd patterns.
+   */
+  private filterLegacyHooks(
+    hookList: { hooks?: { command?: string }[] }[],
+  ): { hooks?: { command?: string }[] }[] {
+    return hookList.filter((entry) => {
+      // Check if any hook command matches legacy patterns
+      const hasLegacyCommand = entry.hooks?.some((hook) => {
+        if (!hook.command) return false;
+        return LEGACY_TBD_HOOK_PATTERNS.some((pattern) => pattern.test(hook.command!));
+      });
+      // Keep entries that DON'T have legacy commands
+      return !hasLegacyCommand;
+    });
+  }
+
   private async installClaudeSetup(settingsPath: string, skillPath: string): Promise<void> {
     if (
       this.checkDryRun('Would install Claude Code hooks and skill file', {
@@ -625,7 +787,24 @@ class SetupClaudeHandler extends BaseCommand {
       return;
     }
 
+    const cwd = process.cwd();
+    const projectSettingsPath = join(cwd, '.claude', 'settings.json');
+
     try {
+      // Clean up legacy scripts and hooks before installing new ones
+      const { scriptsRemoved, hooksRemoved } = await this.cleanupLegacySetup(
+        settingsPath,
+        projectSettingsPath,
+      );
+      if (scriptsRemoved.length > 0 || hooksRemoved > 0) {
+        if (scriptsRemoved.length > 0) {
+          this.output.info(`Cleaned up ${scriptsRemoved.length} legacy script(s)`);
+        }
+        if (hooksRemoved > 0) {
+          this.output.info(`Cleaned up ${hooksRemoved} legacy hook(s)`);
+        }
+      }
+
       // Install hooks in global settings
       await mkdir(dirname(settingsPath), { recursive: true });
 
@@ -648,8 +827,6 @@ class SetupClaudeHandler extends BaseCommand {
       this.output.success('Installed global hooks for Claude Code');
 
       // Install project-local hooks in .claude/settings.json
-      const cwd = process.cwd();
-      const projectSettingsPath = join(cwd, '.claude', 'settings.json');
       const hookScriptPath = join(cwd, '.claude', 'hooks', 'tbd-closing-reminder.sh');
 
       // Read existing project settings if present
