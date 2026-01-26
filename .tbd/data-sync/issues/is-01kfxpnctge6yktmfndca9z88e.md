@@ -4,12 +4,13 @@ dependencies: []
 id: is-01kfxpnctge6yktmfndca9z88e
 kind: bug
 labels: []
+parent_id: is-01kfxpq9c0j5wdsqy6vsqc3d1g
 priority: 2
 status: open
 title: Fix stats command output alignment - right-align all counts in consistent column
 type: is
-updated_at: 2026-01-26T17:47:12.591Z
-version: 1
+updated_at: 2026-01-26T17:48:18.328Z
+version: 4
 ---
 The `tbd stats` output has poor visual formatting:
 
@@ -18,9 +19,11 @@ The `tbd stats` output has poor visual formatting:
 - Columns have inconsistent widths across sections
 - Priority labels have extra padding (e.g., 'High    )' instead of 'High)')
 - Counts don't align to a consistent right column
+- Colors not used consistently with other commands
+- Missing status icons (○ ◐ ● ✓) that are used in list output
 
 **Expected format:**
-All counts should be right-aligned to the same column across all sections:
+All counts should be right-aligned to the same column across all sections, with icons and colors:
 
 ```
 Summary:
@@ -31,8 +34,8 @@ Summary:
   Total:         572
 
 By status:
-  open            38
-  closed         534
+  ○ open          38
+  ✓ closed       534
 
 By kind:
   bug             46
@@ -54,5 +57,8 @@ By priority:
 - Right-align all counts to that width
 - Remove extra padding from priority labels
 - Use consistent left column width
+- Apply appropriate colors: priority colors for P0-P4, status colors for open/closed/blocked
+- Add status icons using getStatusIcon() from status.ts
+- Follow patterns from issue-format.ts
 
 **File:** packages/tbd/src/cli/commands/stats.ts
