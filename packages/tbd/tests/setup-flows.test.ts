@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, access } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, access, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execSync, spawnSync } from 'node:child_process';
@@ -14,7 +14,9 @@ describe('setup flows', () => {
   const tbdBin = join(__dirname, '..', 'dist', 'bin.mjs');
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'tbd-setup-test-'));
+    // Use realpath to resolve any symlinks (important for macOS where /tmp is symlinked)
+    const rawTempDir = await mkdtemp(join(tmpdir(), 'tbd-setup-test-'));
+    tempDir = await realpath(rawTempDir);
   });
 
   afterEach(async () => {
