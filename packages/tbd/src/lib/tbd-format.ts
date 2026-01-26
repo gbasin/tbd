@@ -51,7 +51,7 @@ export const FORMAT_HISTORY = {
     },
   },
   f02: {
-    introduced: '0.2.0',
+    introduced: '0.1.5',
     description: 'Adds configurable doc_cache',
     changes: [
       'Added doc_cache: key to config.yml for configurable doc sources',
