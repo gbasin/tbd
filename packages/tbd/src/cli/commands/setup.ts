@@ -32,7 +32,11 @@ import {
   writeConfig,
   updateLocalState,
 } from '../../file/config.js';
-import { DocSync, generateDefaultDocCacheConfig } from '../../file/doc-sync.js';
+import {
+  DocSync,
+  generateDefaultDocCacheConfig,
+  mergeDocCacheConfig,
+} from '../../file/doc-sync.js';
 import { VERSION } from '../lib/version.js';
 import {
   TBD_DIR,
@@ -1400,7 +1404,9 @@ class SetupAutoHandler extends BaseCommand {
 
   /**
    * Sync docs using DocSync.
-   * Generates default doc_cache config if not present and syncs docs.
+   * Merges default bundled docs with user's doc_cache config, then syncs.
+   * This ensures new bundled docs from tbd updates are added while
+   * preserving user's custom sources and overrides.
    */
   private async syncDocs(cwd: string): Promise<void> {
     const colors = this.output.getColors();
@@ -1408,14 +1414,18 @@ class SetupAutoHandler extends BaseCommand {
     // Read config
     const config = await readConfig(cwd);
 
-    // Generate default doc_cache if not present
-    let docCacheConfig = config.doc_cache;
-    let configUpdated = false;
+    // Merge user's config with defaults (ensures new bundled docs are added)
+    const defaults = await generateDefaultDocCacheConfig();
+    const docCacheConfig = mergeDocCacheConfig(config.doc_cache, defaults);
 
-    if (!docCacheConfig || Object.keys(docCacheConfig).length === 0) {
-      docCacheConfig = await generateDefaultDocCacheConfig();
+    // Check if config changed (new defaults added)
+    const configUpdated =
+      !config.doc_cache ||
+      Object.keys(docCacheConfig).length !== Object.keys(config.doc_cache).length ||
+      Object.keys(docCacheConfig).some((k) => config.doc_cache?.[k] !== docCacheConfig[k]);
+
+    if (configUpdated) {
       config.doc_cache = docCacheConfig;
-      configUpdated = true;
     }
 
     // Ensure docs directories exist

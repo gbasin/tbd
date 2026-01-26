@@ -18,7 +18,11 @@ import { renderMarkdown } from '../lib/output.js';
 import type { DocSection } from '../../lib/types.js';
 import GithubSlugger from 'github-slugger';
 import { findTbdRoot, readConfig, updateLocalState } from '../../file/config.js';
-import { DocSync, generateDefaultDocCacheConfig } from '../../file/doc-sync.js';
+import {
+  DocSync,
+  generateDefaultDocCacheConfig,
+  mergeDocCacheConfig,
+} from '../../file/doc-sync.js';
 
 /**
  * Get the path to the bundled docs file.
@@ -191,6 +195,7 @@ class DocsHandler extends BaseCommand {
 
   /**
    * Handle --refresh: Sync docs from config.
+   * Merges user's config with defaults to ensure new bundled docs are included.
    */
   private async handleRefresh(): Promise<void> {
     const cwd = process.cwd();
@@ -203,12 +208,9 @@ class DocsHandler extends BaseCommand {
     const config = await readConfig(tbdRoot);
     const colors = this.output.getColors();
 
-    // Generate default config if not present
-    let docCacheConfig = config.doc_cache;
-    if (!docCacheConfig || Object.keys(docCacheConfig).length === 0) {
-      console.log(colors.dim('No doc_cache in config, using default bundled docs...'));
-      docCacheConfig = await generateDefaultDocCacheConfig();
-    }
+    // Merge user's config with defaults (ensures new bundled docs are added)
+    const defaults = await generateDefaultDocCacheConfig();
+    const docCacheConfig = mergeDocCacheConfig(config.doc_cache, defaults);
 
     const sync = new DocSync(tbdRoot, docCacheConfig);
     const result = await sync.sync();
@@ -261,6 +263,7 @@ class DocsHandler extends BaseCommand {
 
   /**
    * Handle --status: Show what would change without actually changing files.
+   * Merges user's config with defaults to ensure new bundled docs are included.
    */
   private async handleStatus(): Promise<void> {
     const cwd = process.cwd();
@@ -273,12 +276,9 @@ class DocsHandler extends BaseCommand {
     const config = await readConfig(tbdRoot);
     const colors = this.output.getColors();
 
-    // Generate default config if not present
-    let docCacheConfig = config.doc_cache;
-    if (!docCacheConfig || Object.keys(docCacheConfig).length === 0) {
-      console.log(colors.dim('No doc_cache in config, using default bundled docs...'));
-      docCacheConfig = await generateDefaultDocCacheConfig();
-    }
+    // Merge user's config with defaults (ensures new bundled docs are added)
+    const defaults = await generateDefaultDocCacheConfig();
+    const docCacheConfig = mergeDocCacheConfig(config.doc_cache, defaults);
 
     const sync = new DocSync(tbdRoot, docCacheConfig);
     const result = await sync.status();

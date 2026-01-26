@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomBytes } from 'node:crypto';
 
-import { DocSync, isDocsStale } from '../src/file/doc-sync.js';
+import { DocSync, isDocsStale, mergeDocCacheConfig } from '../src/file/doc-sync.js';
 
 describe('doc-sync', () => {
   let tempDir: string;
@@ -138,6 +138,100 @@ describe('doc-sync', () => {
     it('returns false when sync is within configured hours', () => {
       const recent = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(); // 12 hours ago
       expect(isDocsStale(recent, 24)).toBe(false);
+    });
+  });
+
+  describe('mergeDocCacheConfig', () => {
+    it('returns defaults when user config is undefined', () => {
+      const defaults = {
+        'shortcuts/commit.md': 'internal:shortcuts/commit.md',
+        'guidelines/typescript.md': 'internal:guidelines/typescript.md',
+      };
+
+      const result = mergeDocCacheConfig(undefined, defaults);
+
+      expect(result).toEqual(defaults);
+    });
+
+    it('returns defaults when user config is empty', () => {
+      const defaults = {
+        'shortcuts/commit.md': 'internal:shortcuts/commit.md',
+      };
+
+      const result = mergeDocCacheConfig({}, defaults);
+
+      expect(result).toEqual(defaults);
+    });
+
+    it('preserves user custom sources not in defaults', () => {
+      const defaults = {
+        'shortcuts/commit.md': 'internal:shortcuts/commit.md',
+      };
+      const userConfig = {
+        'custom/my-doc.md': 'https://example.com/my-doc.md',
+      };
+
+      const result = mergeDocCacheConfig(userConfig, defaults);
+
+      expect(result['shortcuts/commit.md']).toBe('internal:shortcuts/commit.md');
+      expect(result['custom/my-doc.md']).toBe('https://example.com/my-doc.md');
+    });
+
+    it('user overrides take precedence over defaults', () => {
+      const defaults = {
+        'shortcuts/commit.md': 'internal:shortcuts/commit.md',
+      };
+      const userConfig = {
+        'shortcuts/commit.md': 'https://example.com/my-custom-commit.md',
+      };
+
+      const result = mergeDocCacheConfig(userConfig, defaults);
+
+      expect(result['shortcuts/commit.md']).toBe('https://example.com/my-custom-commit.md');
+    });
+
+    it('adds new defaults to existing user config', () => {
+      const defaults = {
+        'shortcuts/commit.md': 'internal:shortcuts/commit.md',
+        'shortcuts/new-feature.md': 'internal:shortcuts/new-feature.md',
+      };
+      const userConfig = {
+        'shortcuts/commit.md': 'internal:shortcuts/commit.md',
+        'custom/my-doc.md': 'https://example.com/my-doc.md',
+      };
+
+      const result = mergeDocCacheConfig(userConfig, defaults);
+
+      // New default should be added
+      expect(result['shortcuts/new-feature.md']).toBe('internal:shortcuts/new-feature.md');
+      // Existing entries preserved
+      expect(result['shortcuts/commit.md']).toBe('internal:shortcuts/commit.md');
+      expect(result['custom/my-doc.md']).toBe('https://example.com/my-doc.md');
+    });
+
+    it('merges complex configs correctly', () => {
+      const defaults = {
+        'shortcuts/a.md': 'internal:shortcuts/a.md',
+        'shortcuts/b.md': 'internal:shortcuts/b.md',
+        'guidelines/ts.md': 'internal:guidelines/ts.md',
+      };
+      const userConfig = {
+        'shortcuts/b.md': 'https://custom.com/b.md', // override
+        'custom/external.md': 'https://example.com/doc.md', // custom
+      };
+
+      const result = mergeDocCacheConfig(userConfig, defaults);
+
+      expect(Object.keys(result).sort()).toEqual([
+        'custom/external.md',
+        'guidelines/ts.md',
+        'shortcuts/a.md',
+        'shortcuts/b.md',
+      ]);
+      expect(result['shortcuts/a.md']).toBe('internal:shortcuts/a.md');
+      expect(result['shortcuts/b.md']).toBe('https://custom.com/b.md');
+      expect(result['guidelines/ts.md']).toBe('internal:guidelines/ts.md');
+      expect(result['custom/external.md']).toBe('https://example.com/doc.md');
     });
   });
 });

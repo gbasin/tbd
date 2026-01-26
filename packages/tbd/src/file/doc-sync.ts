@@ -152,7 +152,9 @@ export class DocSync {
    */
   private async fetchUrlContent(url: string): Promise<string> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => { controller.abort(); }, FETCH_TIMEOUT);
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, FETCH_TIMEOUT);
 
     try {
       const response = await fetch(url, {
@@ -375,6 +377,29 @@ export async function generateDefaultDocCacheConfig(): Promise<Record<string, st
   }
 
   return config;
+}
+
+/**
+ * Merge user's doc_cache config with default bundled docs.
+ *
+ * This ensures:
+ * - New bundled docs from tbd updates are added to existing configs
+ * - User's custom sources (URLs, etc.) are preserved
+ * - User's overrides of bundled docs are respected
+ *
+ * @param userConfig - The user's existing doc_cache config (may be undefined/empty)
+ * @param defaults - The default config from generateDefaultDocCacheConfig()
+ * @returns Merged config with defaults as base, user config overlaid
+ */
+export function mergeDocCacheConfig(
+  userConfig: Record<string, string> | undefined,
+  defaults: Record<string, string>,
+): Record<string, string> {
+  // Start with defaults, overlay user config (user takes precedence)
+  return {
+    ...defaults,
+    ...userConfig,
+  };
 }
 
 /**
