@@ -24,15 +24,16 @@
 
 | Tool / Package | Version | Check For Updates |
 | --- | --- | --- |
-| **Bun** | 1.2.x | [bun.sh/blog](https://bun.sh/blog) — Runtime, bundler, package manager, test runner |
-| **TypeScript** | ^5.9.0 | [github.com/microsoft/TypeScript/releases](https://github.com/microsoft/TypeScript/releases) |
-| **Bunup** | ^0.7.0 | [github.com/bunup/bunup/releases](https://github.com/bunup/bunup/releases) — Build tool for TS libs |
-| **Biome** | ^2.0.0 | [biomejs.dev](https://biomejs.dev/) — Formatter + linter (v2 adds plugins, type-aware linting) |
-| **@changesets/cli** | ^2.29.0 | [github.com/changesets/changesets/releases](https://github.com/changesets/changesets/releases) |
-| **publint** | ^0.3.0 | [npmjs.com/package/publint](https://www.npmjs.com/package/publint) |
+| **Bun** | 1.3.5 | [bun.sh/blog](https://bun.sh/blog) — Runtime, bundler, package manager, test runner. Acquired by Anthropic (Dec 2025). |
+| **TypeScript** | ^5.9.3 | [github.com/microsoft/TypeScript/releases](https://github.com/microsoft/TypeScript/releases) — 5.9 adds `import defer`, `--module node20`. TS 6.0/7.0 expected early 2026. |
+| **Bunup** | ^0.16.0 | [npmjs.com/package/bunup](https://www.npmjs.com/package/bunup) — Build tool for TS libs. Rapid iteration (0.16.20 latest). |
+| **Biome** | ^2.3.0 | [biomejs.dev](https://biomejs.dev/) — Formatter + linter. v2.0 added plugins and type-aware linting; 2.3.x is latest stable. |
+| **@changesets/cli** | ^2.29.0 | [github.com/changesets/changesets/releases](https://github.com/changesets/changesets/releases) — 2.29.8 latest. No native Bun support yet. |
+| **publint** | ^0.3.0 | [npmjs.com/package/publint](https://www.npmjs.com/package/publint) — 0.3.16 latest |
 | **actions/checkout** | v6 | [github.com/actions/checkout/releases](https://github.com/actions/checkout/releases) |
-| **oven-sh/setup-bun** | v2 | [github.com/oven-sh/setup-bun](https://github.com/oven-sh/setup-bun) |
-| **lefthook** | ^2.0.0 | [github.com/evilmartians/lefthook/releases](https://github.com/evilmartians/lefthook/releases) |
+| **oven-sh/setup-bun** | v2 | [github.com/oven-sh/setup-bun](https://github.com/oven-sh/setup-bun) — Verified on GitHub Marketplace |
+| **lefthook** | ^2.0.0 | [github.com/evilmartians/lefthook/releases](https://github.com/evilmartians/lefthook/releases) — 2.0.15 latest |
+| **npm-check-updates** | ^19.0.0 | [npmjs.com/package/npm-check-updates](https://www.npmjs.com/package/npm-check-updates) |
 
 ### Reminders When Updating
 
@@ -54,9 +55,9 @@
 
 4. **Verify compatibility** — check that tools still work together
 
-5. **Update the "Last Updated" date** at the top of the document
+5. **Update the “Last Updated” date** at the top of the document
 
-6. **Review "Open Research Questions"** section for any resolved items
+6. **Review “Open Research Questions”** section for any resolved items
 
 * * *
 
@@ -70,14 +71,15 @@ covering the same architectural scope but using Bun-native tooling wherever poss
 
 The recommended stack uses **Bun workspaces** for dependency management, **Bunup** for
 building ESM/CJS dual outputs with TypeScript declarations, **Changesets** (with Bun
-workarounds) for versioning and release automation, **Biome** for formatting and linting,
-**publint** for package validation, and **lefthook** for git hooks.
-The architecture also covers Bun's unique capability for **compiling standalone
+workarounds) for versioning and release automation, **Biome** for formatting and
+linting, **publint** for package validation, and **lefthook** for git hooks.
+The architecture also covers Bun’s unique capability for **compiling standalone
 executables** — a native binary distribution path unavailable in the pnpm ecosystem.
 
 **Research Questions**:
 
-1. Can the Bun ecosystem fully replace pnpm + Node.js + tsdown for a TypeScript monorepo?
+1. Can the Bun ecosystem fully replace pnpm + Node.js + tsdown for a TypeScript
+   monorepo?
 
 2. How does complexity compare between a full-Bun and full-pnpm monorepo setup?
 
@@ -92,8 +94,8 @@ executables** — a native binary distribution path unavailable in the pnpm ecos
 ### Approach
 
 Research was conducted through official Bun documentation, web searches for current best
-practices (2025–2026), analysis of real-world Bun monorepo implementations, evaluation of
-Bunup and Biome documentation, and direct comparison with the companion pnpm monorepo
+practices (2025–2026), analysis of real-world Bun monorepo implementations, evaluation
+of Bunup and Biome documentation, and direct comparison with the companion pnpm monorepo
 research stock.
 
 ### Sources
@@ -124,17 +126,26 @@ research stock.
 
 - Dramatically faster installs than pnpm, npm, or yarn (often 2–10x)
 
-- Uses `bun.lockb` (binary lockfile) for fast deterministic resolution
+- Uses `bun.lock` (text-based JSONC lockfile, default since Bun 1.2) for diffable,
+  deterministic resolution.
+  The older binary `bun.lockb` is deprecated.
 
 - Supports `workspace:*` protocol for inter-package references
 
-- Does not use a content-addressable store like pnpm — installs are flat in `node_modules`
+- Does not use a content-addressable store like pnpm — installs are flat in
+  `node_modules`
 
 - Missing some pnpm features: no `pnpm deploy`, less strict `node_modules` (phantom
   dependencies possible)
 
+- **Notable**: Bun was acquired by Anthropic in December 2025. Bun now powers Claude
+  Code, Claude Agent SDK, and other Anthropic AI tooling, signaling strong ongoing
+  investment and maintenance.
+
 **Assessment**: Bun workspaces are functional and fast, but less strict than pnpm.
-The lack of content-addressable storage means higher disk usage in large monorepos.
+The text-based `bun.lock` format (since Bun 1.2) resolves the earlier diffability
+concern. The lack of content-addressable storage means higher disk usage in large
+monorepos.
 For projects prioritizing speed over strictness, Bun workspaces are excellent.
 For projects requiring hermetic dependency isolation, pnpm remains superior.
 
@@ -174,7 +185,7 @@ cd packages/server && bun add express
 
 **Details**:
 
-The same "start mono, stay sane" approach from the pnpm research applies here.
+The same “start mono, stay sane” approach from the pnpm research applies here.
 Place packages in `packages/` from day one, even with a single package.
 
 **Recommended Directory Structure**:
@@ -200,7 +211,7 @@ project-root/
       tsconfig.json
       bunup.config.ts
   biome.json
-  bun.lockb
+  bun.lock
   lefthook.yml
   package.json
   tsconfig.base.json
@@ -210,15 +221,15 @@ project-root/
 
 | File | pnpm Monorepo | Bun Monorepo |
 | --- | --- | --- |
-| Lockfile | `pnpm-lock.yaml` | `bun.lockb` (binary) |
+| Lockfile | `pnpm-lock.yaml` | `bun.lock` (text JSONC, diffable) |
 | Workspace config | `pnpm-workspace.yaml` | `workspaces` in `package.json` |
 | Package manager config | `.npmrc` | `bunfig.toml` (optional) |
 | Lint/format config | `.prettierrc` + `eslint.config.js` | `biome.json` (single file) |
 | Build config | `tsdown.config.ts` | `bunup.config.ts` |
 
-**Assessment**: The directory structure is nearly identical. Bun consolidates configuration
-into fewer files (no separate workspace config, single `biome.json` instead of
-Prettier + ESLint configs).
+**Assessment**: The directory structure is nearly identical.
+Bun consolidates configuration into fewer files (no separate workspace config, single
+`biome.json` instead of Prettier + ESLint configs).
 
 * * *
 
@@ -267,13 +278,13 @@ primarily serves IDE support, type checking, and declaration generation.
 }
 ```
 
-**Key difference**: `isolatedDeclarations: true` is strongly recommended for Bun projects
-because Bunup's DTS generation is dramatically faster when this is enabled (it avoids
-invoking the full TypeScript compiler).
+**Key difference**: `isolatedDeclarations: true` is strongly recommended for Bun
+projects because Bunup’s DTS generation is dramatically faster when this is enabled (it
+avoids invoking the full TypeScript compiler).
 
-**Assessment**: Nearly identical to the pnpm setup. The addition of
-`isolatedDeclarations` and `bun-types` are the only differences. Using
-`moduleResolution: "Bundler"` is appropriate since Bunup handles the final output.
+**Assessment**: Nearly identical to the pnpm setup.
+The addition of `isolatedDeclarations` and `bun-types` are the only differences.
+Using `moduleResolution: "Bundler"` is appropriate since Bunup handles the final output.
 
 **References**:
 
@@ -309,9 +320,9 @@ Bun to directly import TypeScript source files, bypassing compiled output entire
 This means during development within the monorepo, Bun can consume TypeScript directly
 without a build step — a significant DX advantage over Node.js-based setups.
 
-**Assessment**: This is a unique Bun advantage. During local development, packages can be
-consumed without building. Published packages still need compiled output for Node.js
-consumers.
+**Assessment**: This is a unique Bun advantage.
+During local development, packages can be consumed without building.
+Published packages still need compiled output for Node.js consumers.
 
 * * *
 
@@ -323,8 +334,8 @@ consumers.
 
 **Details**:
 
-Bunup is the modern build tool for TypeScript libraries, powered by Bun's native bundler.
-It is the Bun-ecosystem analog to tsdown in the pnpm ecosystem.
+Bunup is the modern build tool for TypeScript libraries, powered by Bun’s native
+bundler. It is the Bun-ecosystem analog to tsdown in the pnpm ecosystem.
 
 Key advantages:
 
@@ -332,15 +343,20 @@ Key advantages:
 
 - **Dual format output**: Generates both ESM (`.js`) and CJS (`.cjs`)
 
-- **TypeScript declarations**: Built-in `.d.ts` and `.d.cts` generation
+- **TypeScript declarations**: Built-in `.d.ts` and `.d.cts` generation (much faster
+  with `isolatedDeclarations`)
 
 - **Multi-entry support**: Build multiple entry points in one config
 
-- **Workspace support**: `defineWorkspace()` for monorepo builds with incremental rebuilds
+- **Workspace support**: `defineWorkspace()` for monorepo builds with incremental
+  rebuilds
 
 - **Auto-exports**: Automatically generates and updates `package.json` `exports` field
 
 - **Compile support**: Can produce standalone executables via `bun --compile`
+
+- **Rapid iteration**: Bunup is under active development (0.16.x as of Jan 2026), with
+  frequent releases. Pin to a specific minor version for stability.
 
 **Configuration (`bunup.config.ts`)**:
 
@@ -401,9 +417,9 @@ export default defineWorkspace([
 | Maturity | Newer (2025) | More established |
 | Standalone executables | Yes (`compile: true`) | No |
 
-**Assessment**: Bunup is the clear choice for Bun-native projects. The auto-exports
-feature eliminates a common source of configuration errors. The workspace mode provides
-monorepo-aware builds that tsdown does not offer natively.
+**Assessment**: Bunup is the clear choice for Bun-native projects.
+The auto-exports feature eliminates a common source of configuration errors.
+The workspace mode provides monorepo-aware builds that tsdown does not offer natively.
 
 **References**:
 
@@ -421,8 +437,9 @@ monorepo-aware builds that tsdown does not offer natively.
 
 **Details**:
 
-Package exports work identically to the pnpm setup. The key difference is that Bunup can
-**auto-generate** the exports field, reducing manual configuration errors.
+Package exports work identically to the pnpm setup.
+The key difference is that Bunup can **auto-generate** the exports field, reducing
+manual configuration errors.
 
 **With Bunup auto-exports** (`bunup.config.ts`):
 
@@ -492,8 +509,9 @@ source for Bun consumers:
 }
 ```
 
-**Assessment**: Bunup's auto-exports feature is a significant DX improvement over manual
-exports configuration. It eliminates a common class of publishing errors.
+**Assessment**: Bunup’s auto-exports feature is a significant DX improvement over manual
+exports configuration.
+It eliminates a common class of publishing errors.
 
 **References**:
 
@@ -509,8 +527,8 @@ exports configuration. It eliminates a common class of publishing errors.
 
 **Details**:
 
-This pattern is identical to the pnpm ecosystem approach. Bun handles peer dependencies
-the same way as npm/pnpm.
+This pattern is identical to the pnpm ecosystem approach.
+Bun handles peer dependencies the same way as npm/pnpm.
 
 ```json
 {
@@ -525,7 +543,8 @@ the same way as npm/pnpm.
 }
 ```
 
-**Assessment**: No differences from the pnpm approach. Works identically in Bun.
+**Assessment**: No differences from the pnpm approach.
+Works identically in Bun.
 
 * * *
 
@@ -537,7 +556,8 @@ the same way as npm/pnpm.
 
 **Details**:
 
-publint works identically in the Bun ecosystem. Run it via Bun:
+publint works identically in the Bun ecosystem.
+Run it via Bun:
 
 ```bash
 bunx publint
@@ -554,7 +574,8 @@ bunx publint
 }
 ```
 
-**Assessment**: No changes needed from the pnpm approach. publint is runtime-agnostic.
+**Assessment**: No changes needed from the pnpm approach.
+publint is runtime-agnostic.
 
 * * *
 
@@ -566,9 +587,10 @@ bunx publint
 
 **Details**:
 
-Changesets is the de facto standard for monorepo versioning, but it has known issues with
-Bun workspaces. The key problem is that `changeset version` does not resolve
-`workspace:*` references to actual version numbers, which breaks published packages.
+Changesets is the de facto standard for monorepo versioning, but it has known issues
+with Bun workspaces.
+The key problem is that `changeset version` does not resolve `workspace:*` references to
+actual version numbers, which breaks published packages.
 
 **Setup**:
 
@@ -623,9 +645,9 @@ workspace reference resolution.
 | GitHub Action | `changesets/action` works directly | Needs custom publish step |
 | Workspace resolution | Automatic | Requires `bun update` fixup |
 
-**Assessment**: Changesets works with Bun but requires workarounds. This is the most
-significant friction point in the Bun ecosystem compared to pnpm. Monitor for native
-Bun support in Changesets or a Bun-native alternative.
+**Assessment**: Changesets works with Bun but requires workarounds.
+This is the most significant friction point in the Bun ecosystem compared to pnpm.
+Monitor for native Bun support in Changesets or a Bun-native alternative.
 
 **References**:
 
@@ -654,11 +676,12 @@ The only difference is the dev script uses `bun` instead of `tsx`:
 }
 ```
 
-**Key advantage**: Bun executes TypeScript directly, so there is no need for `tsx`.
-The `scripts/git-version.mjs` script works unchanged since it uses only Node.js built-in
+**Key advantage**: Bun executes TypeScript directly, so there is no need for `tsx`. The
+`scripts/git-version.mjs` script works unchanged since it uses only Node.js built-in
 modules which Bun supports.
 
-**Assessment**: Identical pattern, simpler execution. No `tsx` dependency needed.
+**Assessment**: Identical pattern, simpler execution.
+No `tsx` dependency needed.
 
 * * *
 
@@ -670,9 +693,9 @@ modules which Bun supports.
 
 **Details**:
 
-Bun ships with a built-in test runner that is API-compatible with Jest/Vitest. It is
-extremely fast — roughly 2x faster than Node's built-in test runner and significantly
-faster than Jest or Vitest.
+Bun ships with a built-in test runner that is API-compatible with Jest/Vitest.
+It is extremely fast — roughly 2x faster than Node’s built-in test runner and
+significantly faster than Jest or Vitest.
 
 **Key features**:
 
@@ -697,8 +720,8 @@ bun test --coverage         # With coverage
 bun test --timeout 10000    # Custom timeout
 ```
 
-**Test file patterns**: `*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.spec.tsx`, or files in
-`__tests__/` directories.
+**Test file patterns**: `*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.spec.tsx`, or files
+in `__tests__/` directories.
 
 **Example test**:
 
@@ -719,13 +742,19 @@ describe('processData', () => {
 
 **Known limitations**:
 
-- No fake timers (as of early 2026)
-
 - Tests are not isolated by default (side effects can leak between suites)
 
 - Less mature IDE integration than Vitest
 
 - No browser mode, benchmarking, type testing, or sharding (features Vitest has)
+
+**Fake timers** (added in Bun v1.3.4, Dec 2025):
+
+Bun’s test runner now supports Jest-compatible fake timers via `jest.useFakeTimers()`,
+`jest.advanceTimersByTime(ms)`, and `jest.useRealTimers()`. This was previously a major
+gap. The system time mock (`setSystemTime` from `bun:test`) has been available longer.
+Bun v1.3.6 added further compatibility fixes for `@testing-library/react` fake timer
+detection.
 
 **Comparison with Vitest / Node test runner**:
 
@@ -737,14 +766,16 @@ describe('processData', () => {
 | API | Jest-compatible | Jest-compatible | Node-native API |
 | Watch mode | HMR-based | HMR-based | File-system based |
 | Isolation | No isolation | Isolated by default | Isolated |
-| Fake timers | Not yet | Full support | Full support |
+| Fake timers | Jest-compatible (v1.3.4+) | Full support | Full support |
 | Coverage | Built-in | Built-in (c8/v8) | Built-in (Node 20+) |
 | IDE support | Basic | Excellent (VS Code) | Moderate |
 | Ecosystem | Growing | Mature | Node-native |
 
-**Assessment**: Use `bun test` for Bun-native projects where the limitations (no fake
-timers, no isolation) are acceptable. For projects requiring advanced testing features or
-cross-runtime compatibility, Vitest remains the safer choice.
+**Assessment**: With fake timers added in Bun v1.3.4, the main remaining gap is test
+isolation and advanced features (browser mode, sharding).
+Use `bun test` for most Bun-native projects.
+For projects requiring test isolation or cross-runtime compatibility, Vitest remains the
+safer choice.
 
 **References**:
 
@@ -764,23 +795,27 @@ cross-runtime compatibility, Vitest remains the safer choice.
 
 **Details**:
 
-Biome is an all-in-one formatter and linter written in Rust. It replaces both Prettier
-and ESLint with a single tool, aligning well with the Bun ecosystem's philosophy of
-consolidation and speed.
+Biome is an all-in-one formatter and linter written in Rust.
+It replaces both Prettier and ESLint with a single tool, aligning well with the Bun
+ecosystem’s philosophy of consolidation and speed.
 
 **Key advantages**:
 
 - **10–25x faster** than ESLint + Prettier combined
 
-- **Single configuration file** (`biome.json`) instead of `.prettierrc` + `eslint.config.js`
+- **Single configuration file** (`biome.json`) instead of `.prettierrc` +
+  `eslint.config.js`
 
 - **Single binary** instead of 127+ npm packages
 
 - **97% Prettier-compatible** formatting
 
-- **200+ lint rules** including type-aware linting (v2.0+)
+- **300+ lint rules** including type-aware linting (v2.0+, without requiring `tsc`)
 
 - **Built-in migration** from ESLint and Prettier configs
+
+- **v2.3.x** (latest as of Jan 2026) adds nursery rules for floating promises
+  (`noFloatingPromises`), duplicate HTML attributes, JSX prop binding, and more
 
 **Installation**:
 
@@ -792,7 +827,7 @@ bun add -d @biomejs/biome
 
 ```json
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.3.0/schema.json",
   "organizeImports": {
     "enabled": true
   },
@@ -841,8 +876,8 @@ bun add -d @biomejs/biome
 ```
 
 **Biome `check` vs separate commands**: `biome check` runs both formatting and linting
-in a single pass, which is faster than running them separately. Use `check` for local
-development and `check:ci` (without `--write`) for CI.
+in a single pass, which is faster than running them separately.
+Use `check` for local development and `check:ci` (without `--write`) for CI.
 
 **Comparison with Prettier + ESLint**:
 
@@ -865,10 +900,11 @@ development and `check:ci` (without `--write`) for CI.
 
 - Missing some specialized ESLint plugins (security, accessibility)
 
-**Assessment**: Biome is the natural choice for a full-Bun ecosystem. It provides the
-same quality guarantees as Prettier + ESLint with dramatically less configuration and
-better performance. For projects that need HTML/Markdown formatting or specialized ESLint
-plugins, a hybrid approach (Biome + targeted Prettier/ESLint) is viable.
+**Assessment**: Biome is the natural choice for a full-Bun ecosystem.
+It provides the same quality guarantees as Prettier + ESLint with dramatically less
+configuration and better performance.
+For projects that need HTML/Markdown formatting or specialized ESLint plugins, a hybrid
+approach (Biome + targeted Prettier/ESLint) is viable.
 
 **References**:
 
@@ -920,13 +956,13 @@ jobs:
 | --- | --- | --- |
 | Setup action | `pnpm/action-setup@v4` + `actions/setup-node@v6` | `oven-sh/setup-bun@v2` (one action) |
 | Install | `pnpm install --frozen-lockfile` | `bun install --frozen-lockfile` |
-| Lockfile | `pnpm-lock.yaml` (text, diffable) | `bun.lockb` (binary) |
+| Lockfile | `pnpm-lock.yaml` (YAML) | `bun.lock` (JSONC, text-based since Bun 1.2) |
 | Lint + format | Separate `format:check` + `lint:check` | Single `biome check` |
 | Node.js setup | Required | Not required (Bun includes runtime) |
 
 **Assessment**: Bun CI is simpler — one setup action instead of two, and a single check
-command instead of separate format and lint steps. The binary lockfile is a minor
-downside for code review (cannot diff).
+command instead of separate format and lint steps.
+The binary lockfile is a minor downside for code review (cannot diff).
 
 **References**:
 
@@ -982,8 +1018,8 @@ jobs:
 the `bun update` fixup), not just `changeset version`. The `publish` command uses the
 custom per-package publish script.
 
-**Assessment**: Slightly more complex than the pnpm release workflow due to the Changesets
-workarounds, but functionally equivalent.
+**Assessment**: Slightly more complex than the pnpm release workflow due to the
+Changesets workarounds, but functionally equivalent.
 
 * * *
 
@@ -995,8 +1031,8 @@ workarounds, but functionally equivalent.
 
 **Details**:
 
-Lefthook works identically in the Bun ecosystem. The main change is replacing Prettier +
-ESLint commands with Biome.
+Lefthook works identically in the Bun ecosystem.
+The main change is replacing Prettier + ESLint commands with Biome.
 
 **Installation**:
 
@@ -1052,10 +1088,10 @@ pre-push:
         fi
 ```
 
-**Key advantage**: Using `biome check` in pre-commit combines formatting and linting into
-a single command, reducing hook complexity from 2–3 commands to 1.
+**Key advantage**: Using `biome check` in pre-commit combines formatting and linting
+into a single command, reducing hook complexity from 2–3 commands to 1.
 
-**Assessment**: Simpler and faster hooks than the pnpm equivalent thanks to Biome's
+**Assessment**: Simpler and faster hooks than the pnpm equivalent thanks to Biome’s
 unified check command.
 
 * * *
@@ -1128,9 +1164,20 @@ const config = await Bun.file(import.meta.dir + '/config.json').text();
 | `bun-darwin-arm64` | macOS Apple Silicon |
 | `bun-windows-x64` | Windows x86_64 |
 
+**Optimization flags**:
+
+```bash
+# Reduce startup time (not binary size) with bytecode pre-compilation
+bun build --compile --bytecode --minify ./src/bin.ts --outfile myapp
+
+# Minify source to reduce embedded code size
+bun build --compile --minify --sourcemap ./src/bin.ts --outfile myapp
+```
+
 **Known limitations**:
 
-- Binary size starts at ~50MB+ (includes Bun runtime)
+- Binary size starts at ~50–100MB (includes Bun runtime).
+  This is an open issue ([#5854](https://github.com/oven-sh/bun/issues/5854)).
 
 - Embedded directory support is beta-quality
 
@@ -1141,13 +1188,14 @@ const config = await Bun.file(import.meta.dir + '/config.json').text();
 | Method | Size | Runtime needed | Cross-platform | Speed |
 | --- | --- | --- | --- | --- |
 | npm publish | Small (~KB) | Node.js or Bun | Yes | Startup depends on runtime |
-| `bun --compile` | ~50MB+ | None | Cross-compile | Fast startup |
+| `bun --compile` | ~50–100MB | None | Cross-compile | Fast startup |
 | Go binary | ~10–20MB | None | Cross-compile | Fast startup |
 | Rust binary | ~5–15MB | None | Cross-compile | Fast startup |
 
-**Assessment**: Bun's compile feature is valuable for distributing CLI tools to users who
-don't have Node.js or Bun installed. The binary size is the main downside. This is a
-unique advantage that the pnpm ecosystem does not offer natively.
+**Assessment**: Bun’s compile feature is valuable for distributing CLI tools to users
+who don’t have Node.js or Bun installed.
+The binary size is the main downside.
+This is a unique advantage that the pnpm ecosystem does not offer natively.
 
 **References**:
 
@@ -1165,8 +1213,8 @@ unique advantage that the pnpm ecosystem does not offer natively.
 
 **Details**:
 
-npm-check-updates (`ncu`) works with Bun. The main difference is using `bun install`
-instead of `pnpm install` after updates.
+npm-check-updates (`ncu`) works with Bun.
+The main difference is using `bun install` instead of `pnpm install` after updates.
 
 **Root `package.json` scripts**:
 
@@ -1180,7 +1228,8 @@ instead of `pnpm install` after updates.
 }
 ```
 
-**Assessment**: Identical workflow. `bunx` replaces `npx`.
+**Assessment**: Identical workflow.
+`bunx` replaces `npx`.
 
 * * *
 
@@ -1214,8 +1263,8 @@ Bun natively executes TypeScript, eliminating the need for `tsx` entirely.
 | TypeScript support | Via esbuild transform | Native |
 | Startup time | ~50ms | ~5ms |
 
-**Assessment**: Bun eliminates the `tsx` dependency entirely. One fewer devDependency,
-faster startup, simpler scripts.
+**Assessment**: Bun eliminates the `tsx` dependency entirely.
+One fewer devDependency, faster startup, simpler scripts.
 
 * * *
 
@@ -1234,8 +1283,8 @@ Distribution options are identical:
 
 3. **Local linking**: `bun link` works similarly to `pnpm link`
 
-**Bun-specific option**: Standalone executables via `bun --compile` provide an additional
-distribution path that bypasses package registries entirely.
+**Bun-specific option**: Standalone executables via `bun --compile` provide an
+additional distribution path that bypasses package registries entirely.
 
 * * *
 
@@ -1249,8 +1298,8 @@ The Node-free core pattern from the pnpm research applies identically.
 Keep `node:` imports out of core library code and isolated to CLI-specific modules.
 
 The only addition for Bun projects: you may also want to avoid Bun-specific APIs
-(`Bun.file()`, `Bun.serve()`, etc.) in core library code if the library needs to work
-in Node.js environments.
+(`Bun.file()`, `Bun.serve()`, etc.)
+in core library code if the library needs to work in Node.js environments.
 
 * * *
 
@@ -1284,9 +1333,9 @@ in Node.js environments.
 | **Build config** | Equivalent | Equivalent | Tie |
 | **Changesets workflow** | Works natively | Requires workarounds | pnpm |
 | **Dependency isolation** | Strict (content-addressable) | Loose (flat node_modules) | pnpm |
-| **Lockfile diffability** | YAML (diffable) | Binary (not diffable) | pnpm |
-| **Ecosystem maturity** | Very mature | Growing | pnpm |
-| **Test runner maturity** | Vitest (mature) | bun test (gaps) | pnpm |
+| **Lockfile diffability** | YAML (diffable) | JSONC (diffable since Bun 1.2) | Tie |
+| **Ecosystem maturity** | Very mature | Growing rapidly (Anthropic backing) | pnpm |
+| **Test runner maturity** | Vitest (mature) | bun test (fake timers added, isolation gap) | pnpm |
 
 ### Speed Comparison
 
@@ -1309,7 +1358,7 @@ in Node.js environments.
 2. **Enable `isolatedDeclarations`** in `tsconfig.base.json` for dramatically faster DTS
    generation with Bunup.
 
-3. **Use Bunup's auto-exports** (`exports: true`) to keep `package.json` exports
+3. **Use Bunup’s auto-exports** (`exports: true`) to keep `package.json` exports
    synchronized with build output.
 
 4. **Use Biome for formatting + linting** via a single `biome.json`. Use `biome check`
@@ -1325,10 +1374,10 @@ in Node.js environments.
    execution wrapper.
 
 8. **Consider `bun --compile`** for distributing CLI tools as standalone executables,
-   especially for users who don't have Node.js or Bun installed.
+   especially for users who don’t have Node.js or Bun installed.
 
-9. **Use `bun test`** for testing unless you need fake timers, test isolation, or
-   advanced features that Vitest provides.
+9. **Use `bun test`** for testing — fake timers are now supported (v1.3.4+). Switch to
+   Vitest only if you need test isolation, browser mode, or sharding.
 
 10. **Keep the root `package.json` private** with `"private": true` and only workspace
     tooling.
@@ -1351,29 +1400,54 @@ in Node.js environments.
 
 ## Open Research Questions
 
-1. **Changesets Bun support**: Monitor for native Bun workspace support in Changesets,
-   or a Bun-native versioning alternative. The current workarounds add friction.
+1. **Changesets Bun support**: As of Jan 2026, Changesets still has no native Bun
+   workspace support. The `workspace:*` resolution issue remains open
+   ([#1468](https://github.com/changesets/changesets/issues/1468),
+   [oven-sh/bun#16074](https://github.com/oven-sh/bun/issues/16074)). The workaround
+   (`bun update` after `changeset version`, per-package `bun publish`) remains
+   necessary. Monitor for a Bun-native alternative.
 
-2. **Bun test runner maturity**: Monitor for fake timers, test isolation, and improved
-   IDE integration. These gaps may close in 2026.
+2. ~~**Bun test runner: fake timers**~~: **RESOLVED** in Bun v1.3.4 (Dec 2025).
+   Jest-compatible fake timers are now supported.
+   Remaining gaps: test isolation, browser mode, sharding.
 
-3. **Bun lockfile format**: The binary lockfile (`bun.lockb`) is not diffable in code
-   review. Monitor for a text-based alternative or tooling improvements.
+3. ~~**Bun lockfile format**~~: **RESOLVED** in Bun 1.2. The text-based `bun.lock`
+   (JSONC format) is now the default.
+   It is diffable in code review and supported by GitHub rendering.
+   The binary `bun.lockb` is deprecated.
 
-4. **Biome plugin ecosystem**: Biome v2.0 introduced plugins. Monitor for parity with
-   critical ESLint plugins (security, accessibility, React-specific rules).
+4. **Biome plugin ecosystem**: Biome v2.0+ introduced plugins and type-aware linting
+   without `tsc`. As of v2.3.x, the rule set continues growing (300+ rules,
+   `noFloatingPromises` in nursery).
+   Monitor for parity with security and accessibility ESLint plugins.
+   Custom ESLint rules remain a reason to keep ESLint (see craft-agents-oss case study
+   in Appendix G).
 
-5. **Bun workspace strictness**: Monitor for content-addressable storage or stricter
-   `node_modules` isolation to match pnpm's guarantees.
+5. **Bun workspace strictness**: Bun still uses flat `node_modules` (no
+   content-addressable store).
+   Phantom dependencies remain possible.
+   Monitor for improvements.
 
-6. **`bun --compile` binary size**: The ~50MB+ baseline is large. Monitor for size
-   optimizations in future Bun releases.
+6. **`bun --compile` binary size**: Standalone executables still start at ~50–100MB
+   (includes Bun runtime).
+   No significant size reductions announced.
+   The open issue ([#5854](https://github.com/oven-sh/bun/issues/5854)) remains tracked.
+   The `--minify` and `--bytecode` flags help with startup time but not binary size.
 
-7. **TypeScript 7.0 (Go rewrite)**: The Go-based TypeScript compiler may change the
-   DTS generation landscape for both Bunup and tsdown.
+7. **TypeScript 6.0/7.0**: TypeScript 6.0 is a “bridge” release; TypeScript 7.0 (Go
+   rewrite) promises 10x faster builds.
+   Both expected early 2026. May change the DTS generation landscape for Bunup and
+   tsdown.
 
-8. **Bunup maturity**: Bunup is newer than tsdown. Monitor for stability and feature
-   parity, especially for edge cases in complex monorepos.
+8. **Bunup maturity**: Bunup is iterating rapidly (0.16.x as of Jan 2026, up from 0.4.x
+   a few months earlier).
+   The API surface (`defineConfig`, `defineWorkspace`, `exports`, `compile`) appears
+   stable, but pin versions carefully.
+
+9. **Bun + Anthropic**: Bun was acquired by Anthropic (Dec 2025) and now powers Claude
+   Code and Claude Agent SDK. This signals strong continued investment but also a shift
+   toward AI-tooling use cases.
+   Monitor whether the broader open-source community continues to benefit equally.
 
 * * *
 
@@ -1382,13 +1456,14 @@ in Node.js environments.
 ### Summary
 
 For projects that prioritize **speed and simplicity**, the full-Bun ecosystem provides a
-compelling alternative to the pnpm stack. Fewer configuration files, fewer dependencies,
-faster builds, and native TypeScript execution reduce overall complexity.
+compelling alternative to the pnpm stack.
+Fewer configuration files, fewer dependencies, faster builds, and native TypeScript
+execution reduce overall complexity.
 
-For projects that prioritize **ecosystem maturity and strictness**, the pnpm stack remains
-the safer choice, particularly due to pnpm's strict dependency isolation, Changesets'
-native support, ESLint's mature plugin ecosystem, and Vitest's comprehensive testing
-features.
+For projects that prioritize **ecosystem maturity and strictness**, the pnpm stack
+remains the safer choice, particularly due to pnpm’s strict dependency isolation,
+Changesets’ native support, ESLint’s mature plugin ecosystem, and Vitest’s comprehensive
+testing features.
 
 ### When to Choose the Bun Ecosystem
 
@@ -1406,11 +1481,9 @@ features.
 
 - Projects with strict dependency isolation requirements
 
-- Projects requiring mature ESLint plugins (security, accessibility)
+- Projects requiring mature ESLint plugins (security, accessibility, custom rules)
 
-- Projects needing advanced testing features (fake timers, test isolation, browser mode)
-
-- Teams that need diffable lockfiles for code review
+- Projects needing advanced testing features (test isolation, browser mode, sharding)
 
 - Projects that must support Node.js as the primary runtime
 
@@ -1480,7 +1553,15 @@ features.
 
 - [CommonJS is not going away (Bun Blog)](https://bun.sh/blog/commonjs-is-not-going-away)
 
+- [Bun’s New Text-Based Lockfile](https://bun.com/blog/bun-lock-text-lockfile)
+
+- [Fake Timers in Bun Test](https://js2brain.com/blog/fake-timers-in-bun-test/)
+
+- [Bun v1.3.4 Release (Fake Timers)](https://bun.com/blog/bun-v1.3.4)
+
 - [Bun Cross-Compilation](https://developer.mamezou-tech.com/en/blogs/2024/05/20/bun-cross-compile/)
+
+- [Bun Joins Anthropic](https://www.infoq.com/news/2026/01/bun-v3-1-release/)
 
 ### GitHub Actions
 
@@ -1551,7 +1632,7 @@ features.
   },
   "devDependencies": {
     "bun-types": "latest",
-    "bunup": "^0.7.0",
+    "bunup": "^0.16.0",
     "typescript": "^5.9.0"
   }
 }
@@ -1587,7 +1668,7 @@ features.
     "upgrade:major": "bunx npm-check-updates --target latest --interactive --format group"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.0.0",
+    "@biomejs/biome": "^2.3.0",
     "@changesets/cli": "^2.29.0",
     "@changesets/changelog-github": "^0.5.0",
     "lefthook": "^2.0.0",
@@ -1601,7 +1682,7 @@ features.
 
 ```json
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.3.0/schema.json",
   "organizeImports": {
     "enabled": true
   },
@@ -1673,7 +1754,7 @@ features.
       "dist",
       "node_modules",
       ".changeset",
-      "bun.lockb",
+      "bun.lock",
       "coverage"
     ]
   }
@@ -1847,11 +1928,13 @@ export default defineConfig([
 
 ### Appendix G: Case Study — craft-agents-oss (Real-World Bun Monorepo)
 
-**Repository**: [lukilabs/craft-agents-oss](https://github.com/lukilabs/craft-agents-oss)
-(Apache 2.0, Electron desktop app for AI agent interactions)
+**Repository**:
+[lukilabs/craft-agents-oss](https://github.com/lukilabs/craft-agents-oss) (Apache 2.0,
+Electron desktop app for AI agent interactions)
 
-This appendix documents how a real-world, production Bun monorepo is structured. It
-serves as a concrete reference implementation for the patterns described in this research.
+This appendix documents how a real-world, production Bun monorepo is structured.
+It serves as a concrete reference implementation for the patterns described in this
+research.
 
 #### Structure Overview
 
@@ -1867,7 +1950,7 @@ craft-agents-oss/
 ├── scripts/               # Bun build/dev scripts (TypeScript)
 ├── biome.json             # (not present — uses ESLint)
 ├── bunfig.toml            # Minimal: preload only
-├── bun.lock               # Text lockfile (v1)
+├── bun.lock               # Text lockfile (JSONC, default since Bun 1.2)
 ├── package.json           # Root workspace config
 └── tsconfig.json          # Root TypeScript config
 ```
@@ -1909,9 +1992,11 @@ All internal packages export TypeScript source directly — no `dist/` directory
 }
 ```
 
-This works because Bun natively imports TypeScript. Apps consume packages directly from
-source, eliminating build-watch complexity for local development. Published packages would
-need compiled output for Node.js consumers, but for internal-only packages this is ideal.
+This works because Bun natively imports TypeScript.
+Apps consume packages directly from source, eliminating build-watch complexity for local
+development.
+Published packages would need compiled output for Node.js consumers, but for
+internal-only packages this is ideal.
 
 **2. TypeScript Build Scripts (No Shell Scripts)**
 
@@ -1934,8 +2019,8 @@ logic.
 **3. Hybrid Build Architecture**
 
 Uses esbuild for Node.js targets (Electron main/preload), Vite for browser targets
-(renderer, viewer), and TypeScript for type checking only (`noEmit: true`). Bun serves as
-the orchestrator but does not replace specialized build tools.
+(renderer, viewer), and TypeScript for type checking only (`noEmit: true`). Bun serves
+as the orchestrator but does not replace specialized build tools.
 
 **4. Global Preload via bunfig.toml**
 
@@ -1962,7 +2047,7 @@ Instead of Biome, this project uses ESLint with 4 custom rules:
 - `no-direct-platform-check` — enforces platform detection abstraction
 - `no-hardcoded-path-separator` — enforces cross-platform paths
 
-This demonstrates that ESLint's custom rule ecosystem remains valuable for
+This demonstrates that ESLint’s custom rule ecosystem remains valuable for
 domain-specific architectural constraints that Biome cannot yet replicate.
 
 **7. Inter-Package Dependencies (Workspace Protocol)**
@@ -1991,7 +2076,8 @@ Clean dependency graph with `core` as the leaf package.
 #### Lessons for Published Library Monorepos
 
 This project optimizes for a different use case (private Electron app) than a published
-npm library monorepo. Key takeaways:
+npm library monorepo.
+Key takeaways:
 
 | craft-agents-oss Pattern | Adaptation for Published Library |
 | --- | --- |
