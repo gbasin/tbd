@@ -249,6 +249,28 @@ The code in `setup.ts` (lines 119-207) defines `TBD_SESSION_SCRIPT` and `CLAUDE_
 - Decision: Keep `tbd-session.sh` since it does more than just install (also runs prime)
 - Alternative: Add separate `tbd-install.sh` that ONLY ensures installation
 
+### Phase 0.5: End-to-End Golden Tests for Setup
+
+**Problem**: The install hook bug should have been caught by tests. We need comprehensive e2e golden tests for the setup flow.
+
+**Golden test scenarios to add**:
+- [ ] `tbd setup --auto --prefix=test` in fresh repo → verify:
+  - `~/.claude/scripts/tbd-session.sh` exists and is executable
+  - `~/.claude/settings.json` has SessionStart and PreCompact hooks
+  - `.claude/settings.json` (project) has PostToolUse hook
+  - `.claude/skills/tbd/SKILL.md` exists
+- [ ] `tbd setup --auto` in existing tbd repo → verify same as above
+- [ ] `tbd setup claude --check` → verify correct detection of hook state
+- [ ] Hook script content verification (golden snapshot of `tbd-session.sh`)
+
+**Test infrastructure needed**:
+- [ ] Mock/isolate `~/.claude/` to avoid polluting real user config during tests
+- [ ] Fixture for "fresh repo" and "existing tbd repo" scenarios
+- [ ] Golden file for expected `~/.claude/settings.json` structure
+- [ ] Golden file for expected `tbd-session.sh` script content
+
+**Location**: Add to `packages/tbd/tests/setup.test.ts` or new `setup-e2e.test.ts`
+
 ### Phase 1: LocalState Schema Update
 
 - [ ] Add `welcome_seen: z.boolean().optional()` to LocalStateSchema
