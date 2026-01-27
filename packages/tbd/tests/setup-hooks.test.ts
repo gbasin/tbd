@@ -11,11 +11,14 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile, access, realpath, stat } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { tmpdir, platform } from 'node:os';
 import { join } from 'node:path';
 import { execSync, spawnSync } from 'node:child_process';
 
-describe('setup global hooks', () => {
+// Shell script hooks are Unix-only; skip entire suite on Windows
+const describeUnix = platform() === 'win32' ? describe.skip : describe;
+
+describeUnix('setup global hooks', () => {
   let tempDir: string;
   let fakeHome: string;
   let originalHome: string | undefined;
@@ -55,6 +58,7 @@ describe('setup global hooks', () => {
       env: {
         ...process.env,
         HOME: fakeHome,
+        USERPROFILE: fakeHome, // Windows equivalent of HOME
         FORCE_COLOR: '0',
       },
     });
@@ -100,7 +104,6 @@ describe('setup global hooks', () => {
       const stats = await stat(scriptPath);
 
       // Check executable bit (0o755 = rwxr-xr-x)
-       
       expect(stats.mode & 0o111).toBeGreaterThan(0);
     });
 
