@@ -82,7 +82,7 @@ describe('golden output tests', () => {
         Templates:
           tbd template --list          List all available templates
           tbd template plan-spec       Feature planning template
-          tbd template architecture    Architecture document template
+          tbd template architecture-doc    Architecture document template
 
         Design & Reference:
           tbd docs --list              List documentation sections
