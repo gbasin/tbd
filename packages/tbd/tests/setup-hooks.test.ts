@@ -250,6 +250,14 @@ describeUnix('setup global hooks', () => {
           entry.hooks?.some((h) => h.command?.includes('tbd-session.sh')),
       );
       expect(hasSessionHook).toBe(true);
+
+      // Should use project-relative path, NOT $HOME path
+      const sessionHookCommand = settings.hooks?.SessionStart?.find(
+        (entry: { hooks?: { command?: string }[] }) =>
+          entry.hooks?.some((h) => h.command?.includes('tbd-session.sh')),
+      )?.hooks?.[0]?.command;
+      expect(sessionHookCommand).toBe('bash .claude/scripts/tbd-session.sh');
+      expect(sessionHookCommand).not.toContain('$HOME');
     });
 
     it('installs tbd-session.sh script to project .claude/scripts/', async () => {

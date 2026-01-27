@@ -110,8 +110,8 @@ interface SetupCodexOptions {
 }
 
 /**
- * Global script to ensure tbd CLI is installed and run tbd prime.
- * Installed to ~/.claude/scripts/tbd-session.sh
+ * Script to ensure tbd CLI is installed and run tbd prime.
+ * Installed to .claude/scripts/tbd-session.sh (project-local) or ~/.claude/scripts/ (global fallback).
  * Runs on SessionStart and PreCompact to ensure tbd is available and provide orientation.
  *
  * Usage:
@@ -188,25 +188,35 @@ tbd prime "$@"
 `;
 
 /**
- * Claude Code global hooks configuration (installed to ~/.claude/settings.json)
- * Uses tbd-session.sh which ensures tbd is installed and runs tbd prime with correct PATH.
+ * Generate Claude Code session hooks configuration.
+ * When installing to a project context, uses project-relative paths (bash .claude/scripts/tbd-session.sh).
+ * When installing globally, uses $HOME-based paths ($HOME/.claude/scripts/tbd-session.sh).
  */
-const CLAUDE_GLOBAL_HOOKS = {
-  hooks: {
-    SessionStart: [
-      {
-        matcher: '',
-        hooks: [{ type: 'command', command: '$HOME/.claude/scripts/tbd-session.sh' }],
-      },
-    ],
-    PreCompact: [
-      {
-        matcher: '',
-        hooks: [{ type: 'command', command: '$HOME/.claude/scripts/tbd-session.sh --brief' }],
-      },
-    ],
-  },
-};
+function generateSessionHooks(projectLocal: boolean) {
+  const scriptCommand = projectLocal
+    ? 'bash .claude/scripts/tbd-session.sh'
+    : '$HOME/.claude/scripts/tbd-session.sh';
+  const briefCommand = projectLocal
+    ? 'bash .claude/scripts/tbd-session.sh --brief'
+    : '$HOME/.claude/scripts/tbd-session.sh --brief';
+
+  return {
+    hooks: {
+      SessionStart: [
+        {
+          matcher: '',
+          hooks: [{ type: 'command', command: scriptCommand }],
+        },
+      ],
+      PreCompact: [
+        {
+          matcher: '',
+          hooks: [{ type: 'command', command: briefCommand }],
+        },
+      ],
+    },
+  };
+}
 
 /**
  * Claude Code project-local hooks configuration (installed to .claude/settings.json)
@@ -371,40 +381,55 @@ class SetupClaudeHandler extends BaseCommand {
     let postToolUseHook = false;
     let hookScriptInstalled = false;
 
-    // Check for global tbd-session.sh script
-    const tbdSessionScript = join(homedir(), '.claude', 'scripts', 'tbd-session.sh');
+    // Check for tbd-session.sh script (project-local or global)
+    const projectSessionScript = join(cwd, '.claude', 'scripts', 'tbd-session.sh');
+    const globalSessionScript = join(homedir(), '.claude', 'scripts', 'tbd-session.sh');
     try {
-      await access(tbdSessionScript);
+      await access(projectSessionScript);
       globalScriptInstalled = true;
     } catch {
-      // Script doesn't exist
+      try {
+        await access(globalSessionScript);
+        globalScriptInstalled = true;
+      } catch {
+        // Script doesn't exist in either location
+      }
     }
+
+    // Helper to check for tbd session hooks in a settings file
+    const checkSessionHooks = (hooks: Record<string, unknown> | undefined) => {
+      if (!hooks) return { sessionStart: false, preCompact: false };
+      const sessionStart = hooks.SessionStart as { hooks?: { command?: string }[] }[];
+      const preCompact = hooks.PreCompact as { hooks?: { command?: string }[] }[];
+      return {
+        sessionStart:
+          sessionStart?.some((h) =>
+            h.hooks?.some(
+              (hook) =>
+                (hook.command?.includes('tbd prime') ?? false) ||
+                (hook.command?.includes('tbd-session.sh') ?? false) ||
+                (hook.command?.includes('ensure-tbd-cli.sh') ?? false),
+            ),
+          ) ?? false,
+        preCompact:
+          preCompact?.some((h) =>
+            h.hooks?.some(
+              (hook) =>
+                (hook.command?.includes('tbd prime') ?? false) ||
+                (hook.command?.includes('tbd-session.sh') ?? false),
+            ),
+          ) ?? false,
+      };
+    };
 
     // Check hooks in global settings
     try {
       await access(settingsPath);
       const content = await readFile(settingsPath, 'utf-8');
       const settings = JSON.parse(content) as Record<string, unknown>;
-
-      const hooks = settings.hooks as Record<string, unknown> | undefined;
-      if (hooks) {
-        const sessionStart = hooks.SessionStart as { hooks?: { command?: string }[] }[];
-        const preCompact = hooks.PreCompact as { hooks?: { command?: string }[] }[];
-
-        sessionStartHook = sessionStart?.some((h) =>
-          h.hooks?.some(
-            (hook) =>
-              (hook.command?.includes('tbd prime') ?? false) ||
-              (hook.command?.includes('tbd-session.sh') ?? false) ||
-              (hook.command?.includes('ensure-tbd-cli.sh') ?? false),
-          ),
-        );
-        preCompactHook = preCompact?.some((h) =>
-          h.hooks?.some((hook) => hook.command?.includes('tbd prime')),
-        );
-
-        globalHooksInstalled = sessionStartHook && preCompactHook && globalScriptInstalled;
-      }
+      const result = checkSessionHooks(settings.hooks as Record<string, unknown> | undefined);
+      sessionStartHook = result.sessionStart;
+      preCompactHook = result.preCompact;
     } catch {
       // Settings file doesn't exist
     }
@@ -420,6 +445,11 @@ class SetupClaudeHandler extends BaseCommand {
 
       const hooks = settings.hooks as Record<string, unknown> | undefined;
       if (hooks) {
+        // Check for session hooks in project settings too (project-local install)
+        const projectResult = checkSessionHooks(hooks);
+        if (projectResult.sessionStart) sessionStartHook = true;
+        if (projectResult.preCompact) preCompactHook = true;
+
         const postToolUse = hooks.PostToolUse as { hooks?: { command?: string }[] }[];
         postToolUseHook = postToolUse?.some((h) =>
           h.hooks?.some((hook) => hook.command?.includes('tbd-closing-reminder')),
@@ -428,6 +458,8 @@ class SetupClaudeHandler extends BaseCommand {
     } catch {
       // Project settings file doesn't exist
     }
+
+    globalHooksInstalled = sessionStartHook && preCompactHook && globalScriptInstalled;
 
     try {
       await access(hookScriptPath);
@@ -613,20 +645,25 @@ class SetupClaudeHandler extends BaseCommand {
       if (settings.hooks) {
         const hooks = settings.hooks as Record<string, unknown>;
 
-        // Remove tbd PostToolUse hooks
-        const filterPostToolUse = (arr: { hooks?: { command?: string }[] }[] | undefined) => {
+        // Remove tbd hooks from project settings (PostToolUse, SessionStart, PreCompact)
+        const filterTbdHooks = (arr: { hooks?: { command?: string }[] }[] | undefined) => {
           if (!arr) return undefined;
           return arr.filter(
-            (h) => !h.hooks?.some((hook) => hook.command?.includes('tbd-closing-reminder')),
+            (h) =>
+              !h.hooks?.some(
+                (hook) =>
+                  (hook.command?.includes('tbd-closing-reminder') ?? false) ||
+                  (hook.command?.includes('tbd-session.sh') ?? false) ||
+                  (hook.command?.includes('tbd prime') ?? false),
+              ),
           );
         };
 
-        const postToolUse = filterPostToolUse(
-          hooks.PostToolUse as { hooks?: { command?: string }[] }[],
-        );
-
-        if (postToolUse?.length === 0) delete hooks.PostToolUse;
-        else if (postToolUse) hooks.PostToolUse = postToolUse;
+        for (const hookType of ['PostToolUse', 'SessionStart', 'PreCompact'] as const) {
+          const filtered = filterTbdHooks(hooks[hookType] as { hooks?: { command?: string }[] }[]);
+          if (filtered?.length === 0) delete hooks[hookType];
+          else if (filtered) hooks[hookType] = filtered;
+        }
 
         if (Object.keys(hooks).length === 0) {
           delete settings.hooks;
@@ -649,20 +686,17 @@ class SetupClaudeHandler extends BaseCommand {
       // Hook script doesn't exist
     }
 
-    // Remove global tbd scripts (both new and legacy)
-    const tbdSessionScript = join(homedir(), '.claude', 'scripts', 'tbd-session.sh');
+    // Remove tbd scripts from both project-local and global locations
+    const projectTbdScript = join(cwd, '.claude', 'scripts', 'tbd-session.sh');
+    const globalTbdScript = join(homedir(), '.claude', 'scripts', 'tbd-session.sh');
     const legacyTbdScript = join(homedir(), '.claude', 'scripts', 'ensure-tbd-cli.sh');
-    try {
-      await rm(tbdSessionScript);
-      removedGlobalScript = true;
-    } catch {
-      // Script doesn't exist
-    }
-    try {
-      await rm(legacyTbdScript);
-      removedGlobalScript = true;
-    } catch {
-      // Script doesn't exist
+    for (const script of [projectTbdScript, globalTbdScript, legacyTbdScript]) {
+      try {
+        await rm(script);
+        removedGlobalScript = true;
+      } catch {
+        // Script doesn't exist
+      }
     }
 
     // Remove skill file from project
@@ -742,7 +776,8 @@ class SetupClaudeHandler extends BaseCommand {
 
       // Merge hooks properly - append new hooks to existing arrays rather than overwriting
       const existingHooks = (settings.hooks as Record<string, unknown[]>) || {};
-      const newHooks = CLAUDE_GLOBAL_HOOKS.hooks as Record<string, unknown[]>;
+      const sessionHooksConfig = generateSessionHooks(hasProjectClaude);
+      const newHooks = sessionHooksConfig.hooks as Record<string, unknown[]>;
       const mergedHooks: Record<string, unknown[]> = { ...existingHooks };
 
       for (const [hookType, hookEntries] of Object.entries(newHooks)) {
