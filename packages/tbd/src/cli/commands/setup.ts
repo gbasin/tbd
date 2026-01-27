@@ -23,9 +23,21 @@ import { stripFrontmatter, insertAfterFrontmatter } from '../../utils/markdown-u
 import { pathExists } from '../../utils/file-utils.js';
 import { ensureGitignorePatterns } from '../../utils/gitignore-utils.js';
 import { type DiagnosticResult, renderDiagnostics } from '../lib/diagnostics.js';
-import { fileURLToPath } from 'node:url';
 import { isValidPrefix, getBeadsPrefix } from '../lib/prefix-detection.js';
-import { initConfig, isInitialized, readConfig, findTbdRoot } from '../../file/config.js';
+import {
+  initConfig,
+  isInitialized,
+  readConfig,
+  readConfigWithMigration,
+  findTbdRoot,
+  writeConfig,
+  updateLocalState,
+} from '../../file/config.js';
+import {
+  DocSync,
+  generateDefaultDocCacheConfig,
+  mergeDocCacheConfig,
+} from '../../file/doc-sync.js';
 import { VERSION } from '../lib/version.js';
 import {
   TBD_DIR,
@@ -33,135 +45,21 @@ import {
   WORKTREE_DIR_NAME,
   DATA_SYNC_DIR_NAME,
   DEFAULT_SHORTCUT_PATHS,
-  TBD_SHORTCUTS_DIR,
   TBD_SHORTCUTS_SYSTEM,
   TBD_SHORTCUTS_STANDARD,
   TBD_GUIDELINES_DIR,
   TBD_TEMPLATES_DIR,
-  BUILTIN_GUIDELINES_DIR,
-  BUILTIN_TEMPLATES_DIR,
 } from '../../lib/paths.js';
 import { initWorktree, isInGitRepo } from '../../file/git.js';
 import { DocCache, generateShortcutDirectory } from '../../file/doc-cache.js';
 
 /**
- * Get base docs path (with fallbacks for development).
- */
-function getDocsBasePath(): string[] {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  return [
-    // Bundled location (dist/docs/)
-    join(__dirname, 'docs'),
-    // Development: packages/tbd/docs/
-    join(__dirname, '..', '..', '..', 'docs'),
-  ];
-}
-
-/**
- * Copy all files from a source directory to a destination directory.
- */
-async function copyDirFiles(
-  srcDir: string,
-  destDir: string,
-): Promise<{ copied: number; errors: string[] }> {
-  const errors: string[] = [];
-  let copied = 0;
-
-  try {
-    await access(srcDir);
-    const entries = await readdir(srcDir, { withFileTypes: true });
-
-    // Ensure destination directory exists before copying
-    if (entries.some((e) => e.isFile() && e.name.endsWith('.md'))) {
-      await mkdir(destDir, { recursive: true });
-    }
-
-    for (const entry of entries) {
-      if (entry.isFile() && entry.name.endsWith('.md')) {
-        const srcPath = join(srcDir, entry.name);
-        const destPath = join(destDir, entry.name);
-
-        try {
-          const content = await readFile(srcPath, 'utf-8');
-          await writeFile(destPath, content);
-          copied++;
-        } catch (err) {
-          errors.push(`Failed to copy ${entry.name}: ${(err as Error).message}`);
-        }
-      }
-    }
-  } catch {
-    // Directory doesn't exist, skip
-  }
-
-  return { copied, errors };
-}
-
-/**
- * Copy built-in docs from the bundled package to the user's project.
- * Copies:
- * - shortcuts/system/ and shortcuts/standard/ to .tbd/docs/shortcuts/
- * - guidelines/ to .tbd/docs/guidelines/
- * - templates/ to .tbd/docs/templates/
- */
-async function copyBuiltinDocs(targetDir: string): Promise<{ copied: number; errors: string[] }> {
-  const allErrors: string[] = [];
-  let totalCopied = 0;
-
-  // Find the docs base directory
-  let docsDir: string | null = null;
-  for (const path of getDocsBasePath()) {
-    try {
-      await access(path);
-      docsDir = path;
-      break;
-    } catch {
-      // Try next path
-    }
-  }
-
-  if (!docsDir) {
-    allErrors.push('Could not find bundled docs directory');
-    return { copied: totalCopied, errors: allErrors };
-  }
-
-  // Copy shortcuts (system and standard subdirs)
-  const shortcutSubdirs = ['system', 'standard'];
-  for (const subdir of shortcutSubdirs) {
-    const srcDir = join(docsDir, 'shortcuts', subdir);
-    const destDir = join(targetDir, TBD_SHORTCUTS_DIR, subdir);
-    const { copied, errors } = await copyDirFiles(srcDir, destDir);
-    totalCopied += copied;
-    allErrors.push(...errors);
-  }
-
-  // Copy guidelines (top-level)
-  {
-    const srcDir = join(docsDir, BUILTIN_GUIDELINES_DIR);
-    const destDir = join(targetDir, TBD_GUIDELINES_DIR);
-    const { copied, errors } = await copyDirFiles(srcDir, destDir);
-    totalCopied += copied;
-    allErrors.push(...errors);
-  }
-
-  // Copy templates (top-level)
-  {
-    const srcDir = join(docsDir, BUILTIN_TEMPLATES_DIR);
-    const destDir = join(targetDir, TBD_TEMPLATES_DIR);
-    const { copied, errors } = await copyDirFiles(srcDir, destDir);
-    totalCopied += copied;
-    allErrors.push(...errors);
-  }
-
-  return { copied: totalCopied, errors: allErrors };
-}
-
-/**
  * Get the shortcut directory content for appending to installed skill files.
  * Always generates on-the-fly from installed shortcuts.
+ *
+ * @param quiet - If true, suppress auto-sync output (default: false)
  */
-async function getShortcutDirectory(): Promise<string | null> {
+async function getShortcutDirectory(quiet = false): Promise<string | null> {
   const cwd = process.cwd();
 
   // Try to find tbd root (may not be initialized)
@@ -172,7 +70,7 @@ async function getShortcutDirectory(): Promise<string | null> {
 
   // Generate on-the-fly from installed shortcuts
   const cache = new DocCache(DEFAULT_SHORTCUT_PATHS, tbdRoot);
-  await cache.load();
+  await cache.load({ quiet });
   const docs = cache.list();
 
   // If no docs loaded, skip directory
@@ -186,11 +84,13 @@ async function getShortcutDirectory(): Promise<string | null> {
 /**
  * Get the tbd section content for AGENTS.md (Codex integration).
  * Loads from SKILL.md, strips frontmatter, and wraps in TBD INTEGRATION markers.
+ *
+ * @param quiet - If true, suppress auto-sync output (default: false)
  */
-async function getCodexTbdSection(): Promise<string> {
+async function getCodexTbdSection(quiet = false): Promise<string> {
   const skillContent = await loadSkillContent();
   let content = stripFrontmatter(skillContent);
-  const directory = await getShortcutDirectory();
+  const directory = await getShortcutDirectory(quiet);
   if (directory) {
     content = content.trimEnd() + '\n\n' + directory + '\n';
   }
@@ -208,83 +108,99 @@ interface SetupCodexOptions {
 }
 
 /**
- * Global script to ensure tbd CLI is installed.
- * Installed to ~/.claude/scripts/ensure-tbd-cli.sh
- * Runs on SessionStart before tbd prime to ensure tbd is available.
+ * Global script to ensure tbd CLI is installed and run tbd prime.
+ * Installed to ~/.claude/scripts/tbd-session.sh
+ * Runs on SessionStart and PreCompact to ensure tbd is available and provide orientation.
+ *
+ * Usage:
+ *   tbd-session.sh           # Ensure tbd + run tbd prime
+ *   tbd-session.sh --brief   # Ensure tbd + run tbd prime --brief (for PreCompact)
  */
-const TBD_ENSURE_CLI_SCRIPT = `#!/bin/bash
-# Ensure tbd CLI is installed for Claude Code sessions
+const TBD_SESSION_SCRIPT = `#!/bin/bash
+# Ensure tbd CLI is installed and run tbd prime for Claude Code sessions
 # Installed by: tbd setup --auto
-# This script runs on SessionStart to ensure tbd CLI is available
+# This script runs on SessionStart and PreCompact
 
-set -e
-
-# Add common binary locations to PATH
+# Add common binary locations to PATH (persists for entire script)
 export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
 
-# Check if tbd is already installed
-if command -v tbd &> /dev/null; then
-    echo "[tbd] CLI found at $(which tbd)"
-    exit 0
-fi
+# Function to ensure tbd is available
+ensure_tbd() {
+    # Check if tbd is already installed
+    if command -v tbd &> /dev/null; then
+        return 0
+    fi
 
-echo "[tbd] CLI not found, installing..."
+    echo "[tbd] CLI not found, installing..."
 
-# Try npm first (most common for Node.js tools)
-if command -v npm &> /dev/null; then
-    echo "[tbd] Installing via npm..."
-    npm install -g tbd-git 2>/dev/null || {
-        # If global install fails (permissions), try local install
-        echo "[tbd] Global npm install failed, trying user install..."
-        mkdir -p ~/.local/bin
-        npm install --prefix ~/.local tbd-git
-        # Create symlink if needed
-        if [ -f ~/.local/node_modules/.bin/tbd ]; then
-            ln -sf ~/.local/node_modules/.bin/tbd ~/.local/bin/tbd
-        fi
-    }
-elif command -v pnpm &> /dev/null; then
-    echo "[tbd] Installing via pnpm..."
-    pnpm add -g tbd-git
-elif command -v yarn &> /dev/null; then
-    echo "[tbd] Installing via yarn..."
-    yarn global add tbd-git
-else
-    echo "[tbd] ERROR: No package manager found (npm, pnpm, or yarn required)"
-    echo "[tbd] Please install Node.js and npm, then run: npm install -g tbd-git"
-    exit 1
-fi
+    # Try npm first (most common for Node.js tools)
+    if command -v npm &> /dev/null; then
+        echo "[tbd] Installing via npm..."
+        npm install -g tbd-git 2>/dev/null || {
+            # If global install fails (permissions), try local install
+            echo "[tbd] Global npm install failed, trying user install..."
+            mkdir -p ~/.local/bin
+            npm install --prefix ~/.local tbd-git
+            # Create symlink if needed
+            if [ -f ~/.local/node_modules/.bin/tbd ]; then
+                ln -sf ~/.local/node_modules/.bin/tbd ~/.local/bin/tbd
+            fi
+        }
+    elif command -v pnpm &> /dev/null; then
+        echo "[tbd] Installing via pnpm..."
+        pnpm add -g tbd-git
+    elif command -v yarn &> /dev/null; then
+        echo "[tbd] Installing via yarn..."
+        yarn global add tbd-git
+    else
+        echo "[tbd] ERROR: No package manager found (npm, pnpm, or yarn required)"
+        echo "[tbd] Please install Node.js and npm, then run: npm install -g tbd-git"
+        return 1
+    fi
 
-# Verify installation
-if command -v tbd &> /dev/null; then
-    echo "[tbd] Successfully installed to $(which tbd)"
-else
-    echo "[tbd] WARNING: tbd installed but not found in PATH"
-    echo "[tbd] Add ~/.local/bin to your PATH if not already"
-fi
+    # Verify installation
+    if command -v tbd &> /dev/null; then
+        echo "[tbd] Successfully installed to $(which tbd)"
+        return 0
+    else
+        echo "[tbd] WARNING: tbd installed but not found in PATH"
+        echo "[tbd] Checking common locations..."
+        # Try to find and add to path
+        for dir in ~/.local/bin ~/.local/node_modules/.bin /usr/local/bin; do
+            if [ -x "$dir/tbd" ]; then
+                export PATH="$dir:$PATH"
+                echo "[tbd] Found at $dir/tbd"
+                return 0
+            fi
+        done
+        echo "[tbd] Could not locate tbd after installation"
+        return 1
+    fi
+}
 
-exit 0
+# Main
+ensure_tbd || exit 1
+
+# Run tbd prime with any passed arguments (e.g., --brief for PreCompact)
+tbd prime "$@"
 `;
 
 /**
  * Claude Code global hooks configuration (installed to ~/.claude/settings.json)
- * Runs ensure-tbd-cli.sh first to ensure tbd is available, then tbd prime for orientation.
+ * Uses tbd-session.sh which ensures tbd is installed and runs tbd prime with correct PATH.
  */
 const CLAUDE_GLOBAL_HOOKS = {
   hooks: {
     SessionStart: [
       {
         matcher: '',
-        hooks: [
-          { type: 'command', command: '$HOME/.claude/scripts/ensure-tbd-cli.sh' },
-          { type: 'command', command: 'tbd prime' },
-        ],
+        hooks: [{ type: 'command', command: '$HOME/.claude/scripts/tbd-session.sh' }],
       },
     ],
     PreCompact: [
       {
         matcher: '',
-        hooks: [{ type: 'command', command: 'tbd prime' }],
+        hooks: [{ type: 'command', command: '$HOME/.claude/scripts/tbd-session.sh --brief' }],
       },
     ],
   },
@@ -339,9 +255,11 @@ const CODEX_END_MARKER = '<!-- END TBD INTEGRATION -->';
 
 /**
  * Generate a new AGENTS.md file with tbd integration.
+ *
+ * @param quiet - If true, suppress auto-sync output (default: false)
  */
-async function getCodexNewAgentsFile(): Promise<string> {
-  const tbdSection = await getCodexTbdSection();
+async function getCodexNewAgentsFile(quiet = false): Promise<string> {
+  const tbdSection = await getCodexTbdSection(quiet);
   return `# Project Instructions for AI Agents
 
 This file provides instructions and context for AI coding agents working on this project.
@@ -414,10 +332,10 @@ class SetupClaudeHandler extends BaseCommand {
     let postToolUseHook = false;
     let hookScriptInstalled = false;
 
-    // Check for global ensure-tbd-cli.sh script
-    const globalTbdScript = join(homedir(), '.claude', 'scripts', 'ensure-tbd-cli.sh');
+    // Check for global tbd-session.sh script
+    const tbdSessionScript = join(homedir(), '.claude', 'scripts', 'tbd-session.sh');
     try {
-      await access(globalTbdScript);
+      await access(tbdSessionScript);
       globalScriptInstalled = true;
     } catch {
       // Script doesn't exist
@@ -438,6 +356,7 @@ class SetupClaudeHandler extends BaseCommand {
           h.hooks?.some(
             (hook) =>
               (hook.command?.includes('tbd prime') ?? false) ||
+              (hook.command?.includes('tbd-session.sh') ?? false) ||
               (hook.command?.includes('ensure-tbd-cli.sh') ?? false),
           ),
         );
@@ -607,7 +526,7 @@ class SetupClaudeHandler extends BaseCommand {
         const hooks = settings.hooks as Record<string, unknown>;
 
         // Remove tbd hooks from SessionStart and PreCompact
-        // Matches both old 'tbd prime' only and new 'ensure-tbd-cli.sh' + 'tbd prime'
+        // Matches both old 'tbd prime' only and new 'tbd-session.sh'
         const filterHooks = (arr: { hooks?: { command?: string }[] }[] | undefined) => {
           if (!arr) return undefined;
           return arr.filter(
@@ -615,6 +534,7 @@ class SetupClaudeHandler extends BaseCommand {
               !h.hooks?.some(
                 (hook) =>
                   (hook.command?.includes('tbd prime') ?? false) ||
+                  (hook.command?.includes('tbd-session.sh') ?? false) ||
                   (hook.command?.includes('ensure-tbd-cli.sh') ?? false),
               ),
           );
@@ -690,10 +610,17 @@ class SetupClaudeHandler extends BaseCommand {
       // Hook script doesn't exist
     }
 
-    // Remove global ensure-tbd-cli.sh script
-    const globalTbdScript = join(homedir(), '.claude', 'scripts', 'ensure-tbd-cli.sh');
+    // Remove global tbd scripts (both new and legacy)
+    const tbdSessionScript = join(homedir(), '.claude', 'scripts', 'tbd-session.sh');
+    const legacyTbdScript = join(homedir(), '.claude', 'scripts', 'ensure-tbd-cli.sh');
     try {
-      await rm(globalTbdScript);
+      await rm(tbdSessionScript);
+      removedGlobalScript = true;
+    } catch {
+      // Script doesn't exist
+    }
+    try {
+      await rm(legacyTbdScript);
       removedGlobalScript = true;
     } catch {
       // Script doesn't exist
@@ -766,13 +693,26 @@ class SetupClaudeHandler extends BaseCommand {
       await writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n');
       this.output.success('Installed global hooks for Claude Code');
 
-      // Install global ensure-tbd-cli.sh script to ~/.claude/scripts/
+      // Install global tbd-session.sh script to ~/.claude/scripts/
       const globalScriptsDir = join(homedir(), '.claude', 'scripts');
-      const globalTbdScript = join(globalScriptsDir, 'ensure-tbd-cli.sh');
       await mkdir(globalScriptsDir, { recursive: true });
-      await writeFile(globalTbdScript, TBD_ENSURE_CLI_SCRIPT);
-      await chmod(globalTbdScript, 0o755);
-      this.output.success('Installed global tbd CLI script');
+
+      // Main script: tbd-session.sh (ensures tbd + runs prime)
+      const tbdSessionScript = join(globalScriptsDir, 'tbd-session.sh');
+      await writeFile(tbdSessionScript, TBD_SESSION_SCRIPT);
+      await chmod(tbdSessionScript, 0o755);
+
+      // Clean up legacy global scripts
+      const legacyGlobalScripts = ['ensure-tbd-cli.sh', 'setup-tbd.sh', 'ensure-tbd.sh'];
+      for (const script of legacyGlobalScripts) {
+        try {
+          await rm(join(globalScriptsDir, script));
+        } catch {
+          // Script doesn't exist, ignore
+        }
+      }
+
+      this.output.success('Installed global tbd session script');
 
       // Install project-local hooks in .claude/settings.json
       const hookScriptPath = join(cwd, '.claude', 'hooks', 'tbd-closing-reminder.sh');
@@ -801,8 +741,18 @@ class SetupClaudeHandler extends BaseCommand {
       this.output.success('Installed project hooks');
 
       // Add .claude/.gitignore to ignore backup files
+      // NOTE: Pattern re-addition is intentional - see comment in initializeTbd
       const claudeGitignorePath = join(cwd, '.claude', '.gitignore');
-      await ensureGitignorePatterns(claudeGitignorePath, ['# Backup files', '*.bak']);
+      const claudeGitignoreResult = await ensureGitignorePatterns(claudeGitignorePath, [
+        '# Backup files',
+        '*.bak',
+      ]);
+      if (claudeGitignoreResult.created) {
+        this.output.success('Created .claude/.gitignore');
+      } else if (claudeGitignoreResult.added.length > 0) {
+        this.output.success('Updated .claude/.gitignore');
+      }
+      // else: file is up-to-date, no message needed
 
       // Install hook script
       await mkdir(dirname(hookScriptPath), { recursive: true });
@@ -813,7 +763,7 @@ class SetupClaudeHandler extends BaseCommand {
       // Install skill file in project (with shortcut directory appended)
       await mkdir(dirname(skillPath), { recursive: true });
       let skillContent = await loadSkillContent();
-      const directory = await getShortcutDirectory();
+      const directory = await getShortcutDirectory(this.ctx.quiet);
       if (directory) {
         skillContent = skillContent.trimEnd() + '\n\n' + directory;
       }
@@ -943,7 +893,7 @@ class SetupCodexHandler extends BaseCommand {
 
       let newContent: string;
 
-      const tbdSection = await getCodexTbdSection();
+      const tbdSection = await getCodexTbdSection(this.ctx.quiet);
 
       if (existingContent) {
         if (existingContent.includes(CODEX_BEGIN_MARKER)) {
@@ -959,7 +909,7 @@ class SetupCodexHandler extends BaseCommand {
         }
       } else {
         // Create new file
-        const newAgentsFile = await getCodexNewAgentsFile();
+        const newAgentsFile = await getCodexNewAgentsFile(this.ctx.quiet);
         await writeFile(agentsPath, newAgentsFile);
         this.output.success('Created new AGENTS.md with tbd integration');
       }
@@ -1083,9 +1033,19 @@ class SetupDefaultHandler extends BaseCommand {
     console.log(`  ${colors.success('✓')} Git repository detected`);
 
     if (hasTbd) {
-      // Already initialized flow
-      const config = await readConfig(cwd);
+      // Already initialized flow - check for migrations
+      const { config, migrated, changes } = await readConfigWithMigration(cwd);
       console.log(`  ${colors.success('✓')} tbd initialized (prefix: ${config.display.id_prefix})`);
+
+      // Persist migration if config format was updated
+      if (migrated) {
+        await writeConfig(cwd, config);
+        console.log(`  ${colors.success('✓')} Config migrated to latest format`);
+        for (const change of changes) {
+          console.log(`      ${colors.dim(change)}`);
+        }
+      }
+
       console.log('');
       await this.handleAlreadyInitialized(cwd, isAutoMode);
     } else if ((hasBeads || options.fromBeads) && !options.prefix) {
@@ -1265,9 +1225,13 @@ class SetupDefaultHandler extends BaseCommand {
     await initConfig(cwd, VERSION, prefix);
     console.log(`  ${colors.success('✓')} Created .tbd/config.yml`);
 
-    // 2. Create .tbd/.gitignore (idempotent)
-    await ensureGitignorePatterns(join(cwd, TBD_DIR, '.gitignore'), [
-      '# Installed documentation (regenerated on setup)',
+    // 2. Create/update .tbd/.gitignore (idempotent)
+    // NOTE: Pattern re-addition is intentional - these are tool-managed files
+    // that are regenerated from the npm package on every setup. If a user removes
+    // a pattern, we re-add it because tracking these directories in git would
+    // cause noise on every tbd upgrade.
+    const tbdGitignoreResult = await ensureGitignorePatterns(join(cwd, TBD_DIR, '.gitignore'), [
+      '# Synced documentation cache (regenerated by tbd docs --refresh)',
       'docs/',
       '',
       '# Hidden worktree for tbd-sync branch',
@@ -1283,7 +1247,12 @@ class SetupDefaultHandler extends BaseCommand {
       '*.tmp',
       '*.temp',
     ]);
-    console.log(`  ${colors.success('✓')} Created .tbd/.gitignore`);
+    if (tbdGitignoreResult.created) {
+      console.log(`  ${colors.success('✓')} Created .tbd/.gitignore`);
+    } else if (tbdGitignoreResult.added.length > 0) {
+      console.log(`  ${colors.success('✓')} Updated .tbd/.gitignore`);
+    }
+    // else: file is up-to-date, no message needed
 
     // 3. Initialize worktree for sync branch
     try {
@@ -1443,23 +1412,8 @@ class SetupAutoHandler extends BaseCommand {
       console.log(colors.dim(`Cleaned up legacy ${parts.join(' and ')}`));
     }
 
-    // Ensure docs directories exist
-    await mkdir(join(cwd, TBD_SHORTCUTS_SYSTEM), { recursive: true });
-    await mkdir(join(cwd, TBD_SHORTCUTS_STANDARD), { recursive: true });
-    await mkdir(join(cwd, TBD_GUIDELINES_DIR), { recursive: true });
-    await mkdir(join(cwd, TBD_TEMPLATES_DIR), { recursive: true });
-    console.log(colors.dim(`Created ${TBD_DOCS_DIR}/ directories`));
-
-    // Copy built-in docs from the bundled package to the user's project
-    const { copied, errors } = await copyBuiltinDocs(cwd);
-    if (copied > 0) {
-      console.log(colors.dim(`Copied ${copied} built-in doc(s) to ${TBD_DOCS_DIR}/`));
-    }
-    if (errors.length > 0) {
-      for (const err of errors) {
-        console.log(colors.warn(`Warning: ${err}`));
-      }
-    }
+    // Sync docs using DocSync
+    await this.syncDocs(cwd);
 
     // Detect and set up Claude Code
     const claudeResult = await this.setupClaudeIfDetected(cwd);
@@ -1502,6 +1456,75 @@ class SetupAutoHandler extends BaseCommand {
         'Install a coding agent (Claude Code, Codex, or any AGENTS.md-compatible tool) and re-run:',
       );
       console.log('  tbd setup --auto');
+    }
+  }
+
+  /**
+   * Sync docs using DocSync.
+   * Merges default bundled docs with user's doc_cache config, then syncs.
+   * This ensures new bundled docs from tbd updates are added while
+   * preserving user's custom sources and overrides.
+   */
+  private async syncDocs(cwd: string): Promise<void> {
+    const colors = this.output.getColors();
+
+    // Read config
+    const config = await readConfig(cwd);
+
+    // Merge user's config with defaults (ensures new bundled docs are added)
+    const defaults = await generateDefaultDocCacheConfig();
+    const currentFiles = config.docs_cache?.files;
+    const filesConfig = mergeDocCacheConfig(currentFiles, defaults);
+
+    // Check if config changed (new defaults added)
+    const configUpdated =
+      !currentFiles ||
+      Object.keys(filesConfig).length !== Object.keys(currentFiles).length ||
+      Object.keys(filesConfig).some((k) => currentFiles?.[k] !== filesConfig[k]);
+
+    if (configUpdated) {
+      config.docs_cache = {
+        lookup_path: config.docs_cache?.lookup_path ?? [
+          '.tbd/docs/shortcuts/system',
+          '.tbd/docs/shortcuts/standard',
+        ],
+        files: filesConfig,
+      };
+    }
+
+    // Ensure docs directories exist
+    await mkdir(join(cwd, TBD_SHORTCUTS_SYSTEM), { recursive: true });
+    await mkdir(join(cwd, TBD_SHORTCUTS_STANDARD), { recursive: true });
+    await mkdir(join(cwd, TBD_GUIDELINES_DIR), { recursive: true });
+    await mkdir(join(cwd, TBD_TEMPLATES_DIR), { recursive: true });
+
+    // Sync docs
+    const sync = new DocSync(cwd, filesConfig);
+    const result = await sync.sync();
+
+    // Update last sync time
+    await updateLocalState(cwd, {
+      last_doc_sync_at: new Date().toISOString(),
+    });
+
+    // Write updated config if docs_cache.files was generated
+    if (configUpdated) {
+      await writeConfig(cwd, config);
+      console.log(colors.dim('Generated docs_cache config'));
+    }
+
+    // Report sync results
+    const total = result.added.length + result.updated.length;
+    if (total > 0) {
+      console.log(colors.dim(`Synced ${total} doc(s) to ${TBD_DOCS_DIR}/`));
+    }
+    if (result.removed.length > 0) {
+      console.log(colors.dim(`Removed ${result.removed.length} outdated doc(s)`));
+    }
+    if (result.errors.length > 0) {
+      for (const { path, error } of result.errors) {
+        console.log(colors.warn(`Warning: ${path}: ${error}`));
+      }
     }
   }
 
