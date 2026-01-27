@@ -65,6 +65,34 @@ export function insertAfterFrontmatter(content: string, toInsert: string): strin
 }
 
 /**
+ * Insert content immediately after YAML frontmatter (no blank line).
+ * Used for markers that flowmark formats right after the --- delimiter.
+ * If no frontmatter exists, prepends the content.
+ * Handles both LF and CRLF line endings.
+ */
+export function insertAfterFrontmatterNoBlank(content: string, toInsert: string): string {
+  // Normalize CRLF to LF
+  const normalizedContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  // Match frontmatter: starts with ---, ends with --- on its own line
+  // Capture the full frontmatter block including delimiters
+  const frontmatterRegex = /^(---\n[\s\S]*?\n---)\n*/;
+  const match = frontmatterRegex.exec(normalizedContent);
+
+  if (!match) {
+    // No frontmatter found, just prepend
+    return toInsert + content;
+  }
+
+  // Found frontmatter - insert immediately after it (no blank line)
+  const frontmatterBlock = match[1];
+  const afterFrontmatter = normalizedContent.slice(match[0].length);
+  const body = afterFrontmatter.replace(/^\n+/, ''); // Trim leading newlines from body
+
+  return frontmatterBlock + '\n' + toInsert + '\n\n' + body;
+}
+
+/**
  * Strip YAML frontmatter from markdown content.
  * Returns the body content without frontmatter, with leading newlines trimmed.
  * Handles both LF and CRLF line endings.
