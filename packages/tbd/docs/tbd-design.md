@@ -1161,6 +1161,9 @@ const IssueSchema = BaseEntity.extend({
   // Hierarchical issues
   parent_id: IssueId.optional(),
 
+  // Spec linking - path to related spec/doc (relative to repo root)
+  spec_path: z.string().optional(),
+
   // Beads compatibility
   due_date: Timestamp.optional(),
   deferred_until: Timestamp.optional(),
@@ -1184,6 +1187,23 @@ type Issue = z.infer<typeof IssueSchema>;
 - `priority`: 0 (highest/critical) to 4 (lowest), matching Beads
 
 - `notes`: Working notes field for agents to track progress (Beads parity)
+
+- `spec_path`: Optional path to related specification/documentation file (relative to
+  repo root). Supports gradual path matching for flexible lookups - queries can match by
+  filename only, partial path suffix, or exact path.
+  Used for spec-first workflows where planning documents are created before
+  implementation beads.
+
+  **Path Validation and Normalization:** When setting spec_path via CLI (`--spec`),
+  paths are validated and normalized:
+  - File must exist at create/update time
+  - Paths outside project root are rejected
+  - Absolute paths within project are converted to relative
+  - Relative paths from subdirectories are resolved to project root
+  - Path separators are normalized (backslashes → forward slashes)
+  - Leading `./` is removed
+
+  This ensures consistent storage regardless of how the path was specified.
 
 - `dependencies`: Only “blocks” type for now (affects `ready` command)
 
@@ -1834,6 +1854,7 @@ const issueMergeRules: MergeRules<Issue> = {
   labels: { strategy: 'union' },
   dependencies: { strategy: 'merge_by_id', key: (d) => d.target },
   parent_id: { strategy: 'lww' },
+  spec_path: { strategy: 'lww' },
   due_date: { strategy: 'lww' },
   deferred_until: { strategy: 'lww' },
   created_by: { strategy: 'preserve_oldest' },
@@ -4711,6 +4732,7 @@ This is sufficient for the `ready` command algorithm.
 | `labels` | `labels` | ✅ | Identical |
 | `dependencies` | `dependencies` | ✅ | Only `blocks` currently |
 | `parent_id` | `parent_id` | ✅ | Identical |
+| *(n/a)* | `spec_path` | ✅ | New: links to spec docs |
 | `created_at` | `created_at` | ✅ | Identical |
 | `updated_at` | `updated_at` | ✅ | Identical |
 | `created_by` | `created_by` | ✅ | Identical |
