@@ -189,9 +189,9 @@ if (updates.parent_id && options.spec === undefined) {
 
 ### Phase 3: Documentation Updates
 
-- [ ] Update `packages/tbd/docs/tbd-design.md` spec_path section to document inheritance
+- [x] Update `packages/tbd/docs/tbd-design.md` spec_path section to document inheritance
   behavior
-- [ ] Update `packages/tbd/docs/tbd-docs.md` CLI reference to document inheritance in
+- [x] Update `packages/tbd/docs/tbd-docs.md` CLI reference to document inheritance in
   `--parent` and `--spec` options
 
 ## Testing Strategy
