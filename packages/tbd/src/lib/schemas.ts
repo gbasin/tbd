@@ -166,9 +166,60 @@ export const GitRemoteName = z
   );
 
 /**
+ * Doc cache configuration - maps destination paths to source locations.
+ *
+ * Keys are destination paths relative to .tbd/docs/ (e.g., "shortcuts/standard/commit-code.md")
+ * Values are source locations:
+ * - internal: prefix for bundled docs (e.g., "internal:shortcuts/standard/commit-code.md")
+ * - Full URL for external docs (e.g., "https://raw.githubusercontent.com/org/repo/main/file.md")
+ *
+ * Example:
+ * ```yaml
+ * doc_cache:
+ *   shortcuts/standard/commit-code.md: internal:shortcuts/standard/commit-code.md
+ *   shortcuts/custom/my-shortcut.md: https://raw.githubusercontent.com/org/repo/main/shortcuts/my-shortcut.md
+ * ```
+ */
+export const DocCacheConfigSchema = z.record(z.string(), z.string());
+
+/**
+ * Documentation cache configuration (consolidated structure).
+ *
+ * Combines file sync mappings and lookup paths into a single config block.
+ * See: docs/project/specs/active/plan-2026-01-26-docs-cache-config-restructure.md
+ */
+export const DocsCacheSchema = z.object({
+  /**
+   * Files to sync: maps destination paths to source locations.
+   * Keys are destination paths relative to .tbd/docs/
+   * Values are source locations:
+   * - internal: prefix for bundled docs (e.g., "internal:shortcuts/standard/commit-code.md")
+   * - Full URL for external docs (e.g., "https://raw.githubusercontent.com/org/repo/main/file.md")
+   */
+  files: z.record(z.string(), z.string()).optional(),
+  /**
+   * Search paths for doc lookup (like shell $PATH).
+   * Earlier paths take precedence when names conflict.
+   */
+  lookup_path: z
+    .array(z.string())
+    .default(['.tbd/docs/shortcuts/system', '.tbd/docs/shortcuts/standard']),
+});
+
+/**
  * Project configuration stored in .tbd/config.yml
+ *
+ * ⚠️ FORMAT VERSIONING: See tbd-format.ts for version history and migration rules.
+ * The tbd_format field tracks breaking changes to this schema.
  */
 export const ConfigSchema = z.object({
+  /**
+   * Format version for the .tbd/ directory structure.
+   * See tbd-format.ts for version history and migration rules.
+   * Only bumped for breaking changes that require migration.
+   */
+  tbd_format: z.string().default('f01'),
+
   tbd_version: z.string(),
   sync: z
     .object({
@@ -182,26 +233,21 @@ export const ConfigSchema = z.object({
   settings: z
     .object({
       auto_sync: z.boolean().default(false),
+      /**
+       * How often to automatically sync documentation cache (in hours).
+       * - Default: 24 (sync once per day when actively using tbd)
+       * - Set to 0 to disable auto-sync
+       * - Only triggers when accessing docs (shortcut, guidelines, template commands)
+       */
+      doc_auto_sync_hours: z.number().default(24),
     })
     .default({}),
-  docs: z
-    .object({
-      /**
-       * Ordered list of paths to search for documentation shortcuts.
-       * Paths can be:
-       * - Relative to tbd root (parent of .tbd/): e.g., '.tbd/docs/shortcuts/system'
-       * - Absolute paths: e.g., '/usr/share/tbd/shortcuts'
-       * - Home-relative paths: e.g., '~/my-shortcuts'
-       *
-       * Earlier paths take precedence (like shell $PATH).
-       */
-      paths: z
-        .array(z.string())
-        .default(['.tbd/docs/shortcuts/system', '.tbd/docs/shortcuts/standard']),
-    })
-    .default({
-      paths: ['.tbd/docs/shortcuts/system', '.tbd/docs/shortcuts/standard'],
-    }),
+  /**
+   * Documentation cache configuration (consolidated).
+   * Contains files to sync and lookup paths.
+   * See DocsCacheSchema for structure details.
+   */
+  docs_cache: DocsCacheSchema.optional(),
 });
 
 // =============================================================================
@@ -222,10 +268,13 @@ export const MetaSchema = z.object({
 
 /**
  * Per-node state stored in .tbd/state.yml (gitignored).
- * Only last_sync_at is currently used. Additional fields reserved for future.
+ * Tracks local timing information that shouldn't be shared across nodes.
  */
 export const LocalStateSchema = z.object({
-  last_sync_at: Timestamp.optional(), // When this node last synced successfully
+  /** When this node last synced issues successfully */
+  last_sync_at: Timestamp.optional(),
+  /** When this node last synced the doc cache successfully */
+  last_doc_sync_at: Timestamp.optional(),
 });
 
 // =============================================================================
