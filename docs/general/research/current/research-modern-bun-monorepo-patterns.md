@@ -962,7 +962,8 @@ jobs:
 
 **Assessment**: Bun CI is simpler — one setup action instead of two, and a single check
 command instead of separate format and lint steps.
-The binary lockfile is a minor downside for code review (cannot diff).
+The text-based `bun.lock` (since Bun 1.2) is diffable in PRs, on par with
+`pnpm-lock.yaml`.
 
 **References**:
 
