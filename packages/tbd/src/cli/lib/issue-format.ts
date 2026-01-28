@@ -241,3 +241,38 @@ export function wrapDescription(
 
   return lines.map((line) => indentStr + line).join('\n');
 }
+
+/**
+ * Extract a display name from a spec_path.
+ *
+ * Strips the directory prefix and .md extension, returning just the filename stem.
+ * e.g. "docs/project/specs/active/plan-2026-01-27-my-feature.md" → "plan-2026-01-27-my-feature"
+ */
+export function formatSpecName(specPath: string): string {
+  const basename = specPath.split('/').pop() ?? specPath;
+  return basename.replace(/\.md$/, '');
+}
+
+/**
+ * Format a spec group header for --specs output.
+ *
+ * Renders a bold header line with the spec name.
+ */
+export function formatSpecGroupHeader(
+  specPath: string,
+  count: number,
+  colors: ReturnType<typeof createColors>,
+): string {
+  const name = formatSpecName(specPath);
+  return colors.bold(`📋 ${name}`) + colors.dim(` (${count})`);
+}
+
+/**
+ * Format the "No spec" group header for beads without a linked spec.
+ */
+export function formatNoSpecGroupHeader(
+  count: number,
+  colors: ReturnType<typeof createColors>,
+): string {
+  return colors.bold('(No spec)') + colors.dim(` (${count})`);
+}

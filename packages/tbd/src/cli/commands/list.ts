@@ -15,15 +15,18 @@ import { formatDisplayId, formatDebugId, extractUlidFromInternalId } from '../..
 import type { IdMapping } from '../../file/id-mapping.js';
 import { resolveToInternalId } from '../../file/id-mapping.js';
 import { naturalCompare } from '../../lib/sort.js';
+import { comparisonChain, ordering } from '../../lib/comparison-chain.js';
 import {
   formatIssueLine,
   formatIssueLong,
   formatIssueHeader,
+  formatSpecGroupHeader,
+  formatNoSpecGroupHeader,
   type IssueForDisplay,
 } from '../lib/issue-format.js';
 import { parsePriority } from '../../lib/priority.js';
 import { buildIssueTree, renderIssueTree } from '../lib/tree-view.js';
-import { getTerminalWidth } from '../lib/output.js';
+import { getTerminalWidth, type createColors } from '../lib/output.js';
 import { matchesSpecPath } from '../../lib/spec-matching.js';
 
 interface ListOptions {
@@ -42,6 +45,7 @@ interface ListOptions {
   count?: boolean;
   long?: boolean;
   pretty?: boolean;
+  specs?: boolean;
 }
 
 class ListHandler extends BaseCommand {
@@ -97,10 +101,10 @@ class ListHandler extends BaseCommand {
       status: i.status,
       kind: i.kind,
       title: i.title,
-      description: i.description,
-      assignee: i.assignee,
+      description: i.description ?? undefined,
+      assignee: i.assignee ?? undefined,
       labels: i.labels,
-      spec_path: i.spec_path,
+      spec_path: i.spec_path ?? undefined,
     }));
 
     this.output.data(displayIssues, () => {
@@ -111,31 +115,87 @@ class ListHandler extends BaseCommand {
 
       const colors = this.output.getColors();
 
-      if (options.pretty) {
-        // Tree view: show parent-child relationships
-        const tree = buildIssueTree(displayIssues as (IssueForDisplay & { parentId?: string })[]);
-        const lines = renderIssueTree(tree, colors, {
-          long: options.long,
-          maxWidth: getTerminalWidth(),
-        });
-        for (const line of lines) {
-          console.log(line);
-        }
+      if (options.specs) {
+        this.renderGroupedBySpec(displayIssues, options, colors);
       } else {
-        // Table view: standard tabular format
-        console.log(formatIssueHeader(colors));
-        for (const issue of displayIssues) {
-          if (options.long) {
-            console.log(formatIssueLong(issue as IssueForDisplay, colors));
-          } else {
-            console.log(formatIssueLine(issue as IssueForDisplay, colors));
-          }
-        }
+        this.renderFlat(displayIssues, options, colors);
       }
 
       console.log('');
       console.log(colors.dim(`${issues.length} issue(s)`));
     });
+  }
+
+  private renderFlat(
+    displayIssues: (IssueForDisplay & { parentId?: string; spec_path?: string })[],
+    options: ListOptions,
+    colors: ReturnType<typeof createColors>,
+  ): void {
+    if (options.pretty) {
+      const tree = buildIssueTree(displayIssues);
+      const lines = renderIssueTree(tree, colors, {
+        long: options.long,
+        maxWidth: getTerminalWidth(),
+      });
+      for (const line of lines) {
+        console.log(line);
+      }
+    } else {
+      console.log(formatIssueHeader(colors));
+      for (const issue of displayIssues) {
+        if (options.long) {
+          console.log(formatIssueLong(issue, colors));
+        } else {
+          console.log(formatIssueLine(issue, colors));
+        }
+      }
+    }
+  }
+
+  private renderGroupedBySpec(
+    displayIssues: (IssueForDisplay & { parentId?: string; spec_path?: string })[],
+    options: ListOptions,
+    colors: ReturnType<typeof createColors>,
+  ): void {
+    // Group issues by spec_path
+    const specGroups = new Map<string, typeof displayIssues>();
+    const noSpecIssues: typeof displayIssues = [];
+
+    for (const issue of displayIssues) {
+      if (issue.spec_path) {
+        const group = specGroups.get(issue.spec_path);
+        if (group) {
+          group.push(issue);
+        } else {
+          specGroups.set(issue.spec_path, [issue]);
+        }
+      } else {
+        noSpecIssues.push(issue);
+      }
+    }
+
+    // Render each spec group
+    let first = true;
+    for (const [specPath, groupIssues] of specGroups) {
+      if (!first) {
+        console.log('');
+      }
+      first = false;
+
+      console.log(formatSpecGroupHeader(specPath, groupIssues.length, colors));
+      console.log('');
+      this.renderFlat(groupIssues, options, colors);
+    }
+
+    // Render "No spec" group at the end
+    if (noSpecIssues.length > 0) {
+      if (!first) {
+        console.log('');
+      }
+      console.log(formatNoSpecGroupHeader(noSpecIssues.length, colors));
+      console.log('');
+      this.renderFlat(noSpecIssues, options, colors);
+    }
   }
 
   private filterIssues(issues: Issue[], options: ListOptions, mapping: IdMapping): Issue[] {
@@ -215,29 +275,23 @@ class ListHandler extends BaseCommand {
       return mapping.ulidToShort.get(ulid) ?? ulid;
     };
 
-    return [...issues].sort((a, b) => {
-      let primaryCompare: number;
+    const primarySelector: (i: Issue) => number =
+      sortField === 'created'
+        ? (i) => new Date(i.created_at).getTime()
+        : sortField === 'updated'
+          ? (i) => new Date(i.updated_at).getTime()
+          : (i) => i.priority;
 
-      switch (sortField) {
-        case 'priority':
-          primaryCompare = a.priority - b.priority;
-          break;
-        case 'created':
-          primaryCompare = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-          break;
-        case 'updated':
-          primaryCompare = new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-          break;
-        default:
-          primaryCompare = a.priority - b.priority;
-      }
+    // For created/updated, reverse so newest comes first; for priority, ascending
+    const primaryOrdering =
+      sortField === 'created' || sortField === 'updated' ? ordering.reversed : ordering.default;
 
-      // Secondary sort by short ID using natural ordering for stable, intuitive results
-      if (primaryCompare !== 0) {
-        return primaryCompare;
-      }
-      return naturalCompare(getShortId(a), getShortId(b));
-    });
+    return [...issues].sort(
+      comparisonChain<Issue>()
+        .compare(primarySelector, primaryOrdering)
+        .compare(getShortId, (a, b) => naturalCompare(a, b))
+        .result(),
+    );
   }
 }
 
@@ -264,6 +318,7 @@ export const listCommand = new Command('list')
   .option('--count', 'Output only the count of matching issues')
   .option('--long', 'Show descriptions')
   .option('--pretty', 'Show tree view with parent-child relationships')
+  .option('--specs', 'Group output by linked spec')
   .action(async (options, command) => {
     const handler = new ListHandler(command);
     await handler.run(options);
