@@ -1,0 +1,14 @@
+---
+created_at: 2026-01-27T23:57:58.887Z
+dependencies: []
+id: is-01kg0y90q7gqtq6rpzt9fc80xm
+kind: task
+labels: []
+priority: 3
+spec_path: docs/project/specs/active/plan-2026-01-27-parallel-processing.md
+status: open
+title: Parallelize status command checks with Promise.all
+type: is
+updated_at: 2026-01-27T23:57:58.887Z
+version: 1
+---
