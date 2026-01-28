@@ -63,20 +63,22 @@ around 6–8 concurrent agents) is a bit slower but gives higher quality results
 > 
 > ***“npm install -g get-tbd@latest and run tbd for instructions”***
 
-That’s it. Running `tbd` with no arguments gives you everything you need:
-- Not installed? It tells you how to install and set up.
-- Not initialized? It explains what tbd is and how to initialize.
-- Already set up? It shows project status, available work, and workflow guidance.
+That’s it. Running `tbd` with no arguments gives your agent what it needs as well as
+information on how to help you.
+It will then bootstraps a SKILL.md into your project by running `tbd setup --auto`
+(which will add a `.tbd` directory and add itself to your `.claude` skills and hooks).
+And then it will use then use shortcuts to welcome you and get you started.
 
-Your agent will then bootstraps a SKILL.md in your project.
-
-You can then ask: “what can I do with tbd?”
+You can then always ask questions like: “what can I do with tbd?”
 
 ## How to Use tbd
 
 You talk to your agent in natural language.
-The agent translates your requests into tbd commands behind the scenes — you don’t need
-to memorize anything.
+The agent translates your requests into tbd commands.
+
+The `tbd` CLI blends task tracking and context injection.
+Some `tbd` commands do things, like create or update beads, and some help the agent get
+status or context or knowledge and know what to do next:
 
 | What you say | What happens | What runs |
 | --- | --- | --- |
