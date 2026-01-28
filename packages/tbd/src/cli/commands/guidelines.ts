@@ -9,6 +9,7 @@ import { Command } from 'commander';
 import pc from 'picocolors';
 
 import { DocCommandHandler, type DocCommandOptions } from '../lib/doc-command-handler.js';
+import { CLIError } from '../lib/errors.js';
 import { DEFAULT_GUIDELINES_PATHS } from '../../lib/paths.js';
 import { truncate } from '../../lib/truncate.js';
 import { getTerminalWidth } from '../lib/output.js';
@@ -54,6 +55,8 @@ function inferGuidelineCategory(name: string): GuidelineCategory | undefined {
 
 interface GuidelinesOptions extends DocCommandOptions {
   category?: string;
+  add?: string;
+  name?: string;
 }
 
 class GuidelinesHandler extends DocCommandHandler {
@@ -62,11 +65,21 @@ class GuidelinesHandler extends DocCommandHandler {
       typeName: 'guideline',
       typeNamePlural: 'guidelines',
       paths: DEFAULT_GUIDELINES_PATHS,
+      docType: 'guideline',
     });
   }
 
   async run(query: string | undefined, options: GuidelinesOptions): Promise<void> {
     await this.execute(async () => {
+      // Add mode
+      if (options.add) {
+        if (!options.name) {
+          throw new CLIError('--name is required when using --add');
+        }
+        await this.handleAdd(options.add, options.name);
+        return;
+      }
+
       await this.initCache();
 
       // List mode (also triggered by --category)
@@ -158,6 +171,8 @@ export const guidelinesCommand = new Command('guidelines')
   .option('--list', 'List all available guidelines')
   .option('--all', 'Include shadowed guidelines (use with --list)')
   .option('--category <category>', 'Filter by category: typescript, python, testing, general')
+  .option('--add <url>', 'Add a guideline from a URL')
+  .option('--name <name>', 'Name for the added guideline (required with --add)')
   .action(async (query: string | undefined, options: GuidelinesOptions, command) => {
     const handler = new GuidelinesHandler(command);
     await handler.run(query, options);
