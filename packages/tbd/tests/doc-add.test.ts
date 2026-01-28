@@ -14,7 +14,6 @@ import { stringify as stringifyYaml } from 'yaml';
 
 // Mock github-fetch so addDoc doesn't hit the network
 vi.mock('../src/file/github-fetch.js', async (importOriginal) => {
-   
   return {
     ...(await importOriginal()),
     fetchWithGhFallback: vi.fn().mockResolvedValue({

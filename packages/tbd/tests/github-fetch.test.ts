@@ -203,7 +203,6 @@ describe('directFetch', () => {
 // We mock the module at the top level for ghCliFetch tests.
 // ghCliFetch uses execFile internally, which we mock via vi.mock.
 vi.mock('node:child_process', async (importOriginal) => {
-   
   return {
     ...(await importOriginal()),
     execFile: vi.fn(),
