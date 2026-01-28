@@ -67,6 +67,9 @@ const status = await git('status', '--porcelain', DATA_SYNC_DIR);
 
 Returns empty because `.tbd/data-sync/` is in `.tbd/.gitignore`.
 
+> **Note:** Line numbers reference the sync.ts implementation as of 2026-01-28. Verify
+> against current code before implementation.
+
 **Bug 3: Silent fallback in resolveDataSyncDir**
 ```typescript
 // paths.ts lines 225-246
@@ -172,9 +175,19 @@ from remote.
 
 ### Key Principles
 
-- The worktree path is the ONLY correct path for data in production
-- The direct path (`.tbd/data-sync/`) is ONLY for tests without git
-- Any data in the direct path in a real repo indicates a bug or migration need
+**Path Terminology:**
+
+| Term | Path | Description |
+| --- | --- | --- |
+| **Worktree path** | `.tbd/data-sync-worktree/.tbd/data-sync/` | Correct production path — inside hidden worktree checkout |
+| **Direct path** | `.tbd/data-sync/` | Fallback path — gitignored on main, should NEVER contain data in production |
+| **Sync branch** | `tbd-sync` | Orphan branch containing issue data |
+
+**Rules:**
+1. The worktree path is the ONLY correct path for data in production
+2. The direct path exists ONLY for test fixtures without git (via `allowFallback: true`)
+3. If `.tbd/data-sync/issues/` contains data on main branch, this indicates the worktree
+   was missing and data was written to the wrong location — a bug requiring migration
 
 ### Components
 
@@ -651,10 +664,22 @@ Add proper detection and clear error messages before any auto-repair.
 - [ ] Update `tbd sync` to check worktree health before operations
 - [ ] Add clear error messages when worktree is unhealthy
 
-**Error Classes:**
-- [ ] Add `WorktreeMissingError` class
-- [ ] Add `WorktreeCorruptedError` class
-- [ ] Add `SyncBranchError` class
+**Error Classes (add to `packages/tbd/src/lib/errors.ts`):**
+- [ ] Add `WorktreeMissingError` class - extends `TbdError`, thrown when worktree
+  doesn’t exist
+- [ ] Add `WorktreeCorruptedError` class - extends `TbdError`, thrown when worktree
+  exists but is invalid
+- [ ] Add `SyncBranchError` class - extends `TbdError`, for sync branch issues
+
+Example:
+```typescript
+// packages/tbd/src/lib/errors.ts
+export class WorktreeMissingError extends TbdError {
+  constructor(message: string = 'Worktree not found') {
+    super(message, 'WORKTREE_MISSING');
+  }
+}
+```
 
 **Tests:**
 - [ ] Add tests for each health check function
@@ -666,10 +691,20 @@ Add proper detection and clear error messages before any auto-repair.
 Fix the path mismatch bugs in sync.ts.
 
 - [ ] Update `getSyncStatus()` to check worktree status, not main branch
-- [ ] Update `commitWorktreeChanges()` to use consistent path with dataSyncDir
-- [ ] Remove hardcoded `WORKTREE_DIR` usage in sync operations
-- [ ] Ensure `resolveDataSyncDir()` throws when worktree missing (non-test mode)
-- [ ] Add tests verifying path consistency
+  - Change from: `git('status', '--porcelain', DATA_SYNC_DIR)`
+  - Change to: Check files in worktree path via `resolveDataSyncDir()`
+- [ ] Update `commitWorktreeChanges()` to use `this.dataSyncDir` consistently
+  - Remove: `const worktreePath = join(process.cwd(), WORKTREE_DIR)`
+  - Use: `this.dataSyncDir` which is already resolved via `resolveDataSyncDir()`
+- [ ] Audit all sync operations for hardcoded `WORKTREE_DIR` or `DATA_SYNC_DIR` usage
+  - All data paths MUST go through `resolveDataSyncDir()`
+  - Only exception: worktree creation/repair in git.ts (which needs the raw paths)
+- [ ] Ensure `resolveDataSyncDir()` throws `WorktreeMissingError` when worktree missing
+  (non-test mode)
+- [ ] Add tests verifying path consistency:
+  - [ ] Test that `resolveDataSyncDir()` returns worktree path in production
+  - [ ] Test that `resolveDataSyncDir()` throws when worktree missing
+  - [ ] Test that `resolveDataSyncDir({ allowFallback: true })` returns direct path
 
 ### Phase 3: Auto-Repair
 
