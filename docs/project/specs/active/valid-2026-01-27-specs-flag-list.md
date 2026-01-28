@@ -47,7 +47,7 @@ The following manual validation should be performed on a real repository with be
 linked to specs:
 
 1. **Basic --specs output**: Run `tbd list --specs` and verify:
-   - Beads are grouped under `📋 spec-name (count)` headers
+   - Beads are grouped under `Spec: path/to/spec-name.md (count)` headers
    - Unlinked beads appear under `(No spec) (count)` at the end
    - Counts in headers are correct
    - Groups appear in priority order (highest-priority bead determines group order)

@@ -243,28 +243,32 @@ export function wrapDescription(
 }
 
 /**
- * Extract a display name from a spec_path.
+ * Format a spec path with the filename portion bolded.
  *
- * Strips the directory prefix and .md extension, returning just the filename stem.
- * e.g. "docs/project/specs/active/plan-2026-01-27-my-feature.md" → "plan-2026-01-27-my-feature"
+ * e.g. "docs/project/specs/active/plan-2026-01-27-my-feature.md"
+ * → "docs/project/specs/active/" + bold("plan-2026-01-27-my-feature.md")
  */
-export function formatSpecName(specPath: string): string {
-  const basename = specPath.split('/').pop() ?? specPath;
-  return basename.replace(/\.md$/, '');
+export function formatSpecName(specPath: string, colors: ReturnType<typeof createColors>): string {
+  const lastSlash = specPath.lastIndexOf('/');
+  if (lastSlash === -1) {
+    return colors.bold(specPath);
+  }
+  const dir = specPath.slice(0, lastSlash + 1);
+  const filename = specPath.slice(lastSlash + 1);
+  return dir + colors.bold(filename);
 }
 
 /**
  * Format a spec group header for --specs output.
  *
- * Renders a bold header line with the spec name.
+ * Renders "Spec: path/to/bold-filename.md (count)".
  */
 export function formatSpecGroupHeader(
   specPath: string,
   count: number,
   colors: ReturnType<typeof createColors>,
 ): string {
-  const name = formatSpecName(specPath);
-  return colors.bold(`📋 ${name}`) + colors.dim(` (${count})`);
+  return 'Spec: ' + formatSpecName(specPath, colors) + colors.dim(` (${count})`);
 }
 
 /**

@@ -78,13 +78,13 @@ Unlinked beads appear in a “(No spec)” section at the end:
 
 ```console
 $ tbd list --specs
-📋 plan-auth (2)
+Spec: docs/specs/plan-auth.md (2)
 
 ID          PRI  STATUS          TITLE
 test-[SHORTID]   P0   ○ open          [task] Implement login flow
 test-[SHORTID]   P2   ○ open          [task] Add password reset
 
-📋 plan-search (1)
+Spec: docs/specs/plan-search.md (1)
 
 ID          PRI  STATUS          TITLE
 test-[SHORTID]   P3   ○ open          [task] Build search index
@@ -114,7 +114,7 @@ Without --all, the closed issue is excluded:
 
 ```console
 $ tbd list --specs --spec docs/specs/plan-auth.md
-📋 plan-auth (1)
+Spec: docs/specs/plan-auth.md (1)
 
 ID          PRI  STATUS          TITLE
 test-[SHORTID]   P0   ○ open          [task] Implement login flow
@@ -127,7 +127,7 @@ With --all, the closed issue is included:
 
 ```console
 $ tbd list --specs --all --spec docs/specs/plan-auth.md
-📋 plan-auth (2)
+Spec: docs/specs/plan-auth.md (2)
 
 ID          PRI  STATUS          TITLE
 test-[SHORTID]   P0   ○ open          [task] Implement login flow
@@ -143,7 +143,7 @@ test-[SHORTID]   P2   ✓ closed        [task] Add password reset
 
 ```console
 $ tbd list --specs --status=closed
-📋 plan-auth (1)
+Spec: docs/specs/plan-auth.md (1)
 
 ID          PRI  STATUS          TITLE
 test-[SHORTID]   P2   ✓ closed        [task] Add password reset
@@ -231,7 +231,7 @@ appear as standalone roots:
 
 ```console
 $ tbd list --specs --pretty --spec docs/specs/plan-auth.md
-📋 plan-auth (4)
+Spec: docs/specs/plan-auth.md (4)
 
 test-[SHORTID][..]  [task] Implement login flow
 test-[SHORTID][..]  [epic] Auth epic
@@ -248,14 +248,14 @@ test-[SHORTID][..]  [task] Add password reset
 
 ```console
 $ tbd list --specs --pretty
-📋 plan-auth (4)
+Spec: docs/specs/plan-auth.md (4)
 
 test-[SHORTID][..]  [task] Implement login flow
 test-[SHORTID][..]  [epic] Auth epic
 └── test-[SHORTID][..]  [task] Login page
 test-[SHORTID][..]  [task] Add password reset
 
-📋 plan-search (1)
+Spec: docs/specs/plan-search.md (1)
 
 test-[SHORTID][..]  [task] Build search index
 
