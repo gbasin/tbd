@@ -122,7 +122,7 @@ This table shows what the user says naturally and what you (the agent) do in res
 | "Review these changes" (TypeScript) | `tbd guidelines typescript-rules` | You follow the guidelines |
 | "Review these changes" (Python) | `tbd guidelines python-rules` | You follow the guidelines |
 | "Let's plan a new feature" | `tbd shortcut new-plan-spec` | You follow the spec template |
-| "Break spec into issues" | `tbd shortcut new-implementation-beads-from-spec` | You create implementation issues |
+| "Break spec into issues" | `tbd shortcut plan-implementation-with-beads` | You create implementation issues |
 | "Implement these issues" | `tbd shortcut implement-beads` | You implement systematically |
 | "Commit this" | `tbd shortcut commit-code` | You review and commit |
 | "Create a PR" | `tbd shortcut create-or-update-pr-simple` | You create the PR |
@@ -255,7 +255,7 @@ Run `tbd shortcut <name>` to use any of these shortcuts:
 | implement-beads | Implement Beads | Implement issues from a spec, following TDD and project rules |
 | new-architecture-doc | New Architecture Doc | Create an architecture document for a system or component design |
 | new-guideline | New Guideline | Create a new coding guideline document for tbd |
-| new-implementation-beads-from-spec | New Implementation Beads from Spec | Create implementation issues (beads) from a feature planning spec |
+| plan-implementation-with-beads | New Implementation Beads from Spec | Create implementation issues (beads) from a feature planning spec |
 | new-plan-spec | New Plan Spec | Create a new feature planning specification document |
 | new-research-brief | New Research Doc | Create a research document for investigating a topic or technology |
 | new-shortcut | New Shortcut | Create a new shortcut (reusable instruction template) for tbd |

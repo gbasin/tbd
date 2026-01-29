@@ -38,7 +38,7 @@ Here are examples of things you can say and what happens:
 | What You Can Say | What Happens |
 | --- | --- |
 | "Let's plan a new feature" | Walks you through creating a planning spec (`tbd shortcut new-plan-spec`) |
-| "Break the spec into issues" | Creates implementation beads from your spec (`tbd shortcut new-implementation-beads-from-spec`) |
+| "Break the spec into issues" | Creates implementation beads from your spec (`tbd shortcut plan-implementation-with-beads`) |
 | "Implement these issues" | Works through beads systematically (`tbd shortcut implement-beads`) |
 | "Commit this code" | Reviews changes and commits properly (`tbd shortcut commit-code`) |
 | "Create a PR" | Creates a pull request with summary (`tbd shortcut create-or-update-pr-simple`) |

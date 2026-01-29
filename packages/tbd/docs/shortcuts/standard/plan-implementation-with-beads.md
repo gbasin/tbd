@@ -1,16 +1,17 @@
 ---
-title: New Implementation Beads from Spec
+title: Plan Implementation with Beads
 description: Create implementation issues (beads) from a feature planning spec
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
-Shortcut: New Implementation Beads from Spec
+Shortcut: Plan Implementation with Beads
 
-Break a plan spec into implementation issues.
+Break a plan spec (or other work) into implementation issues.
 
 ## Prerequisites
 
 Identify the spec (docs/project/specs/active/plan-YYYY-MM-DD-*.md).
-If unclear, ask.
+If unclear, ask the user if they want you to create a spec first using
+`tbd shortcut new-plan-spec` or to just go off current context.
 
 ## Process
 
