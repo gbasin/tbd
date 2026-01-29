@@ -27,6 +27,7 @@ import {
   checkSyncConsistency,
   repairWorktree,
   migrateDataToWorktree,
+  initWorktree,
 } from '../../file/git.js';
 import { type DiagnosticResult, renderDiagnostics } from '../lib/diagnostics.js';
 import { VERSION } from '../lib/version.js';
@@ -616,8 +617,22 @@ class DoctorHandler extends BaseCommand {
 
     // Issues found in wrong location - attempt migration if --fix and not dry-run
     if (fix && !this.checkDryRun('Migrate data to worktree')) {
-      // First ensure worktree exists
-      const worktreeHealth = await checkWorktreeHealth(this.cwd);
+      // First ensure worktree exists - create it if missing
+      let worktreeHealth = await checkWorktreeHealth(this.cwd);
+      if (worktreeHealth.status === 'missing') {
+        // Worktree doesn't exist yet - create it for migration
+        const initResult = await initWorktree(this.cwd);
+        if (!initResult.success) {
+          return {
+            name: 'Data location',
+            status: 'error',
+            message: `${wrongPathIssues.length} issue(s) in wrong location, failed to create worktree: ${initResult.error}`,
+            path: wrongIssuesPath,
+          };
+        }
+        worktreeHealth = await checkWorktreeHealth(this.cwd);
+      }
+
       if (worktreeHealth.status !== 'valid') {
         return {
           name: 'Data location',
