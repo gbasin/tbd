@@ -43,6 +43,18 @@ The separation is an implementation detail, not a meaningful distinction for use
 - [plan-2026-01-28-sync-worktree-recovery-and-hardening.md](active/plan-2026-01-28-sync-worktree-recovery-and-hardening.md)
   \- Worktree sync improvements
 
+### Prerequisites (Completed)
+
+These bugs were fixed before the unified sync work:
+
+| ID | Type | Description |
+| --- | --- | --- |
+| `tbd-6y2j` | bug | Auto-create worktree on fresh clones without requiring `--fix` |
+| `tbd-93q3` | bug | Sync reports success when push fails (silent failure bug) |
+
+**Rationale**: Both bugs affect sync.ts behavior.
+Fixing them first ensures the unified sync builds on a solid foundation.
+
 ### Tracked Issues
 
 **Epic:** `tbd-17w3` - Unified sync command: sync both issues and docs by default

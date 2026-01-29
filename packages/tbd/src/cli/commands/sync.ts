@@ -70,8 +70,13 @@ class SyncHandler extends BaseCommand {
     // See: plan-2026-01-28-sync-worktree-recovery-and-hardening.md
     let worktreeHealth = await checkWorktreeHealth(tbdRoot);
     if (!worktreeHealth.valid) {
-      if (options.fix) {
-        // Attempt repair when --fix is provided
+      // Determine if we should auto-repair or require --fix
+      // - 'missing': Fresh clone, normal state - auto-create without --fix
+      // - 'prunable'/'corrupted': Abnormal state - require --fix
+      const shouldAutoRepair = worktreeHealth.status === 'missing';
+
+      if (options.fix || shouldAutoRepair) {
+        // Attempt repair when --fix is provided OR when auto-repair is appropriate
         // Cast is safe: status cannot be 'valid' when valid is false
         await this.doRepairWorktree(
           tbdRoot,
@@ -85,7 +90,7 @@ class SyncHandler extends BaseCommand {
           );
         }
       } else {
-        // No --fix flag, throw appropriate error
+        // No --fix flag and not auto-repairable, throw appropriate error
         if (worktreeHealth.status === 'prunable') {
           throw new WorktreeMissingError(
             "Worktree directory was deleted but git still tracks it. Run 'tbd sync --fix' or 'tbd doctor --fix' to repair.",
@@ -96,11 +101,8 @@ class SyncHandler extends BaseCommand {
             `Worktree is corrupted: ${worktreeHealth.error ?? 'unknown error'}. Run 'tbd sync --fix' or 'tbd doctor --fix' to repair.`,
           );
         }
-        if (worktreeHealth.status === 'missing') {
-          throw new WorktreeMissingError(
-            "Worktree not found. Run 'tbd sync --fix' or 'tbd doctor --fix' to create it.",
-          );
-        }
+        // Note: 'missing' status is now auto-repaired above, so this branch is only
+        // reached for 'prunable' or 'corrupted' states
       }
     }
 
@@ -664,6 +666,9 @@ class SyncHandler extends BaseCommand {
         conflicts.push(...result.conflicts);
       }
       if (!result.success) {
+        // Track push failure in summary so it's reported to the user
+        summary.pushFailed = true;
+        summary.pushError = result.error;
         this.output.debug(`Push failed: ${result.error}`);
       } else {
         // Show pushed commits in debug mode
@@ -676,14 +681,24 @@ class SyncHandler extends BaseCommand {
     summary.conflicts = conflicts.length;
     spinner.stop();
 
-    this.output.data({ summary, conflicts: conflicts.length }, () => {
-      const summaryText = formatSyncSummary(summary);
-      if (!summaryText) {
-        this.output.success('Already in sync');
-      } else {
-        this.output.success(`Synced: ${summaryText}`);
-      }
-    });
+    this.output.data(
+      { summary, conflicts: conflicts.length, pushFailed: summary.pushFailed },
+      () => {
+        // Check for push failure first - this is an error condition
+        if (summary.pushFailed) {
+          this.output.error(`Push failed: ${summary.pushError ?? 'unknown error'}`);
+          this.output.info('Local changes are committed but not pushed. Run `tbd sync` to retry.');
+          return;
+        }
+
+        const summaryText = formatSyncSummary(summary);
+        if (!summaryText) {
+          this.output.success('Already in sync');
+        } else {
+          this.output.success(`Synced: ${summaryText}`);
+        }
+      },
+    );
   }
 }
 

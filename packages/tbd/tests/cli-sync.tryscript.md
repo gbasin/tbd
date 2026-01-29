@@ -67,9 +67,11 @@ $ git -C .tbd/data-sync-worktree status --porcelain | head -3
 
 # Test: Sync commits the uncommitted files
 
+Note: Without remote, push fails but local commit succeeds.
+
 ```console
-$ tbd sync
-✓ Synced: sent [..] new
+$ tbd sync 2>&1 | head -1
+✗ Push failed: [..]
 ? 0
 ```
 
@@ -130,9 +132,11 @@ $ git -C .tbd/data-sync-worktree status --porcelain | grep -c "??" | tr -d ' '
 
 # Test: Sync commits all pending changes
 
+Note: Without remote, push fails but local commit succeeds.
+
 ```console
-$ tbd sync
-✓ Synced[..]
+$ tbd sync 2>&1 | head -1
+✗ Push failed: [..]
 ? 0
 ```
 
@@ -212,9 +216,11 @@ Error: Failed to pull: [..]
 
 # Test: Full sync handles missing remote gracefully
 
+When no remote exists, sync commits locally but reports push failure (tbd-93q3 fix).
+
 ```console
-$ tbd sync
-✓ [..]
+$ tbd sync 2>&1 | head -1
+✗ Push failed: [..]
 ? 0
 ```
 
@@ -224,15 +230,17 @@ $ tbd sync
 
 # Test: Running sync twice in a row is safe
 
+Note: Without a remote, sync may report push failure but local operations succeed.
+
 ```console
-$ tbd sync
-✓ [..]
+$ tbd sync 2>&1 | grep -E "^(✓|✗)" | head -1
+[..]
 ? 0
 ```
 
 ```console
-$ tbd sync
-✓ [..]
+$ tbd sync 2>&1 | grep -E "^(✓|✗)" | head -1
+[..]
 ? 0
 ```
 
@@ -249,23 +257,63 @@ $ git -C .tbd/data-sync-worktree status --porcelain
 
 # Test: Sync reports counts in JSON format
 
+Note: pushFailed may be present when no remote exists.
+
 ```console
-$ tbd sync --json
-{
-  "summary": {
-    "sent": {
-      "new": 0,
-      "updated": 0,
-      "deleted": 0
-    },
-    "received": {
-      "new": 0,
-      "updated": 0,
-      "deleted": 0
-    },
-    "conflicts": 0
-  },
-  "conflicts": 0
-}
+$ tbd sync --json | node -e "d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('sent_new:', d.summary.sent.new, 'conflicts:', d.conflicts)"
+sent_new: 0 conflicts: 0
+? 0
+```
+
+* * *
+
+## Bug Fix: Auto-create Worktree on Fresh Clones (tbd-6y2j)
+
+When the worktree is missing (fresh clone scenario), `tbd sync` should auto-create it
+without requiring `--fix`. Only `prunable` and `corrupted` states require `--fix`.
+
+The `missing` state means git has NO knowledge of the worktree.
+This is distinct from `prunable` (directory deleted but git still tracks it).
+
+# Test: Remove worktree AND prune git metadata to simulate fresh clone
+
+```console
+$ rm -rf .tbd/data-sync-worktree && git worktree prune
+? 0
+```
+
+# Test: Verify worktree is truly missing (not prunable)
+
+```console
+$ git worktree list | grep -c data-sync-worktree || true
+0
+? 0
+```
+
+# Test: tbd sync auto-creates worktree when missing
+
+Note: After repair, sync attempts push which fails without remote.
+This is expected.
+
+```console
+$ tbd sync 2>&1 | head -2
+✓ Worktree repaired successfully
+✗ Push failed: [..]
+? 0
+```
+
+# Test: Worktree exists after auto-creation
+
+```console
+$ test -d .tbd/data-sync-worktree && echo "worktree exists"
+worktree exists
+? 0
+```
+
+# Test: Issues are still accessible after worktree recreation
+
+```console
+$ tbd list --json | node -e "d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('count:', d.length)"
+count: [..]
 ? 0
 ```
