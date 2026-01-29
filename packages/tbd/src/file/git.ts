@@ -897,8 +897,9 @@ export async function initWorktree(
     await writeFile(join(dataSyncPath, 'mappings', '.gitkeep'), '');
 
     // Stage and commit the initial structure
+    // Use --no-verify to bypass parent repo hooks (lefthook, husky, etc.)
     await git('-C', worktreePath, 'add', '.');
-    await git('-C', worktreePath, 'commit', '-m', 'Initialize tbd-sync branch');
+    await git('-C', worktreePath, 'commit', '--no-verify', '-m', 'Initialize tbd-sync branch');
 
     return { success: true, path: worktreePath, created: true };
   } catch (error) {
@@ -1315,12 +1316,14 @@ export async function migrateDataToWorktree(
     }
 
     // Step 3: Commit in worktree
+    // Use --no-verify to bypass parent repo hooks (lefthook, husky, etc.)
     const totalFiles = issueFiles.length + mappingFiles.length;
     await git('-C', worktreePath, 'add', '-A');
     await git(
       '-C',
       worktreePath,
       'commit',
+      '--no-verify',
       '-m',
       `tbd: migrate ${totalFiles} file(s) from incorrect location`,
     );

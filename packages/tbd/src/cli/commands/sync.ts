@@ -607,9 +607,17 @@ class SyncHandler extends BaseCommand {
           }
 
           // Stage resolved files and complete merge
+          // Use --no-verify to bypass parent repo hooks (lefthook, husky, etc.)
           await git('-C', worktreePath, 'add', '-A');
           try {
-            await git('-C', worktreePath, 'commit', '-m', 'tbd sync: resolved merge conflicts');
+            await git(
+              '-C',
+              worktreePath,
+              'commit',
+              '--no-verify',
+              '-m',
+              'tbd sync: resolved merge conflicts',
+            );
           } catch {
             // May fail if no conflicts needed resolving
             this.output.debug('No merge commit needed (conflicts already resolved)');
