@@ -45,17 +45,17 @@ The separation is an implementation detail, not a meaningful distinction for use
 
 ### Tracked Issues
 
-**Epic:** `tbd-v9pq` - Unified sync command: sync both issues and docs by default
+**Epic:** `tbd-17w3` - Unified sync command: sync both issues and docs by default
 
 | ID | Phase | Type | Priority | Description |
 | --- | --- | --- | --- | --- |
-| `tbd-offi` | 1 | task | P2 | Extract shared syncDocsWithDefaults() function |
-| `tbd-6zhj` | 2 | task | P2 | Update sync command with --issues/--docs flags |
-| `tbd-2d3s` | 3 | task | P2 | Update auto-sync in DocCache to merge defaults |
-| `tbd-kvb5` | 4 | task | P2 | Remove docs --refresh command |
-| `tbd-oz2c` | 5 | task | P2 | Update setup command to use shared function |
-| `tbd-xlmp` | 6 | task | P3 | Update documentation for unified sync |
-| `tbd-2dmg` | 7 | task | P3 | Testing for unified sync |
+| `tbd-0o6i` | 1 | task | P2 | Extract shared syncDocsWithDefaults() function in doc-sync.ts |
+| `tbd-pjd4` | 2 | task | P2 | Update sync command with --issues/--docs flags |
+| `tbd-usxf` | 3 | task | P2 | Update auto-sync in DocCache to merge defaults |
+| `tbd-rgyv` | 4 | task | P2 | Remove docs --refresh command (replaced by sync --docs) |
+| `tbd-6cgj` | 5 | task | P2 | Update setup command to use shared syncDocsWithDefaults |
+| `tbd-t09b` | 6 | task | P3 | Update documentation for unified sync |
+| `tbd-lnf0` | 7 | task | P2 | Tryscript e2e tests for unified sync |
 
 **Dependency chain:** Phase 1 → (2, 3, 5) → 4 → 6. Phase 7 depends on 3, 4, 5.
 
