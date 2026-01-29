@@ -3,8 +3,6 @@ title: New Guideline
 description: Create a new coding guideline document for tbd
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
-Shortcut: New Guideline
-
 Create a new guideline for `tbd guidelines <name>`.
 
 ## Locations
@@ -19,8 +17,6 @@ Create a new guideline for `tbd guidelines <name>`.
 title: [Title]
 description: [One line for --list output]
 ---
-# [Title]
-
 [Brief intro: what this covers, when to use it.]
 
 ## [Topic]

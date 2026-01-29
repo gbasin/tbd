@@ -3,8 +3,6 @@ title: New Shortcut
 description: Create a new shortcut (reusable instruction template) for tbd
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
-Shortcut: New Shortcut
-
 Create a new shortcut for `tbd shortcut <name>`.
 
 ## Locations
@@ -20,8 +18,6 @@ title: [Title]
 description: [One line for --list output]
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
-Shortcut: [Title]
-
 [Concise instructions. Focus on what's specific to this task.
 Skip obvious steps the agent would figure out.
 Reference other shortcuts/guidelines/templates as needed.]

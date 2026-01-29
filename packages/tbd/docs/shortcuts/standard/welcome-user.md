@@ -3,8 +3,6 @@ title: Welcome User
 description: Welcome message for users after tbd installation or setup
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
-# Welcome User After tbd Setup
-
 Welcome the user with the message below.
 This applies whether this is a new installation or the user is joining an existing
 project.

@@ -3,8 +3,6 @@ title: Plan Implementation with Beads
 description: Create implementation issues (beads) from a feature planning spec
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
-Shortcut: Plan Implementation with Beads
-
 Break a plan spec (or other work) into implementation issues.
 
 ## Prerequisites

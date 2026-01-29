@@ -3,11 +3,15 @@ title: Agent Handoff
 description: Generate a concise handoff prompt for another coding agent to continue work
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
-Shortcut: Agent Handoff
-
 Generate a high-signal handoff prompt for the next agent.
 Focus on what’s specific and non-obvious.
 The next agent has access to tbd and will orient themselves.
+
+## Before Handoff
+
+**IMPORTANT**: Always run `tbd sync` before generating the handoff to ensure all issue
+updates are pushed to the remote.
+The next agent needs the latest issue state.
 
 ## What to Include
 

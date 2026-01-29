@@ -30,8 +30,10 @@ Work is NOT complete until `git push` succeeds.
 - If push fails, resolve and retry until it succeeds
 
 <!-- BEGIN TBD INTEGRATION -->
-# tbd Workflow
-
+---
+title: tbd Workflow
+description: Full tbd workflow guide for agents
+---
 **`tbd` helps humans and agents ship code with greater speed, quality, and discipline.**
 
 1. **Issue Tracking**: Git-native tasks/bugs.
@@ -255,11 +257,11 @@ Run `tbd shortcut <name>` to use any of these shortcuts:
 | implement-beads | Implement Beads | Implement issues from a spec, following TDD and project rules |
 | new-architecture-doc | New Architecture Doc | Create an architecture document for a system or component design |
 | new-guideline | New Guideline | Create a new coding guideline document for tbd |
-| plan-implementation-with-beads | New Implementation Beads from Spec | Create implementation issues (beads) from a feature planning spec |
 | new-plan-spec | New Plan Spec | Create a new feature planning specification document |
 | new-research-brief | New Research Doc | Create a research document for investigating a topic or technology |
 | new-shortcut | New Shortcut | Create a new shortcut (reusable instruction template) for tbd |
 | new-validation-plan | New Validation Plan | Create a validation/test plan for a feature or change |
+| plan-implementation-with-beads | Plan Implementation with Beads | Create implementation issues (beads) from a feature planning spec |
 | precommit-process | Pre-Commit Process | Full pre-commit checklist including spec sync, code review, and testing |
 | review-code-python | Review Code (Python) | Perform a code review for Python code following best practices |
 | review-code-typescript | Review Code (TypeScript) | Perform a code review for TypeScript code following best practices |

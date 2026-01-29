@@ -1,5 +1,7 @@
-# tbd Workflow
-
+---
+title: tbd Workflow
+description: Full tbd workflow guide for agents
+---
 **`tbd` helps humans and agents ship code with greater speed, quality, and discipline.**
 
 1. **Issue Tracking**: Git-native tasks/bugs.
