@@ -96,6 +96,9 @@ class StatsHandler extends BaseCommand {
     this.output.data(stats, () => {
       const colors = this.output.getColors();
 
+      // Summary heading (stats uses "Summary:" while doctor uses "STATISTICS")
+      console.log(colors.bold('Summary:'));
+
       // STATISTICS section (shared with doctor command)
       renderStatisticsSection(
         {
@@ -106,7 +109,7 @@ class StatsHandler extends BaseCommand {
           total: stats.total,
         },
         colors,
-        { showHeading: false }, // stats doesn't need the heading since it's the main content
+        { showHeading: false }, // stats doesn't need the STATISTICS heading since it has Summary
       );
 
       if (stats.total === 0) {
