@@ -23,10 +23,11 @@ import {
   pushWithRetry,
   checkWorktreeHealth,
   repairWorktree,
+  ensureWorktreeAttached,
   type ConflictEntry,
   type PushResult,
 } from '../../file/git.js';
-import { resolveDataSyncDir, DATA_SYNC_DIR, WORKTREE_DIR, SYNC_BRANCH } from '../../lib/paths.js';
+import { resolveDataSyncDir, DATA_SYNC_DIR, WORKTREE_DIR } from '../../lib/paths.js';
 import { join } from 'node:path';
 import {
   type SyncSummary,
@@ -352,6 +353,9 @@ class SyncHandler extends BaseCommand {
     const worktreePath = join(this.tbdRoot, WORKTREE_DIR);
 
     try {
+      // Ensure worktree is attached to sync branch (repair old tbd repos)
+      await ensureWorktreeAttached(worktreePath);
+
       // Check for uncommitted changes (untracked, modified, or deleted)
       const status = await git('-C', worktreePath, 'status', '--porcelain');
       if (!status || status.trim() === '') {
@@ -361,18 +365,6 @@ class SyncHandler extends BaseCommand {
       // Parse status to get tallies
       const tallies = parseGitStatus(status);
       const fileCount = tallies.new + tallies.updated + tallies.deleted;
-
-      // IMPORTANT: Ensure worktree is on the sync branch BEFORE staging files
-      // If worktree was created with old tbd version using --detach, commits won't update the branch
-      // Check if HEAD is detached and fix it first
-      const currentBranch = await git('-C', worktreePath, 'branch', '--show-current').catch(
-        () => '',
-      );
-      if (!currentBranch) {
-        // Detached HEAD - re-attach to sync branch
-        // This must be done before staging files to avoid losing changes
-        await git('-C', worktreePath, 'checkout', SYNC_BRANCH);
-      }
 
       // Stage all changes
       await git('-C', worktreePath, 'add', '-A');
@@ -616,17 +608,6 @@ class SyncHandler extends BaseCommand {
               // Issue doesn't exist remotely - keep local version
               this.output.debug(`Issue ${localIssue.id} not on remote, keeping local`);
             }
-          }
-
-          // IMPORTANT: Ensure worktree is on the sync branch BEFORE staging files
-          // If worktree was created with old tbd version using --detach, commits won't update the branch
-          const currentBranch = await git('-C', worktreePath, 'branch', '--show-current').catch(
-            () => '',
-          );
-          if (!currentBranch) {
-            // Detached HEAD - re-attach to sync branch
-            // This must be done before staging files to avoid losing changes
-            await git('-C', worktreePath, 'checkout', syncBranch);
           }
 
           // Stage resolved files and complete merge
