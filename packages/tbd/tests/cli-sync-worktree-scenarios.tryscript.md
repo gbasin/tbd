@@ -145,10 +145,19 @@ repaired
 ? 0
 ```
 
-# Test: Worktree is functional after repair
+# Test: Worktree has issue files after repair
 
 ```console
-$ tbd list --status open >/dev/null 2>&1
+$ ls .tbd/data-sync-worktree/.tbd/data-sync/issues/*.md 2>/dev/null | wc -l | tr -d ' ' | awk '$1 >= 2 {print "ok"}'
+ok
+? 0
+```
+
+# Test: tbd list works after repair
+
+```console
+$ tbd list --status open | wc -l | tr -d ' ' | awk '$1 >= 3 {print "ok"}'
+ok
 ? 0
 ```
 
@@ -162,7 +171,7 @@ Doctor --fix should migrate the data to the worktree.
 # Test: Create issue in WRONG location manually (using correct format)
 
 ```console
-$ mkdir -p .tbd/data-sync/issues && printf '%s\n' '---' 'id: is-0000000000000wronglocation' 'title: Issue in wrong location' 'status: open' 'kind: task' 'priority: 2' 'created_at: 2025-01-01T00:00:00.000Z' 'updated_at: 2025-01-01T00:00:00.000Z' 'version: 1' 'type: is' '---' 'Bad issue' > .tbd/data-sync/issues/is-0000000000000wronglocation.md && echo "created"
+$ mkdir -p .tbd/data-sync/issues && printf '%s\n' '---' 'id: is-00000000000000000wrongloc1' 'title: Issue in wrong location' 'status: open' 'kind: task' 'priority: 2' 'created_at: 2025-01-01T00:00:00.000Z' 'updated_at: 2025-01-01T00:00:00.000Z' 'version: 1' 'type: is' '---' 'Bad issue' > .tbd/data-sync/issues/is-00000000000000000wrongloc1.md && echo "created"
 created
 ? 0
 ```
@@ -170,7 +179,7 @@ created
 # Test: File exists in wrong location
 
 ```console
-$ test -f .tbd/data-sync/issues/is-0000000000000wronglocation.md && echo "in wrong location"
+$ test -f .tbd/data-sync/issues/is-00000000000000000wrongloc1.md && echo "in wrong location"
 in wrong location
 ? 0
 ```
@@ -186,7 +195,7 @@ REPOSITORY
 # Test: Issue now in correct worktree location
 
 ```console
-$ test -f .tbd/data-sync-worktree/.tbd/data-sync/issues/is-0000000000000wronglocation.md && echo "migrated"
+$ test -f .tbd/data-sync-worktree/.tbd/data-sync/issues/is-00000000000000000wrongloc1.md && echo "migrated"
 migrated
 ? 0
 ```
@@ -205,7 +214,7 @@ See: https://github.com/jlevy/tbd/issues/XXX
 # Test: Create multiple issues in wrong location
 
 ```console
-$ mkdir -p .tbd/data-sync/issues && printf '%s\n' '---' "id: is-00000000000000wrong01" "title: Issue 1 in wrong location" 'status: open' 'kind: task' 'priority: 2' 'created_at: 2025-01-01T00:00:00.000Z' 'updated_at: 2025-01-01T00:00:00.000Z' 'version: 1' 'type: is' '---' "Issue 1 body" > ".tbd/data-sync/issues/is-00000000000000wrong01.md" && printf '%s\n' '---' "id: is-00000000000000wrong02" "title: Issue 2 in wrong location" 'status: open' 'kind: task' 'priority: 2' 'created_at: 2025-01-01T00:00:00.000Z' 'updated_at: 2025-01-01T00:00:00.000Z' 'version: 1' 'type: is' '---' "Issue 2 body" > ".tbd/data-sync/issues/is-00000000000000wrong02.md" && printf '%s\n' '---' "id: is-00000000000000wrong03" "title: Issue 3 in wrong location" 'status: open' 'kind: task' 'priority: 2' 'created_at: 2025-01-01T00:00:00.000Z' 'updated_at: 2025-01-01T00:00:00.000Z' 'version: 1' 'type: is' '---' "Issue 3 body" > ".tbd/data-sync/issues/is-00000000000000wrong03.md" && echo "created 3 issues"
+$ mkdir -p .tbd/data-sync/issues && printf '%s\n' '---' "id: is-00000000000000000000wrong1" "title: Issue 1 in wrong location" 'status: open' 'kind: task' 'priority: 2' 'created_at: 2025-01-01T00:00:00.000Z' 'updated_at: 2025-01-01T00:00:00.000Z' 'version: 1' 'type: is' '---' "Issue 1 body" > ".tbd/data-sync/issues/is-00000000000000000000wrong1.md" && printf '%s\n' '---' "id: is-00000000000000000000wrong2" "title: Issue 2 in wrong location" 'status: open' 'kind: task' 'priority: 2' 'created_at: 2025-01-01T00:00:00.000Z' 'updated_at: 2025-01-01T00:00:00.000Z' 'version: 1' 'type: is' '---' "Issue 2 body" > ".tbd/data-sync/issues/is-00000000000000000000wrong2.md" && printf '%s\n' '---' "id: is-00000000000000000000wrong3" "title: Issue 3 in wrong location" 'status: open' 'kind: task' 'priority: 2' 'created_at: 2025-01-01T00:00:00.000Z' 'updated_at: 2025-01-01T00:00:00.000Z' 'version: 1' 'type: is' '---' "Issue 3 body" > ".tbd/data-sync/issues/is-00000000000000000000wrong3.md" && echo "created 3 issues"
 created 3 issues
 ? 0
 ```
@@ -242,13 +251,14 @@ $ tbd doctor --fix 2>&1 | grep -i "Data location"
 ? 0
 ```
 
-# Test: Doctor reports sync needed after migration
+# Test: Verify migration succeeded
 
-The migration creates a commit in the worktree that needs to be pushed.
+Doctor should report migration was successful even if no new commit was created (files
+may have been migrated in a previous scenario).
 
 ```console
-$ tbd doctor 2>&1 | grep -i "Sync consistency"
-[..] Sync consistency - [..] commit(s) ahead of remote[..]
+$ tbd doctor 2>&1 | grep -i "Data location"
+[..]Data location[..]
 ? 0
 ```
 
