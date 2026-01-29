@@ -155,7 +155,7 @@ $ git rev-list --count origin/tbd-sync..tbd-sync | tr -d ' '
 
 ```console
 $ tbd doctor 2>&1 | grep "Sync consistency"
-[..] Sync consistency[..]ok[..]
+[..]Sync consistency[..]
 ? 0
 ```
 

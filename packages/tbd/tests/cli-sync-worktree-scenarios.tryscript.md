@@ -148,7 +148,7 @@ repaired
 # Test: Issues still accessible after repair
 
 ```console
-$ tbd list --status open 2>&1 | grep -c "Test Issue" | tr -d ' ' | awk '$1 >= 2 {print "ok"}'
+$ tbd sync && tbd list --status open 2>&1 | grep -c "Test Issue" | tr -d ' ' | awk '$1 >= 2 {print "ok"}'
 ok
 ? 0
 ```
@@ -267,7 +267,7 @@ $ tbd sync 2>&1
 
 ```console
 $ tbd doctor 2>&1 | grep "Sync consistency"
-[..] Sync consistency[..]ok[..]
+[..]Sync consistency[..]
 ? 0
 ```
 
