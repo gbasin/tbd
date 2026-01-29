@@ -1,9 +1,9 @@
 ---
 title: Plan Implementation with Beads
-description: Create implementation issues (beads) from a feature planning spec
+description: Create implementation beads from a feature planning spec
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
-Break a plan spec (or other work) into implementation issues.
+Break a plan spec (or other work) into implementation beads.
 
 ## Prerequisites
 
@@ -13,13 +13,13 @@ If unclear, ask the user if they want you to create a spec first using
 
 ## Process
 
-1. Create a top-level issue referencing the spec:
+1. Create a top-level bead referencing the spec:
    ```bash
    tbd create "Implement [feature]" --spec plan-YYYY-MM-DD-feature.md
    ```
 
-2. Review the spec and existing code, then create child issues for each implementation
-   step. Track dependencies between issues with `tbd dep add`.
+2. Review the spec and existing code, then create child beads for each implementation
+   step. Track dependencies between beads with `tbd dep add`.
 
-3. Summarize the issue breakdown.
+3. Summarize the bead breakdown.
    When ready to implement, use `tbd shortcut implement-beads`.
