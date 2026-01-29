@@ -555,7 +555,31 @@ Update `status.ts`, `doctor.ts`, and `stats.ts` to use shared section renderers:
 - Import and use `renderStatisticsSection()` (same output as doctor)
 - Use `formatFooter()` for suggestions
 
-### Phase 4: Command Conformance Audit
+## Implementation Beads
+
+### Epic
+
+| Issue | Title |
+| --- | --- |
+| tbd-fezd | Terminal Design System: Consistent CLI output across commands |
+
+### Phase 1-3: Core Implementation
+
+| Phase | Bead | Title | Depends On |
+| --- | --- | --- | --- |
+| 1 | tbd-4qfi | Create cli/lib/sections.ts with shared section rendering functions | - |
+| 2 | tbd-jslu | Add component helper functions to output.ts | - |
+| 3 | tbd-ua96 | Refactor status.ts to use shared section renderers | tbd-4qfi, tbd-jslu |
+| 3 | tbd-mfvk | Refactor doctor.ts to use shared section renderers | tbd-4qfi |
+| 3 | tbd-oqwb | Refactor stats.ts to use shared section renderers | tbd-4qfi, tbd-jslu |
+
+### Phase 4: Testing
+
+| Bead | Title | Depends On |
+| --- | --- | --- |
+| tbd-kps8 | Add golden tests for terminal design system consistency | tbd-ua96, tbd-mfvk, tbd-oqwb |
+
+### Phase 5: Command Conformance Audit
 
 Create a bead for each command to audit and fix conformance:
 
@@ -588,7 +612,7 @@ Create a bead for each command to audit and fix conformance:
 
 ## Testing Strategy
 
-1. **Golden tests** - Capture expected output format for each command
+1. **Golden tests** (tbd-kps8) - Capture expected output format for each command
 2. **Visual review** - Manual check of colored output in terminal
 3. **JSON mode verification** - Ensure JSON output is unaffected
 
