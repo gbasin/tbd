@@ -1,33 +1,15 @@
-## What’s Changed
+## Summary
 
-### Breaking Changes
+- Worktree robustness improvements with automatic detection and repair for various
+  failure modes
+- Setup improvements: better `.gitignore` management and upgrade handling
+- Build fix for tsdown 0.20+ compatibility
+- Documentation updates: simplified agent integration docs (SKILL.md + AGENTS.md)
 
-- **Package renamed**: `tbd-git` → `get-tbd`. The old package is deprecated on npm with
-  a message pointing to `get-tbd`. Update with: `npm install -g get-tbd`
+## Test plan
 
-### Features
+- [x] Existing tests pass
+- [x] CHANGELOG.md and package.json version updated correctly
+- [ ] Automated release workflow will run on tag push
 
-- **`--specs` flag for `tbd list`**: Group issues by their associated spec document
-- **`--add`/`--name` options**: Add items and filter by name in guidelines, shortcut,
-  and template commands
-
-### Fixes
-
-- **Project-local hook installation**: Hooks now always install to project `.claude/`
-  directory (removed global `~/.claude/` fallback), fixing issues in cloud environments
-- **Git root resolution**: Setup correctly resolves to git root for `.claude/` and
-  `.tbd/` placement
-- **Deterministic sort order**: Ready, stale, and blocked commands now sort by ID as
-  secondary key
-
-### Refactoring
-
-- Extracted GitHub fetch into shared utility module
-- Added comparison-chain utility for fluent multi-field sorting
-
-### Documentation
-
-- Bun monorepo architecture patterns research
-- TypeScript sorting patterns guidelines
-
-**Full commit history**: https://github.com/jlevy/tbd/compare/v0.1.7...v0.1.8
+https://claude.ai/code/session_014uVEC82gC9cACPzijH5G51
