@@ -400,26 +400,162 @@ Commands in the same category should have similar output structure.
 
 ## Implementation Plan
 
-### Phase 1: Architecture Documentation
+### Phase 1: Shared Section Rendering Functions
 
-Create `arch-cli-terminal-design-system.md` with:
-- [ ] All component specifications from this plan
-- [ ] Code examples for each component
-- [ ] Usage guidelines (DO/DON’T)
+Create `cli/lib/sections.ts` with shared section renderers that enforce subsumption
+consistency. Each function encapsulates the complete rendering logic for a section,
+ensuring identical output whether called from `status`, `doctor`, or `stats`.
 
-### Phase 2: Shared Component Functions
+**File:** `packages/tbd/src/cli/lib/sections.ts`
 
-Ensure all components have shared implementation in `cli/lib/`:
+```typescript
+// Shared section data types
+interface RepositorySectionData {
+  version: string;
+  workingDirectory: string;
+  initialized: boolean;
+  gitRepository: boolean;
+  gitBranch: string | null;
+  gitVersion: string | null;
+  gitVersionSupported: boolean;
+  syncBranch: string | null;
+  remote: string | null;
+  displayPrefix: string | null;
+}
 
-- [ ] `formatCommandHeader()` - Command name with version
-- [ ] `formatSectionHeading()` - Already exists as `formatHeading()`
-- [x] `renderDiagnostic()` - Already exists in `diagnostics.ts`
-- [ ] `formatKeyValue()` - Key-value pair formatting
-- [ ] `formatStatBlock()` - Statistics with alignment
-- [ ] `formatWarningBlock()` - Multi-line warning
-- [ ] `formatFooter()` - Command suggestions
+interface IntegrationCheck {
+  name: string;
+  installed: boolean;
+  path: string;
+}
 
-### Phase 3: Command Conformance Audit
+interface StatisticsSectionData {
+  ready: number;
+  inProgress: number;
+  blocked: number;
+  open: number;
+  total: number;
+}
+
+// Render REPOSITORY section - used by status, doctor
+export function renderRepositorySection(
+  data: RepositorySectionData,
+  colors: ReturnType<typeof createColors>,
+  options?: { showHeading?: boolean }
+): void
+
+// Render CONFIG section (sync branch, remote, prefix) - used by status, doctor
+export function renderConfigSection(
+  data: Pick<RepositorySectionData, 'syncBranch' | 'remote' | 'displayPrefix'>,
+  colors: ReturnType<typeof createColors>
+): void
+
+// Render INTEGRATIONS section - used by status, doctor
+export function renderIntegrationsSection(
+  checks: IntegrationCheck[],
+  colors: ReturnType<typeof createColors>
+): void
+
+// Render STATISTICS section - used by stats, doctor
+export function renderStatisticsSection(
+  data: StatisticsSectionData,
+  colors: ReturnType<typeof createColors>
+): void
+```
+
+**Implementation details:**
+- Each function prints directly to console (not returns string)
+- Each function uses consistent `formatHeading()` for section titles
+- `renderRepositorySection()` shows: version, path, init status, git info
+- `renderConfigSection()` shows: sync branch, remote, ID prefix as key-value pairs
+- `renderIntegrationsSection()` shows diagnostic lines for each integration
+- `renderStatisticsSection()` shows aligned stat block
+
+### Phase 2: Component Helper Functions
+
+Add to `cli/lib/output.ts`:
+
+```typescript
+/**
+ * Format command header with version.
+ * Used at start of orientation commands (status, doctor, stats).
+ */
+export function formatCommandHeader(
+  name: string,
+  version: string,
+  colors: ReturnType<typeof createColors>
+): string {
+  return `${colors.bold(name)} v${version}`;
+}
+
+/**
+ * Format key-value line with dim key.
+ * Used for configuration display.
+ */
+export function formatKeyValue(
+  key: string,
+  value: string,
+  colors: ReturnType<typeof createColors>
+): string {
+  return `${colors.dim(key + ':')} ${value}`;
+}
+
+/**
+ * Format aligned statistic block.
+ * @param stats - Array of {label, value} pairs
+ * @param colors - Color functions
+ */
+export function formatStatBlock(
+  stats: { label: string; value: number | string }[],
+  colors: ReturnType<typeof createColors>
+): string[]
+
+/**
+ * Format multi-line warning block.
+ * @param headline - Warning headline (shown with ⚠ icon)
+ * @param details - Detail lines
+ * @param suggestion - Optional suggestion with command (bolded)
+ */
+export function formatWarningBlock(
+  headline: string,
+  details: string[],
+  suggestion?: { text: string; command: string },
+  colors: ReturnType<typeof createColors>
+): string[]
+
+/**
+ * Format footer with command suggestions.
+ * @param suggestions - Array of {command, description} pairs
+ */
+export function formatFooter(
+  suggestions: { command: string; description: string }[],
+  colors: ReturnType<typeof createColors>
+): string
+```
+
+### Phase 3: Refactor Orientation Commands
+
+Update `status.ts`, `doctor.ts`, and `stats.ts` to use shared section renderers:
+
+**status.ts changes:**
+- Import and use `renderRepositorySection()` instead of inline rendering
+- Import and use `renderConfigSection()` for sync branch/remote/prefix
+- Import and use `renderIntegrationsSection()` for integration checks
+- Use `formatFooter()` for “Use 'tbd stats'…” line
+
+**doctor.ts changes:**
+- Import and use `renderRepositorySection()` (same output as status)
+- Import and use `renderConfigSection()` (same output as status)
+- Import and use `renderStatisticsSection()` for stats
+- Import and use `renderIntegrationsSection()` (same checks as status)
+- Keep `renderHealthChecksSection()` local (doctor-only)
+
+**stats.ts changes:**
+- Use `formatCommandHeader()` for version display
+- Import and use `renderStatisticsSection()` (same output as doctor)
+- Use `formatFooter()` for suggestions
+
+### Phase 4: Command Conformance Audit
 
 Create a bead for each command to audit and fix conformance:
 
