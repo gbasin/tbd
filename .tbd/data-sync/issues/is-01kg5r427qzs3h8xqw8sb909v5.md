@@ -1,15 +1,17 @@
 ---
+close_reason: "Fixed: tbd sync now auto-creates worktree when missing (fresh clone scenario) without requiring --fix. The --fix flag is only needed for corrupted/prunable states."
+closed_at: 2026-01-29T21:12:42.178Z
 created_at: 2026-01-29T20:46:37.302Z
 dependencies: []
 id: is-01kg5r427qzs3h8xqw8sb909v5
 kind: bug
 labels: []
 priority: 1
-status: open
+status: closed
 title: Auto-create worktree on fresh clones without requiring --fix
 type: is
-updated_at: 2026-01-29T20:46:55.245Z
-version: 2
+updated_at: 2026-01-29T21:12:42.179Z
+version: 4
 ---
 ## Problem
 

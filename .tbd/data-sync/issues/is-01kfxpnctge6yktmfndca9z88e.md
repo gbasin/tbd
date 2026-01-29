@@ -1,4 +1,6 @@
 ---
+close_reason: "Redesigned stats output with: status icons, colored labels, right-aligned numbers, active/closed/total columns for kind and priority sections, separator lines for visual grouping"
+closed_at: 2026-01-29T21:10:07.148Z
 created_at: 2026-01-26T17:47:12.591Z
 dependencies: []
 id: is-01kfxpnctge6yktmfndca9z88e
@@ -6,11 +8,11 @@ kind: bug
 labels: []
 parent_id: is-01kfxpq9c0j5wdsqy6vsqc3d1g
 priority: 2
-status: open
+status: closed
 title: "Redesign stats command output: unified status section with active/closed/total columns"
 type: is
-updated_at: 2026-01-26T17:57:31.945Z
-version: 7
+updated_at: 2026-01-29T21:10:07.149Z
+version: 9
 ---
 The `tbd stats` output needs restructuring and better formatting.
 
