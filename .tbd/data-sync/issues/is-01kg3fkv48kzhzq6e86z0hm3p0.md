@@ -1,4 +1,6 @@
 ---
+close_reason: "Enhanced checkWorktreeHealth() to detect prunable state via git worktree list --porcelain. Added status field with values: valid, missing, prunable, corrupted."
+closed_at: 2026-01-29T00:02:51.009Z
 created_at: 2026-01-28T23:39:28.264Z
 dependencies:
   - target: is-01kg3fm8whz13k1ty2st7461m0
@@ -13,10 +15,10 @@ labels: []
 parent_id: is-01kg3fj7r0jqj8p1hg9wt9h4sz
 priority: 1
 spec_path: docs/project/specs/active/plan-2026-01-28-sync-worktree-recovery-and-hardening.md
-status: open
+status: closed
 title: Enhance checkWorktreeHealth() to detect prunable state
 type: is
-updated_at: 2026-01-28T23:40:29.967Z
-version: 4
+updated_at: 2026-01-29T00:02:51.010Z
+version: 6
 ---
 Update checkWorktreeHealth() in git.ts to detect prunable worktree state via 'git worktree list --porcelain'. Return status: 'valid' | 'missing' | 'prunable' | 'corrupted'. Current implementation only checks exists/valid. Location: packages/tbd/src/file/git.ts:682-729

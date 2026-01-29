@@ -1,4 +1,6 @@
 ---
+close_reason: Updated doctor's checkWorktree() to use new status field (valid/missing/prunable/corrupted) with appropriate error messages
+closed_at: 2026-01-29T00:05:08.594Z
 created_at: 2026-01-28T23:39:47.299Z
 dependencies: []
 id: is-01kg3fmdq487gz2pqxm9vv0gp1
@@ -7,10 +9,10 @@ labels: []
 parent_id: is-01kg3fj7r0jqj8p1hg9wt9h4sz
 priority: 1
 spec_path: docs/project/specs/active/plan-2026-01-28-sync-worktree-recovery-and-hardening.md
-status: open
+status: closed
 title: "Doctor: Enhanced worktree health check with prunable detection"
 type: is
-updated_at: 2026-01-28T23:39:47.299Z
-version: 1
+updated_at: 2026-01-29T00:05:08.595Z
+version: 3
 ---
 Update doctor.ts checkWorktree() to use enhanced checkWorktreeHealth() that detects prunable state. Report error for missing/prunable/corrupted worktree instead of returning 'not created yet' as OK. Location: packages/tbd/src/cli/commands/doctor.ts:494-512
