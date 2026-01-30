@@ -67,9 +67,14 @@ $ git -C .tbd/data-sync-worktree status --porcelain | head -3
 
 # Test: Sync commits the uncommitted files
 
+Note: Without a remote configured, sync commits locally but shows a push failure.
+The important behavior is that files get committed (verified in the next test).
+
 ```console
 $ tbd sync
-✓ Synced: sent [..] new
+✗ Push failed: fatal: 'origin' does not appear to be a git repository
+  2 commit(s) not pushed to remote.
+  Run 'tbd sync' to retry or 'tbd sync --status' to check status.
 ? 0
 ```
 
@@ -132,7 +137,9 @@ $ git -C .tbd/data-sync-worktree status --porcelain | grep -c "??" | tr -d ' '
 
 ```console
 $ tbd sync
-✓ Synced[..]
+✗ Push failed: fatal: 'origin' does not appear to be a git repository
+  3 commit(s) not pushed to remote.
+  Run 'tbd sync' to retry or 'tbd sync --status' to check status.
 ? 0
 ```
 
@@ -212,9 +219,13 @@ Error: Failed to pull: [..]
 
 # Test: Full sync handles missing remote gracefully
 
+Note: Without a remote configured, sync commits locally but shows a push failure.
+
 ```console
 $ tbd sync
-✓ [..]
+✗ Push failed: fatal: 'origin' does not appear to be a git repository
+  4 commit(s) not pushed to remote.
+  Run 'tbd sync' to retry or 'tbd sync --status' to check status.
 ? 0
 ```
 
@@ -224,15 +235,21 @@ $ tbd sync
 
 # Test: Running sync twice in a row is safe
 
+Note: Without a remote, sync shows push failure message each time.
+
 ```console
 $ tbd sync
-✓ [..]
+✗ Push failed: fatal: 'origin' does not appear to be a git repository
+  4 commit(s) not pushed to remote.
+  Run 'tbd sync' to retry or 'tbd sync --status' to check status.
 ? 0
 ```
 
 ```console
 $ tbd sync
-✓ [..]
+✗ Push failed: fatal: 'origin' does not appear to be a git repository
+  4 commit(s) not pushed to remote.
+  Run 'tbd sync' to retry or 'tbd sync --status' to check status.
 ? 0
 ```
 
@@ -248,6 +265,8 @@ $ git -C .tbd/data-sync-worktree status --porcelain
 ## JSON Output
 
 # Test: Sync reports counts in JSON format
+
+Note: Without a remote, pushFailed is true and shows the error.
 
 ```console
 $ tbd sync --json
@@ -265,7 +284,10 @@ $ tbd sync --json
     },
     "conflicts": 0
   },
-  "conflicts": 0
+  "conflicts": 0,
+  "pushFailed": true,
+  "pushError": [..],
+  "unpushedCommits": 4
 }
 ? 0
 ```
