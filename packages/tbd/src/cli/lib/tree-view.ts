@@ -140,12 +140,7 @@ export function buildIssueTree(issues: IssueForTree[]): TreeNode[] {
     }
   }
 
-  // Sort root nodes by ID for determinism
-  roots.sort(
-    comparisonChain<TreeNode>()
-      .compare((n) => n.issue.id)
-      .result(),
-  );
+  // Root nodes preserve their input order (list command already sorts by priority)
 
   return roots;
 }
