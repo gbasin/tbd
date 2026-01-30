@@ -39,6 +39,7 @@ import {
   getCurrentBranch,
   checkWorktreeHealth,
   checkGitVersion,
+  findGitRoot,
   MIN_GIT_VERSION,
 } from '../../file/git.js';
 
@@ -80,6 +81,13 @@ class StatusHandler extends BaseCommand {
     // Find tbd root (may be in parent directory)
     const tbdRoot = await findTbdRoot(cwd);
 
+    // Find git root for checking integrations (.claude/, .beads/ are at git root)
+    const gitRoot = await findGitRoot(cwd);
+
+    // Use tbdRoot if available, otherwise gitRoot, otherwise cwd
+    // .tbd/, .claude/, .beads/ are all at the project root (adjacent to .git/)
+    const projectRoot = tbdRoot ?? gitRoot ?? cwd;
+
     const statusData: StatusData = {
       initialized: tbdRoot !== null,
       tbd_version: VERSION,
@@ -119,13 +127,13 @@ class StatusHandler extends BaseCommand {
       }
     }
 
-    // Check for beads
-    const beadsInfo = await this.checkBeads(cwd);
+    // Check for beads (at project root, not cwd)
+    const beadsInfo = await this.checkBeads(projectRoot);
     statusData.beads_detected = beadsInfo.detected;
     statusData.beads_issue_count = beadsInfo.issueCount;
 
-    // Check integrations (always show)
-    statusData.integrations = await this.checkIntegrations(cwd);
+    // Check integrations at project root (not cwd)
+    statusData.integrations = await this.checkIntegrations(projectRoot);
 
     if (statusData.initialized && tbdRoot) {
       // Load config and issue info
@@ -154,8 +162,8 @@ class StatusHandler extends BaseCommand {
     }
   }
 
-  private async checkBeads(cwd: string): Promise<{ detected: boolean; issueCount: number | null }> {
-    const beadsDir = join(cwd, '.beads');
+  private async checkBeads(projectRoot: string): Promise<{ detected: boolean; issueCount: number | null }> {
+    const beadsDir = join(projectRoot, '.beads');
     try {
       await access(beadsDir);
       // Count issues in beads
@@ -175,10 +183,10 @@ class StatusHandler extends BaseCommand {
     }
   }
 
-  private async checkIntegrations(cwd: string): Promise<StatusData['integrations']> {
-    // All integrations use project-local paths
-    const claudePaths = getClaudePaths(cwd);
-    const agentsPath = getAgentsMdPath(cwd);
+  private async checkIntegrations(projectRoot: string): Promise<StatusData['integrations']> {
+    // All integrations use project-local paths (relative to git/project root)
+    const claudePaths = getClaudePaths(projectRoot);
+    const agentsPath = getAgentsMdPath(projectRoot);
 
     const result: StatusData['integrations'] = {
       claude_code: false,
