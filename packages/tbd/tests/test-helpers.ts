@@ -103,6 +103,14 @@ export const TEST_ULIDS = {
   CONCURRENT_2: '01concurrent0000000000002a',
   CONCURRENT_3: '01concurrent0000000000003a',
   CONCURRENT_4: '01concurrent0000000000004a',
+
+  // Child ordering tests (26 chars)
+  CHILD_ORDER_PARENT: '01childorder0000000000001a',
+  CHILD_ORDER_A: '01childorder0000000000002a',
+  CHILD_ORDER_B: '01childorder0000000000003a',
+  CHILD_ORDER_C: '01childorder0000000000004a',
+  CHILD_ORDER_D: '01childorder0000000000005a',
+  CHILD_ORDER_E: '01childorder0000000000006a',
 };
 
 /**

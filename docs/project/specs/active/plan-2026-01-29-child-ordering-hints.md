@@ -290,3 +290,279 @@ The `ordering.manual(hints)` comparator:
 - [ ] Build succeeds
 - [ ] Manual testing confirms expected behavior
 - [ ] Backward compatibility: existing issues work unchanged
+
+## Detailed Testing Plan
+
+### Testing Principles
+
+Following the project’s TDD and golden testing guidelines:
+
+- **Red → Green → Refactor**: Start with failing tests that demonstrate the current
+  behavior doesn’t preserve order, then implement to make them pass
+- **Golden session tests**: Capture full CLI execution traces to detect behavioral
+  regressions
+- **Minimal, maximal coverage**: Write few tests that cover the desired functionality
+  exhaustively
+
+### Test 1: Golden Session Test - Child Order Preservation
+
+**Purpose**: End-to-end test demonstrating that child ordering is preserved through
+create, list, and delete operations.
+
+**File**: `packages/tbd/tests/child-order.test.ts`
+
+**Scenario**:
+
+```
+1. Create parent issue (epic)
+2. Create children A, B, C, D under parent (in that order)
+3. Verify `tbd list --pretty` shows children in order: A, B, C, D
+4. Delete child B
+5. Verify `tbd list --pretty` shows remaining children in order: A, C, D
+6. Manually reorder to: D, A, C using `--children-order`
+7. Verify `tbd list --pretty` shows children in order: D, A, C
+8. Verify `tbd show <parent> --show-order` displays correct hints
+```
+
+**Implementation approach**:
+
+```typescript
+describe('child ordering', () => {
+  it('preserves child order through create, list, and delete operations', async () => {
+    // Setup: init git repo and tbd
+    initGitAndTbd();
+
+    // Step 1: Create parent epic
+    const parentResult = runTbd(['create', 'Parent Epic', '--type=epic']);
+    const parentId = extractId(parentResult.stdout);
+
+    // Step 2: Create children in specific order
+    const childAResult = runTbd(['create', 'Child A', '--parent', parentId]);
+    const childA = extractId(childAResult.stdout);
+    const childBResult = runTbd(['create', 'Child B', '--parent', parentId]);
+    const childB = extractId(childBResult.stdout);
+    const childCResult = runTbd(['create', 'Child C', '--parent', parentId]);
+    const childC = extractId(childCResult.stdout);
+    const childDResult = runTbd(['create', 'Child D', '--parent', parentId]);
+    const childD = extractId(childDResult.stdout);
+
+    // Step 3: Verify initial order in list
+    const list1 = runTbd(['list', '--pretty']);
+    const children1 = extractChildrenOrder(list1.stdout, parentId);
+    expect(children1).toEqual([childA, childB, childC, childD]);
+
+    // Step 4: Delete child B
+    runTbd(['close', childB]);
+
+    // Step 5: Verify order preserved after deletion
+    const list2 = runTbd(['list', '--pretty', '--status', 'open']);
+    const children2 = extractChildrenOrder(list2.stdout, parentId);
+    expect(children2).toEqual([childA, childC, childD]);
+
+    // Step 6: Manually reorder to D, A, C
+    runTbd(['update', parentId, '--children-order', `${childD},${childA},${childC}`]);
+
+    // Step 7: Verify new manual order
+    const list3 = runTbd(['list', '--pretty', '--status', 'open']);
+    const children3 = extractChildrenOrder(list3.stdout, parentId);
+    expect(children3).toEqual([childD, childA, childC]);
+
+    // Step 8: Verify show --show-order
+    const showResult = runTbd(['show', parentId, '--show-order']);
+    expect(showResult.stdout).toContain('children_order_hints:');
+    expect(showResult.stdout).toContain(childD);
+  });
+});
+```
+
+### Test 2: TDD Baseline - Demonstrate Current Behavior Doesn’t Preserve Order
+
+**Purpose**: Before implementation, write a test that shows children currently appear in
+arbitrary order (by ID or filesystem order), not insertion order.
+
+**Expected**: This test should FAIL before implementation and PASS after.
+
+```typescript
+it('BASELINE: children without order hints appear in ID order (not insertion order)', async () => {
+  // Create parent and children where ID order differs from insertion order
+  // This test documents current behavior and will change after implementation
+});
+```
+
+### Test 3: Unit Tests - Schema and Serialization
+
+**File**: `packages/tbd/tests/schemas.test.ts` (add to existing)
+
+```typescript
+describe('children_order_hints field', () => {
+  it('serializes and deserializes correctly with children_order_hints', () => {
+    const issue = {
+      ...baseIssue,
+      children_order_hints: ['is-abc123', 'is-def456', 'is-ghi789'],
+    };
+    const serialized = serializeIssue(issue);
+    const parsed = parseIssue(serialized);
+    expect(parsed.children_order_hints).toEqual(['is-abc123', 'is-def456', 'is-ghi789']);
+  });
+
+  it('handles null children_order_hints', () => {
+    const issue = { ...baseIssue, children_order_hints: null };
+    const serialized = serializeIssue(issue);
+    const parsed = parseIssue(serialized);
+    expect(parsed.children_order_hints).toBeNull();
+  });
+
+  it('handles missing children_order_hints (backward compatibility)', () => {
+    const oldIssue = { ...baseIssue }; // no children_order_hints field
+    const serialized = serializeIssue(oldIssue);
+    const parsed = parseIssue(serialized);
+    expect(parsed.children_order_hints).toBeUndefined();
+  });
+});
+```
+
+### Test 4: Unit Tests - Automatic Population
+
+**File**: `packages/tbd/tests/child-order.test.ts`
+
+```typescript
+describe('automatic children_order_hints population', () => {
+  it('appends child ID to parent hints when setting --parent', async () => {
+    // Create parent, then child with --parent
+    // Verify parent's children_order_hints contains child ID
+  });
+
+  it('does not duplicate if child already in hints', async () => {
+    // Create parent with existing hints
+    // Set --parent to same parent again
+    // Verify no duplicate entries
+  });
+
+  it('does not modify hints when removing parent (--parent "")', async () => {
+    // Create parent with child
+    // Remove parent from child
+    // Verify parent's hints unchanged (stale ID is OK per design)
+  });
+});
+```
+
+### Test 5: Unit Tests - Tree View Sorting
+
+**File**: `packages/tbd/tests/tree-view.test.ts` (add to existing)
+
+```typescript
+describe('child ordering with hints', () => {
+  it('sorts children by hints order', () => {
+    const issues = [
+      { id: 'parent', kind: 'epic', children_order_hints: ['child-c', 'child-a', 'child-b'] },
+      { id: 'child-a', parentId: 'parent', ... },
+      { id: 'child-b', parentId: 'parent', ... },
+      { id: 'child-c', parentId: 'parent', ... },
+    ];
+    const roots = buildIssueTree(issues);
+    const childIds = roots[0].children.map(c => c.issue.id);
+    expect(childIds).toEqual(['child-c', 'child-a', 'child-b']);
+  });
+
+  it('places children not in hints after hinted children', () => {
+    const issues = [
+      { id: 'parent', kind: 'epic', children_order_hints: ['child-b'] },
+      { id: 'child-a', parentId: 'parent', ... },
+      { id: 'child-b', parentId: 'parent', ... },
+      { id: 'child-c', parentId: 'parent', ... },
+    ];
+    const roots = buildIssueTree(issues);
+    const childIds = roots[0].children.map(c => c.issue.id);
+    // child-b first (in hints), then a and c in ID order
+    expect(childIds[0]).toBe('child-b');
+  });
+
+  it('handles empty hints (default order)', () => {
+    // Verify deterministic default order when no hints
+  });
+
+  it('handles stale IDs in hints (non-existent children)', () => {
+    // Verify stale IDs are silently ignored
+  });
+});
+```
+
+### Test 6: Integration Tests - Update Command
+
+**File**: `packages/tbd/tests/child-order.test.ts`
+
+```typescript
+describe('--children-order flag', () => {
+  it('sets children_order_hints from comma-separated short IDs', async () => {
+    // Create parent with children
+    runTbd(['update', parentId, '--children-order', 'bd-abc,bd-def,bd-ghi']);
+    // Verify hints contain resolved internal IDs
+  });
+
+  it('clears hints with empty string', async () => {
+    // Create parent with hints
+    runTbd(['update', parentId, '--children-order', '""']);
+    // Verify hints are cleared
+  });
+
+  it('errors on invalid ID in order list', async () => {
+    const result = runTbd(['update', parentId, '--children-order', 'bd-invalid']);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('not found');
+  });
+});
+```
+
+### Test 7: Show Command Enhancement
+
+**File**: `packages/tbd/tests/child-order.test.ts`
+
+```typescript
+describe('--show-order flag', () => {
+  it('displays children_order_hints as short IDs', async () => {
+    const result = runTbd(['show', parentId, '--show-order']);
+    expect(result.stdout).toContain('children_order_hints:');
+    // Verify short IDs are displayed, not internal IDs
+  });
+
+  it('shows (none) when no hints', async () => {
+    const result = runTbd(['show', issueWithNoHints, '--show-order']);
+    expect(result.stdout).toContain('children_order_hints: (none)');
+  });
+});
+```
+
+### Stable vs Unstable Fields for Golden Tests
+
+Per golden testing guidelines, identify stable and unstable fields:
+
+**Stable fields** (compare exactly):
+- children_order_hints array contents and order
+- Child display order in `tbd list` output
+- Command exit codes
+- Error messages (for invalid operations)
+
+**Unstable fields** (filter/normalize):
+- Timestamps (created_at, updated_at)
+- Full internal IDs (use short IDs in assertions)
+- Exact line formatting (test semantic order, not spacing)
+
+### Test Execution Order
+
+Following TDD methodology:
+
+1. **First**: Write Test 2 (baseline) to demonstrate current behavior
+2. **Second**: Write Test 3 (schema) - should pass immediately after schema change
+3. **Third**: Write Test 5 (tree-view sorting) - drives sorting implementation
+4. **Fourth**: Write Test 4 (automatic population) - drives update command changes
+5. **Fifth**: Write Test 6 (--children-order flag) - drives CLI enhancement
+6. **Sixth**: Write Test 7 (--show-order flag) - drives show command enhancement
+7. **Finally**: Write Test 1 (golden session) - comprehensive integration test
+
+### CI Integration
+
+All tests should:
+- Run in under 100ms each (mocked mode, no network)
+- Be included in the standard `pnpm test` run
+- Use temp directories that are cleaned up after tests
+- Not depend on external state or ordering between tests
