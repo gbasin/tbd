@@ -1229,7 +1229,7 @@ export function asDisplayId(id: string): DisplayIssueId;
 
 | Context | Use Type | Example |
 | --- | --- | --- |
-| `parent_id`, `dependencies`, `children_order_hints` | `InternalIssueId` | `is-01hx5zzkbk...` |
+| `parent_id`, `dependencies`, `child_order_hints` | `InternalIssueId` | `is-01hx5zzkbk...` |
 | Storage, file operations | `InternalIssueId` | Reading/writing issue files |
 | CLI output, tree views | `DisplayIssueId` | `proj-a7k2` |
 | User input (after resolution) | `InternalIssueId` | `resolveToInternalId()` returns this |
@@ -1354,7 +1354,7 @@ const IssueSchema = BaseEntity.extend({
   // Child ordering hints - soft ordering for children under this parent.
   // Array of internal IssueIds in preferred display order.
   // May contain stale IDs; display logic filters for actual children.
-  children_order_hints: z.array(IssueId).nullable().optional(),
+  child_order_hints: z.array(IssueId).nullable().optional(),
 
   // Spec linking - path to related spec/doc (relative to repo root)
   spec_path: z.string().optional(),
@@ -1408,8 +1408,8 @@ type Issue = z.infer<typeof IssueSchema>;
   Re-parenting a child (via `tbd update --parent`) also inherits the new parent’s
   `spec_path` if the child has no existing `spec_path`.
 
-- `children_order_hints`: Optional array of internal IssueIds specifying preferred
-  display order for children of this issue.
+- `child_order_hints`: Optional array of internal IssueIds specifying preferred display
+  order for children of this issue.
   Used by `tbd list --pretty` to control child ordering in tree views.
 
   **Soft hints model:** This is a “hints” approach rather than strict ordering:
@@ -1419,10 +1419,10 @@ type Issue = z.infer<typeof IssueSchema>;
   - No automatic cleanup when children change
 
   **Auto-population:** When a child is assigned to a parent via `--parent`, the child’s
-  internal ID is automatically appended to the parent’s `children_order_hints`.
+  internal ID is automatically appended to the parent’s `child_order_hints`.
 
-  **Manual control:** Use `tbd update <id> --children-order <ids>` to set the full
-  ordering list. Use `--children-order ""` to clear.
+  **Manual control:** Use `tbd update <id> --child-order <ids>` to set the full ordering
+  list. Use `--child-order ""` to clear.
 
   **Display:** Use `tbd show <id> --show-order` to view current hints.
 
@@ -1623,13 +1623,13 @@ tbd list --parent proj-a1b2
 
 **Child ordering:**
 
-When displaying children under a parent, tbd uses `children_order_hints` to control
-display order. This provides soft ordering hints - the parent suggests a display order
-for its children.
+When displaying children under a parent, tbd uses `child_order_hints` to control display
+order. This provides soft ordering hints - the parent suggests a display order for its
+children.
 
 ```bash
 # Reorder children explicitly (replaces all hints)
-tbd update proj-a1b2 --children-order proj-c3d4,proj-e5f6,proj-g7h8
+tbd update proj-a1b2 --child-order proj-c3d4,proj-e5f6,proj-g7h8
 
 # View current ordering
 tbd show proj-a1b2 --show-order
@@ -1638,8 +1638,8 @@ tbd show proj-a1b2 --show-order
 **Ordering behavior:**
 
 - **Auto-population**: When setting `--parent` on create/update, the child is
-  automatically appended to the parent’s `children_order_hints`
-- **Manual control**: Use `--children-order` to set explicit ordering
+  automatically appended to the parent’s `child_order_hints`
+- **Manual control**: Use `--child-order` to set explicit ordering
 - **Soft hints**: Hints may contain stale IDs (removed children); display logic filters
   for actual children only
 - **Fallback**: Children not in hints are sorted by priority, then ID
@@ -2116,7 +2116,7 @@ const issueMergeRules: MergeRules<Issue> = {
   created_by: { strategy: 'preserve_oldest' },
   closed_at: { strategy: 'lww' }, // See status/closed_at rules below
   close_reason: { strategy: 'lww' },
-  children_order_hints: { strategy: 'lww' }, // Soft ordering, LWW on concurrent edits
+  child_order_hints: { strategy: 'lww' }, // Soft ordering, LWW on concurrent edits
 };
 ```
 
@@ -2464,7 +2464,7 @@ tbd show <id> [options]
 
 Options:
   --json                    Output as JSON instead of YAML+Markdown
-  --show-order              Display children_order_hints (if any)
+  --show-order              Display child_order_hints (if any)
 ```
 
 **Output:**
@@ -2543,7 +2543,7 @@ Options:
   --add-label <label>       Add label
   --remove-label <label>    Remove label
   --parent=<id>             Set parent
-  --children-order <ids>    Set child ordering hints (comma-separated)
+  --child-order <ids>    Set child ordering hints (comma-separated)
   --no-sync                 Don't sync after update
 ```
 
@@ -2556,7 +2556,7 @@ tbd update proj-a1b2 --add-label urgent --priority=P0
 tbd update proj-a1b2 --defer 2025-02-01
 
 # Set child display ordering for a parent issue
-tbd update proj-a1b2 --children-order proj-c3d4,proj-e5f6,proj-g7h8
+tbd update proj-a1b2 --child-order proj-c3d4,proj-e5f6,proj-g7h8
 
 # Round-trip editing: export, modify, re-import
 tbd show proj-a1b2 > issue.md

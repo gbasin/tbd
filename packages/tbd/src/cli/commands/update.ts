@@ -37,7 +37,7 @@ interface UpdateOptions {
   removeLabel?: string[];
   parent?: string;
   spec?: string;
-  childrenOrder?: string;
+  childOrder?: string;
 }
 
 class UpdateHandler extends BaseCommand {
@@ -88,8 +88,8 @@ class UpdateHandler extends BaseCommand {
     if (updates.deferred_until !== undefined) issue.deferred_until = updates.deferred_until;
     if (updates.parent_id !== undefined) issue.parent_id = updates.parent_id;
     if (updates.spec_path !== undefined) issue.spec_path = updates.spec_path;
-    if (updates.children_order_hints !== undefined)
-      issue.children_order_hints = updates.children_order_hints;
+    if (updates.child_order_hints !== undefined)
+      issue.child_order_hints = updates.child_order_hints;
 
     // Inherit spec_path from new parent when re-parenting without explicit --spec
     if (updates.parent_id && options.spec === undefined && !issue.spec_path) {
@@ -130,15 +130,15 @@ class UpdateHandler extends BaseCommand {
       await writeIssue(dataSyncDir, issue);
     }, 'Failed to update issue');
 
-    // When setting a new parent, append child to parent's children_order_hints
+    // When setting a new parent, append child to parent's child_order_hints
     if (updates.parent_id) {
       try {
         const parentIssue = await readIssue(dataSyncDir, updates.parent_id);
-        const hints = parentIssue.children_order_hints ?? [];
+        const hints = parentIssue.child_order_hints ?? [];
 
         // Only append if not already in hints
         if (!hints.includes(internalId)) {
-          parentIssue.children_order_hints = [...hints, internalId];
+          parentIssue.child_order_hints = [...hints, internalId];
           parentIssue.version += 1;
           parentIssue.updated_at = now();
           await writeIssue(dataSyncDir, parentIssue);
@@ -192,7 +192,7 @@ class UpdateHandler extends BaseCommand {
     deferred_until?: string | null;
     parent_id?: string | null;
     spec_path?: string | null;
-    children_order_hints?: string[] | null;
+    child_order_hints?: string[] | null;
     addLabels?: string[];
     removeLabels?: string[];
     labels?: string[];
@@ -209,7 +209,7 @@ class UpdateHandler extends BaseCommand {
       deferred_until?: string | null;
       parent_id?: string | null;
       spec_path?: string | null;
-      children_order_hints?: string[] | null;
+      child_order_hints?: string[] | null;
       addLabels?: string[];
       removeLabels?: string[];
       labels?: string[];
@@ -391,14 +391,14 @@ class UpdateHandler extends BaseCommand {
       updates.removeLabels = options.removeLabel;
     }
 
-    // Handle --children-order: set the ordering hints for children
-    if (options.childrenOrder !== undefined) {
-      if (options.childrenOrder === '' || options.childrenOrder === '""') {
+    // Handle --child-order: set the ordering hints for children
+    if (options.childOrder !== undefined) {
+      if (options.childOrder === '' || options.childOrder === '""') {
         // Empty string: clear the hints
-        updates.children_order_hints = null;
+        updates.child_order_hints = null;
       } else {
         // Parse comma-separated short IDs and resolve to internal IDs
-        const shortIds = options.childrenOrder.split(',').map((s) => s.trim());
+        const shortIds = options.childOrder.split(',').map((s) => s.trim());
         const internalIds: string[] = [];
         for (const shortId of shortIds) {
           if (!shortId) continue; // Skip empty strings
@@ -406,10 +406,10 @@ class UpdateHandler extends BaseCommand {
             const internalId = resolveToInternalId(shortId, mapping);
             internalIds.push(internalId);
           } catch {
-            throw new ValidationError(`Invalid ID in --children-order: ${shortId}`);
+            throw new ValidationError(`Invalid ID in --child-order: ${shortId}`);
           }
         }
-        updates.children_order_hints = internalIds.length > 0 ? internalIds : null;
+        updates.child_order_hints = internalIds.length > 0 ? internalIds : null;
       }
     }
 
@@ -435,7 +435,7 @@ export const updateCommand = new Command('update')
   .option('--remove-label <label>', 'Remove label', (val, prev: string[] = []) => [...prev, val])
   .option('--parent <id>', 'Set parent')
   .option('--spec <path>', 'Set or clear spec path (empty string clears)')
-  .option('--children-order <ids>', 'Set child ordering hints (comma-separated IDs)')
+  .option('--child-order <ids>', 'Set child ordering hints (comma-separated IDs)')
   .action(async (id, options, command) => {
     const handler = new UpdateHandler(command);
     await handler.run(id, options);

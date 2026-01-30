@@ -26,7 +26,7 @@ import { randomBytes } from 'node:crypto';
  *
  * Use this type when:
  * - Reading/writing issue files
- * - Storing parent_id, dependencies, children_order_hints
+ * - Storing parent_id, dependencies, child_order_hints
  * - Passing IDs between internal functions
  */
 declare const InternalIssueIdBrand: unique symbol;

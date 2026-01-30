@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Add an optional `children_order_hints` field to issues that tracks the intended display
+Add an optional `child_order_hints` field to issues that tracks the intended display
 order of child issues.
 This provides a soft, manually-controllable ordering mechanism for parent-child
 relationships without requiring strict transactional consistency.
@@ -32,21 +32,21 @@ The display logic treats it as a soft preference overlay on top of existing sort
 
 ## Summary of Task
 
-1. **Schema change**: Add optional `children_order_hints` field to `IssueSchema` as an
+1. **Schema change**: Add optional `child_order_hints` field to `IssueSchema` as an
    array of `IssueId`
 2. **Automatic population**: When a child is added to a parent (via `--parent` flag),
-   append the child’s internal ID to the parent’s `children_order_hints`
+   append the child’s internal ID to the parent’s `child_order_hints`
 3. **Display ordering**: In all places where children are listed, use the hints to sort
    children (using `ordering.manual()`)
-4. **Manual update**: Add `--children-order <ids>` flag to `tbd update` to reset the
+4. **Manual update**: Add `--child-order <ids>` flag to `tbd update` to reset the
    ordering hints list
 5. **Visibility**: Add `--show-order` flag to `tbd show` to display the ordering hints
 
 ## Backward Compatibility
 
-**Fully backward compatible.** The `children_order_hints` field is optional and
-nullable. Existing issues without this field work unchanged—children display in default
-order. No migration required.
+**Fully backward compatible.** The `child_order_hints` field is optional and nullable.
+Existing issues without this field work unchanged—children display in default order.
+No migration required.
 
 ## Stage 1: Planning Stage
 
@@ -61,7 +61,7 @@ order. No migration required.
 
 2. **Append on child add**
    - When `tbd update <child> --parent <parent>` is run, append the child’s internal ID
-     to the parent’s `children_order_hints`
+     to the parent’s `child_order_hints`
    - Only append if not already present in the list
    - Do not append if removing parent (`--parent ""`)
 
@@ -72,14 +72,14 @@ order. No migration required.
    - Use `ordering.manual()` from comparison-chain
 
 4. **Manual reset**
-   - `tbd update <id> --children-order <id1>,<id2>,...` replaces the entire list
+   - `tbd update <id> --child-order <id1>,<id2>,...` replaces the entire list
    - Accepts short IDs (e.g., `bd-a1b2,bd-c3d4`) which are resolved to internal IDs
-   - `tbd update <id> --children-order ""` clears the list
+   - `tbd update <id> --child-order ""` clears the list
 
 5. **Visibility**
-   - `tbd show <id> --show-order` displays the children_order_hints
+   - `tbd show <id> --show-order` displays the child_order_hints
    - Shows short IDs for readability
-   - Output format: `children_order_hints: [bd-a1b2, bd-c3d4, ...]`
+   - Output format: `child_order_hints: [bd-a1b2, bd-c3d4, ...]`
 
 ### Not in Scope
 
@@ -91,10 +91,10 @@ order. No migration required.
 
 ### Acceptance Criteria
 
-- [ ] `children_order_hints` field added to schema, optional array of IssueId
+- [ ] `child_order_hints` field added to schema, optional array of IssueId
 - [ ] Setting `--parent` on a child appends to parent’s hints list
 - [ ] `tbd list --pretty` respects ordering hints for children
-- [ ] `tbd update --children-order` sets the hints list
+- [ ] `tbd update --child-order` sets the hints list
 - [ ] `tbd show --show-order` displays the hints list
 - [ ] All existing tests pass (backward compatibility)
 - [ ] New tests cover hint population, sorting, and update
@@ -115,7 +115,7 @@ export const IssueSchema = BaseEntity.extend({
   // Child ordering hints - soft ordering for children under this parent
   // Array of internal IssueIds in preferred display order
   // May contain stale IDs; display logic filters for actual children
-  children_order_hints: z.array(IssueId).nullable().optional(),
+  child_order_hints: z.array(IssueId).nullable().optional(),
 
   // ... rest of fields ...
 });
@@ -124,8 +124,8 @@ export const IssueSchema = BaseEntity.extend({
 ### Internal ID Usage
 
 Like all other cross-references in the schema (e.g., `parent_id`,
-`dependencies.target`), `children_order_hints` stores internal IDs (`is-{ulid}`), not
-short IDs. This ensures:
+`dependencies.target`), `child_order_hints` stores internal IDs (`is-{ulid}`), not short
+IDs. This ensures:
 
 - Stability across short ID remapping
 - Consistency with existing patterns
@@ -135,18 +135,18 @@ short IDs. This ensures:
 
 #### 1. Schema (`packages/tbd/src/lib/schemas.ts`)
 
-- Add `children_order_hints: z.array(IssueId).nullable().optional()` to IssueSchema
+- Add `child_order_hints: z.array(IssueId).nullable().optional()` to IssueSchema
 
 #### 2. Update Command (`packages/tbd/src/cli/commands/update.ts`)
 
 - When `--parent` is set and resolved to a parent issue:
   - Load parent issue
-  - Append child’s internal ID to parent’s `children_order_hints` (if not present)
+  - Append child’s internal ID to parent’s `child_order_hints` (if not present)
   - Save parent issue
-- Add `--children-order` option:
+- Add `--child-order` option:
   - Parse comma-separated short IDs
   - Resolve each to internal ID
-  - Set as the new `children_order_hints` array
+  - Set as the new `child_order_hints` array
 
 #### 3. Tree View (`packages/tbd/src/cli/lib/tree-view.ts`)
 
@@ -156,13 +156,12 @@ short IDs. This ensures:
 
 #### 4. List Command (`packages/tbd/src/cli/commands/list.ts`)
 
-- When building tree view, pass each parent’s `children_order_hints` to the tree builder
+- When building tree view, pass each parent’s `child_order_hints` to the tree builder
 
 #### 5. Show Command (`packages/tbd/src/cli/commands/show.ts`)
 
 - Add `--show-order` flag
-- When flag is set, display `children_order_hints` as short IDs after the main issue
-  output
+- When flag is set, display `child_order_hints` as short IDs after the main issue output
 
 ### Sorting Algorithm
 
@@ -202,7 +201,7 @@ The `ordering.manual(hints)` comparator:
    overlay, no new sorting code needed
 
 2. **`resolveToInternalId()`** in `update.ts` — Existing helper for short ID → internal
-   ID resolution, reuse for `--children-order` parsing
+   ID resolution, reuse for `--child-order` parsing
 
 3. **`loadFullContext()`** in `data-context.ts` — Provides ID resolution helpers and
    data access patterns
@@ -212,7 +211,7 @@ The `ordering.manual(hints)` comparator:
 
 ### Performance Considerations
 
-- `children_order_hints` is a small array (typically <20 items)
+- `child_order_hints` is a small array (typically <20 items)
 - `ordering.manual()` creates a Map for O(1) lookups
 - No additional file reads required; hints stored on parent issue
 - No database queries or indexes affected (file-based storage)
@@ -227,17 +226,17 @@ The `ordering.manual(hints)` comparator:
 
 ### Phase 1: Schema and Basic Storage
 
-- [ ] Add `children_order_hints` field to `IssueSchema` in `schemas.ts`
+- [ ] Add `child_order_hints` field to `IssueSchema` in `schemas.ts`
 - [ ] Add corresponding type to `types.ts` if needed
 - [ ] Verify serialization/parsing handles the new field correctly
-- [ ] Write unit test: issue with `children_order_hints` serializes and deserializes
+- [ ] Write unit test: issue with `child_order_hints` serializes and deserializes
   correctly
 
 ### Phase 2: Automatic Population on Parent Set
 
 - [ ] In `update.ts`, when `--parent` is set to a valid parent:
   - Load the parent issue
-  - Append child ID to `children_order_hints` (dedup check)
+  - Append child ID to `child_order_hints` (dedup check)
   - Save parent issue with incremented version
 - [ ] Write unit test: setting parent appends to hints
 - [ ] Write unit test: setting parent when already in hints doesn’t duplicate
@@ -255,18 +254,18 @@ The `ordering.manual(hints)` comparator:
 
 ### Phase 4: Manual Update Command
 
-- [ ] Add `--children-order` option to update command
+- [ ] Add `--child-order` option to update command
 - [ ] Parse comma-separated short IDs
 - [ ] Resolve each to internal ID (error if any not found)
-- [ ] Set `children_order_hints` field on issue
-- [ ] Write unit test: `--children-order a,b,c` sets correct internal IDs
-- [ ] Write unit test: `--children-order ""` clears the list
+- [ ] Set `child_order_hints` field on issue
+- [ ] Write unit test: `--child-order a,b,c` sets correct internal IDs
+- [ ] Write unit test: `--child-order ""` clears the list
 - [ ] Write e2e test: full round-trip (set order, list, verify order)
 
 ### Phase 5: Show Command Enhancement
 
 - [ ] Add `--show-order` flag to show command
-- [ ] When flag is set, output `children_order_hints` (as short IDs)
+- [ ] When flag is set, output `child_order_hints` (as short IDs)
 - [ ] Format: after main issue output, add line like `Children order: bd-a1b2, bd-c3d4`
 - [ ] If no hints, show “Children order: (none)”
 - [ ] Write unit test: `--show-order` displays hints correctly
@@ -278,7 +277,7 @@ The `ordering.manual(hints)` comparator:
 - [ ] Test manually with various scenarios:
   - Create parent, add children in order
   - Verify `tbd list --pretty` shows correct order
-  - Reset order with `--children-order`
+  - Reset order with `--child-order`
   - Verify new order in list
   - Check `--show-order` displays correctly
 - [ ] Update any relevant documentation
@@ -319,7 +318,7 @@ create, list, and delete operations.
 3. Verify `tbd list --pretty` shows children in order: A, B, C, D
 4. Delete child B
 5. Verify `tbd list --pretty` shows remaining children in order: A, C, D
-6. Manually reorder to: D, A, C using `--children-order`
+6. Manually reorder to: D, A, C using `--child-order`
 7. Verify `tbd list --pretty` shows children in order: D, A, C
 8. Verify `tbd show <parent> --show-order` displays correct hints
 ```
@@ -348,7 +347,7 @@ describe('child ordering', () => {
 
     // Step 3: Verify initial order in list
     const list1 = runTbd(['list', '--pretty']);
-    const children1 = extractChildrenOrder(list1.stdout, parentId);
+    const children1 = extractChildOrder(list1.stdout, parentId);
     expect(children1).toEqual([childA, childB, childC, childD]);
 
     // Step 4: Delete child B
@@ -356,20 +355,20 @@ describe('child ordering', () => {
 
     // Step 5: Verify order preserved after deletion
     const list2 = runTbd(['list', '--pretty', '--status', 'open']);
-    const children2 = extractChildrenOrder(list2.stdout, parentId);
+    const children2 = extractChildOrder(list2.stdout, parentId);
     expect(children2).toEqual([childA, childC, childD]);
 
     // Step 6: Manually reorder to D, A, C
-    runTbd(['update', parentId, '--children-order', `${childD},${childA},${childC}`]);
+    runTbd(['update', parentId, '--child-order', `${childD},${childA},${childC}`]);
 
     // Step 7: Verify new manual order
     const list3 = runTbd(['list', '--pretty', '--status', 'open']);
-    const children3 = extractChildrenOrder(list3.stdout, parentId);
+    const children3 = extractChildOrder(list3.stdout, parentId);
     expect(children3).toEqual([childD, childA, childC]);
 
     // Step 8: Verify show --show-order
     const showResult = runTbd(['show', parentId, '--show-order']);
-    expect(showResult.stdout).toContain('children_order_hints:');
+    expect(showResult.stdout).toContain('child_order_hints:');
     expect(showResult.stdout).toContain(childD);
   });
 });
@@ -394,29 +393,29 @@ it('BASELINE: children without order hints appear in ID order (not insertion ord
 **File**: `packages/tbd/tests/schemas.test.ts` (add to existing)
 
 ```typescript
-describe('children_order_hints field', () => {
-  it('serializes and deserializes correctly with children_order_hints', () => {
+describe('child_order_hints field', () => {
+  it('serializes and deserializes correctly with child_order_hints', () => {
     const issue = {
       ...baseIssue,
-      children_order_hints: ['is-abc123', 'is-def456', 'is-ghi789'],
+      child_order_hints: ['is-abc123', 'is-def456', 'is-ghi789'],
     };
     const serialized = serializeIssue(issue);
     const parsed = parseIssue(serialized);
-    expect(parsed.children_order_hints).toEqual(['is-abc123', 'is-def456', 'is-ghi789']);
+    expect(parsed.child_order_hints).toEqual(['is-abc123', 'is-def456', 'is-ghi789']);
   });
 
-  it('handles null children_order_hints', () => {
-    const issue = { ...baseIssue, children_order_hints: null };
+  it('handles null child_order_hints', () => {
+    const issue = { ...baseIssue, child_order_hints: null };
     const serialized = serializeIssue(issue);
     const parsed = parseIssue(serialized);
-    expect(parsed.children_order_hints).toBeNull();
+    expect(parsed.child_order_hints).toBeNull();
   });
 
-  it('handles missing children_order_hints (backward compatibility)', () => {
-    const oldIssue = { ...baseIssue }; // no children_order_hints field
+  it('handles missing child_order_hints (backward compatibility)', () => {
+    const oldIssue = { ...baseIssue }; // no child_order_hints field
     const serialized = serializeIssue(oldIssue);
     const parsed = parseIssue(serialized);
-    expect(parsed.children_order_hints).toBeUndefined();
+    expect(parsed.child_order_hints).toBeUndefined();
   });
 });
 ```
@@ -426,10 +425,10 @@ describe('children_order_hints field', () => {
 **File**: `packages/tbd/tests/child-order.test.ts`
 
 ```typescript
-describe('automatic children_order_hints population', () => {
+describe('automatic child_order_hints population', () => {
   it('appends child ID to parent hints when setting --parent', async () => {
     // Create parent, then child with --parent
-    // Verify parent's children_order_hints contains child ID
+    // Verify parent's child_order_hints contains child ID
   });
 
   it('does not duplicate if child already in hints', async () => {
@@ -454,7 +453,7 @@ describe('automatic children_order_hints population', () => {
 describe('child ordering with hints', () => {
   it('sorts children by hints order', () => {
     const issues = [
-      { id: 'parent', kind: 'epic', children_order_hints: ['child-c', 'child-a', 'child-b'] },
+      { id: 'parent', kind: 'epic', child_order_hints: ['child-c', 'child-a', 'child-b'] },
       { id: 'child-a', parentId: 'parent', ... },
       { id: 'child-b', parentId: 'parent', ... },
       { id: 'child-c', parentId: 'parent', ... },
@@ -466,7 +465,7 @@ describe('child ordering with hints', () => {
 
   it('places children not in hints after hinted children', () => {
     const issues = [
-      { id: 'parent', kind: 'epic', children_order_hints: ['child-b'] },
+      { id: 'parent', kind: 'epic', child_order_hints: ['child-b'] },
       { id: 'child-a', parentId: 'parent', ... },
       { id: 'child-b', parentId: 'parent', ... },
       { id: 'child-c', parentId: 'parent', ... },
@@ -492,21 +491,21 @@ describe('child ordering with hints', () => {
 **File**: `packages/tbd/tests/child-order.test.ts`
 
 ```typescript
-describe('--children-order flag', () => {
-  it('sets children_order_hints from comma-separated short IDs', async () => {
+describe('--child-order flag', () => {
+  it('sets child_order_hints from comma-separated short IDs', async () => {
     // Create parent with children
-    runTbd(['update', parentId, '--children-order', 'bd-abc,bd-def,bd-ghi']);
+    runTbd(['update', parentId, '--child-order', 'bd-abc,bd-def,bd-ghi']);
     // Verify hints contain resolved internal IDs
   });
 
   it('clears hints with empty string', async () => {
     // Create parent with hints
-    runTbd(['update', parentId, '--children-order', '""']);
+    runTbd(['update', parentId, '--child-order', '""']);
     // Verify hints are cleared
   });
 
   it('errors on invalid ID in order list', async () => {
-    const result = runTbd(['update', parentId, '--children-order', 'bd-invalid']);
+    const result = runTbd(['update', parentId, '--child-order', 'bd-invalid']);
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('not found');
   });
@@ -519,15 +518,15 @@ describe('--children-order flag', () => {
 
 ```typescript
 describe('--show-order flag', () => {
-  it('displays children_order_hints as short IDs', async () => {
+  it('displays child_order_hints as short IDs', async () => {
     const result = runTbd(['show', parentId, '--show-order']);
-    expect(result.stdout).toContain('children_order_hints:');
+    expect(result.stdout).toContain('child_order_hints:');
     // Verify short IDs are displayed, not internal IDs
   });
 
   it('shows (none) when no hints', async () => {
     const result = runTbd(['show', issueWithNoHints, '--show-order']);
-    expect(result.stdout).toContain('children_order_hints: (none)');
+    expect(result.stdout).toContain('child_order_hints: (none)');
   });
 });
 ```
@@ -537,7 +536,7 @@ describe('--show-order flag', () => {
 Per golden testing guidelines, identify stable and unstable fields:
 
 **Stable fields** (compare exactly):
-- children_order_hints array contents and order
+- child_order_hints array contents and order
 - Child display order in `tbd list` output
 - Command exit codes
 - Error messages (for invalid operations)
@@ -555,7 +554,7 @@ Following TDD methodology:
 2. **Second**: Write Test 3 (schema) - should pass immediately after schema change
 3. **Third**: Write Test 5 (tree-view sorting) - drives sorting implementation
 4. **Fourth**: Write Test 4 (automatic population) - drives update command changes
-5. **Fifth**: Write Test 6 (--children-order flag) - drives CLI enhancement
+5. **Fifth**: Write Test 6 (--child-order flag) - drives CLI enhancement
 6. **Sixth**: Write Test 7 (--show-order flag) - drives show command enhancement
 7. **Finally**: Write Test 1 (golden session) - comprehensive integration test
 
@@ -569,14 +568,14 @@ All tests should:
 
 ## Stage 5: Documentation Updates
 
-The following documentation must be updated to reflect the new `children_order_hints`
+The following documentation must be updated to reflect the new `child_order_hints`
 feature:
 
 ### 1. tbd-design.md Updates
 
 #### Schema Section (§2.6.3 IssueSchema)
 
-Add `children_order_hints` field to the schema documentation after `parent_id`:
+Add `child_order_hints` field to the schema documentation after `parent_id`:
 
 ```typescript
 // Hierarchical issues
@@ -585,36 +584,36 @@ parent_id: IssueId.optional(),
 // Child ordering hints - soft ordering for children under this parent.
 // Array of internal IssueIds in preferred display order.
 // May contain stale IDs; display logic filters for actual children.
-children_order_hints: z.array(IssueId).nullable().optional(),
+child_order_hints: z.array(IssueId).nullable().optional(),
 ```
 
 Add design notes explaining:
 - Purpose: Soft hints for child display order
 - Auto-population: Appended when setting `--parent`
 - Stale ID handling: Silently ignored during display
-- Manual control via `--children-order` flag
+- Manual control via `--child-order` flag
 
 #### Parent-Child Relationships Section (§2.7.2)
 
 Update to describe child ordering:
 
 - Default behavior: Children sorted by priority (via list command)
-- With hints: Children sorted according to `children_order_hints`
+- With hints: Children sorted according to `child_order_hints`
 - Auto-population: When child is assigned to parent, ID appended to hints
-- Manual reordering: Use `tbd update <parent> --children-order <id1>,<id2>,...`
+- Manual reordering: Use `tbd update <parent> --child-order <id1>,<id2>,...`
 - Visibility: Use `tbd show <id> --show-order` to see current hints
 
 #### Update Command Section (§4.2.6)
 
-Add `--children-order` flag to options table:
+Add `--child-order` flag to options table:
 
 ```
---children-order=<ids>    Set child ordering hints (comma-separated IDs)
+--child-order=<ids>    Set child ordering hints (comma-separated IDs)
 ```
 
 With example:
 ```bash
-tbd update proj-a1b2 --children-order bd-c3d4,bd-e5f6,bd-g7h8
+tbd update proj-a1b2 --child-order bd-c3d4,bd-e5f6,bd-g7h8
 ```
 
 #### Show Command Section (§4.2.4)
@@ -628,28 +627,28 @@ Add `--show-order` flag to options table:
 With example:
 ```bash
 tbd show proj-a1b2 --show-order
-# Output includes: children_order_hints: [bd-c3d4, bd-e5f6, bd-g7h8]
+# Output includes: child_order_hints: [bd-c3d4, bd-e5f6, bd-g7h8]
 ```
 
 #### Merge Strategies Section (§3.4.3)
 
-Document that `children_order_hints` uses LWW (last-writer-wins) strategy:
+Document that `child_order_hints` uses LWW (last-writer-wins) strategy:
 
 ```typescript
-children_order_hints: 'lww',
+child_order_hints: 'lww',
 ```
 
 ### 2. CLI Help Consistency
 
 Verify that `--help` output for affected commands matches documentation:
 
-- `tbd update --help` should list `--children-order`
+- `tbd update --help` should list `--child-order`
 - `tbd show --help` should list `--show-order`
 
 ### 3. tbd-docs.md Updates (if applicable)
 
 If tbd-docs.md contains command reference sections, ensure they include:
-- `--children-order` for update command
+- `--child-order` for update command
 - `--show-order` for show command
 
 ### 4. Type Safety Documentation
@@ -664,10 +663,10 @@ This ensures compile-time safety when handling IDs in different contexts.
 
 ### Documentation Acceptance Criteria
 
-- [ ] tbd-design.md schema section includes `children_order_hints` field
+- [ ] tbd-design.md schema section includes `child_order_hints` field
 - [ ] tbd-design.md §2.7.2 describes child ordering behavior
-- [ ] tbd-design.md update command section includes `--children-order`
+- [ ] tbd-design.md update command section includes `--child-order`
 - [ ] tbd-design.md show command section includes `--show-order`
-- [ ] tbd-design.md merge strategies includes `children_order_hints: 'lww'`
+- [ ] tbd-design.md merge strategies includes `child_order_hints: 'lww'`
 - [ ] CLI `--help` output matches documentation
 - [ ] Branded types (InternalIssueId, DisplayIssueId) are documented

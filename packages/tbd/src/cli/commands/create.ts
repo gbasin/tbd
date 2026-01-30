@@ -141,15 +141,15 @@ class CreateHandler extends BaseCommand {
       await writeIssue(dataSyncDir, issue);
       await saveIdMapping(dataSyncDir, mapping);
 
-      // When creating with a parent, append child to parent's children_order_hints
+      // When creating with a parent, append child to parent's child_order_hints
       if (parentId) {
         try {
           const parentIssue = await readIssue(dataSyncDir, parentId);
-          const hints = parentIssue.children_order_hints ?? [];
+          const hints = parentIssue.child_order_hints ?? [];
 
           // Only append if not already in hints (shouldn't happen for new issue, but safe)
           if (!hints.includes(id)) {
-            parentIssue.children_order_hints = [...hints, id];
+            parentIssue.child_order_hints = [...hints, id];
             parentIssue.version += 1;
             parentIssue.updated_at = timestamp;
             await writeIssue(dataSyncDir, parentIssue);

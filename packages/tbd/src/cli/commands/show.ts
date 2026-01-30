@@ -77,12 +77,12 @@ class ShowHandler extends BaseCommand {
         }
       }
 
-      // Show children_order_hints if --show-order is specified
+      // Show child_order_hints if --show-order is specified
       if (options.showOrder) {
         console.log('');
-        console.log(colors.dim('children_order_hints:'));
-        if (issue.children_order_hints && issue.children_order_hints.length > 0) {
-          for (const hintId of issue.children_order_hints) {
+        console.log(colors.dim('child_order_hints:'));
+        if (issue.child_order_hints && issue.child_order_hints.length > 0) {
+          for (const hintId of issue.child_order_hints) {
             const shortId = ctx.displayId(hintId);
             console.log(`  - ${colors.id(shortId)}`);
           }

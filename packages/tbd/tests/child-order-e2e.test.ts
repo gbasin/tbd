@@ -2,7 +2,7 @@
  * End-to-end tests for child ordering with hints.
  *
  * Tests the complete workflow of creating children with --parent,
- * automatic population of children_order_hints, and order preservation
+ * automatic population of child_order_hints, and order preservation
  * through create, list, delete, and manual reorder operations.
  */
 
@@ -51,11 +51,11 @@ describe('child ordering end-to-end', () => {
   function getOrderHints(id: string): string[] | null {
     const result = runTbd(['show', id, '--json']);
     expect(result.status).toBe(0);
-    const data = JSON.parse(result.stdout) as { children_order_hints?: string[] };
-    return data.children_order_hints ?? null;
+    const data = JSON.parse(result.stdout) as { child_order_hints?: string[] };
+    return data.child_order_hints ?? null;
   }
 
-  describe('automatic population of children_order_hints', () => {
+  describe('automatic population of child_order_hints', () => {
     it('appends child ID to parent hints on create with --parent', () => {
       const parentId = createIssue('Parent epic', ['--type', 'epic']);
       createIssue('Child 1', ['--parent', parentId]);
@@ -103,8 +103,8 @@ describe('child ordering end-to-end', () => {
     });
   });
 
-  describe('--children-order flag', () => {
-    it('manually sets children_order_hints', () => {
+  describe('--child-order flag', () => {
+    it('manually sets child_order_hints', () => {
       const parentId = createIssue('Parent epic', ['--type', 'epic']);
       const child1Id = createIssue('Child A', ['--parent', parentId]);
       const child2Id = createIssue('Child B', ['--parent', parentId]);
@@ -118,7 +118,7 @@ describe('child ordering end-to-end', () => {
       const reorderResult = runTbd([
         'update',
         parentId,
-        '--children-order',
+        '--child-order',
         `${child3Id},${child1Id},${child2Id}`,
       ]);
       expect(reorderResult.status).toBe(0);
@@ -136,7 +136,7 @@ describe('child ordering end-to-end', () => {
       expect(hints).toHaveLength(1);
 
       // Clear with empty string
-      const clearResult = runTbd(['update', parentId, '--children-order', '']);
+      const clearResult = runTbd(['update', parentId, '--child-order', '']);
       expect(clearResult.status).toBe(0);
 
       hints = getOrderHints(parentId);
@@ -146,21 +146,21 @@ describe('child ordering end-to-end', () => {
     it('errors on invalid ID', () => {
       const parentId = createIssue('Parent epic', ['--type', 'epic']);
 
-      const result = runTbd(['update', parentId, '--children-order', 'invalid-id']);
+      const result = runTbd(['update', parentId, '--child-order', 'invalid-id']);
       expect(result.status).not.toBe(0);
       expect(result.stderr).toContain('Invalid ID');
     });
   });
 
   describe('--show-order flag', () => {
-    it('displays children_order_hints', () => {
+    it('displays child_order_hints', () => {
       const parentId = createIssue('Parent epic', ['--type', 'epic']);
       createIssue('Child 1', ['--parent', parentId]);
       createIssue('Child 2', ['--parent', parentId]);
 
       const result = runTbd(['show', parentId, '--show-order']);
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain('children_order_hints:');
+      expect(result.stdout).toContain('child_order_hints:');
       expect(result.stdout).toContain('test-'); // Should show display IDs
     });
 
@@ -169,7 +169,7 @@ describe('child ordering end-to-end', () => {
 
       const result = runTbd(['show', issueId, '--show-order']);
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain('children_order_hints:');
+      expect(result.stdout).toContain('child_order_hints:');
       expect(result.stdout).toContain('(none)');
     });
   });
@@ -200,7 +200,7 @@ describe('child ordering end-to-end', () => {
       expect(cIndex).toBeLessThan(dIndex);
     });
 
-    it('maintains manual order after setting with --children-order', () => {
+    it('maintains manual order after setting with --child-order', () => {
       const parentId = createIssue('Parent epic', ['--type', 'epic']);
       const child1Id = createIssue('First', ['--parent', parentId]);
       const child2Id = createIssue('Second', ['--parent', parentId]);
@@ -210,7 +210,7 @@ describe('child ordering end-to-end', () => {
       const reorderResult = runTbd([
         'update',
         parentId,
-        '--children-order',
+        '--child-order',
         `${child3Id},${child1Id},${child2Id}`,
       ]);
       expect(reorderResult.status).toBe(0);

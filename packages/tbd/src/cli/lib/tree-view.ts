@@ -56,7 +56,7 @@ export interface IssueForTree extends IssueForDisplay {
   /** Internal ID for matching against order hints (optional, defaults to id) */
   internalId?: InternalIssueId;
   /** Ordered list of child internal IDs for preferred display order */
-  children_order_hints?: InternalIssueId[];
+  child_order_hints?: InternalIssueId[];
 }
 
 /**
@@ -101,9 +101,9 @@ function sortChildren(children: TreeNode[], hints: InternalIssueId[] | undefined
  *
  * Groups children under their parents based on parent_id.
  * Issues without a parent (or whose parent is not in the list) become root nodes.
- * Children are sorted according to parent's children_order_hints if available.
+ * Children are sorted according to parent's child_order_hints if available.
  *
- * @param issues - Flat list of issues with optional parent_id and children_order_hints
+ * @param issues - Flat list of issues with optional parent_id and child_order_hints
  * @returns Array of root tree nodes with nested children
  */
 export function buildIssueTree(issues: IssueForTree[]): TreeNode[] {
@@ -116,8 +116,8 @@ export function buildIssueTree(issues: IssueForTree[]): TreeNode[] {
   // First pass: create nodes for all issues and collect order hints
   for (const issue of issues) {
     issueMap.set(issue.id, { issue, children: [] });
-    if (issue.children_order_hints) {
-      orderHintsMap.set(issue.id, issue.children_order_hints);
+    if (issue.child_order_hints) {
+      orderHintsMap.set(issue.id, issue.child_order_hints);
     }
   }
 

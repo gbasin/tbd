@@ -1,7 +1,7 @@
 /**
  * Tests for child ordering with hints.
  *
- * Tests the children_order_hints feature that allows parents to specify
+ * Tests the child_order_hints feature that allows parents to specify
  * the preferred display order of their children.
  */
 
@@ -20,7 +20,7 @@ import { TEST_ULIDS, testId } from './test-helpers.js';
 
 /**
  * Helper to convert stored issues to IssueForTree format.
- * Casts children_order_hints from string[] to InternalIssueId[] since storage uses plain strings.
+ * Casts child_order_hints from string[] to InternalIssueId[] since storage uses plain strings.
  */
 function toIssueForTree(issue: Issue): IssueForTree {
   return {
@@ -30,9 +30,7 @@ function toIssueForTree(issue: Issue): IssueForTree {
     kind: issue.kind,
     title: issue.title,
     parentId: issue.parent_id ?? undefined,
-    children_order_hints: (issue.children_order_hints ?? undefined) as
-      | InternalIssueId[]
-      | undefined,
+    child_order_hints: (issue.child_order_hints ?? undefined) as InternalIssueId[] | undefined,
   };
 }
 
@@ -51,7 +49,7 @@ describe('child ordering', () => {
     await rm(testDir, { recursive: true, force: true });
   });
 
-  describe('buildIssueTree with children_order_hints', () => {
+  describe('buildIssueTree with child_order_hints', () => {
     it('sorts children by hints order when hints are provided', async () => {
       const parentId = testId(TEST_ULIDS.CHILD_ORDER_PARENT);
       const childAId = testId(TEST_ULIDS.CHILD_ORDER_A);
@@ -71,7 +69,7 @@ describe('child ordering', () => {
         dependencies: [],
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-01T00:00:00Z',
-        children_order_hints: [childCId, childAId, childBId],
+        child_order_hints: [childCId, childAId, childBId],
       };
 
       // Create children with alphabetical IDs (A < B < C in default sort)
@@ -162,7 +160,7 @@ describe('child ordering', () => {
         dependencies: [],
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-01T00:00:00Z',
-        children_order_hints: [childBId],
+        child_order_hints: [childBId],
       };
 
       const createChild = (id: string, title: string): Issue => ({
@@ -204,7 +202,7 @@ describe('child ordering', () => {
       const childAId = testId(TEST_ULIDS.CHILD_ORDER_A);
       const childBId = testId(TEST_ULIDS.CHILD_ORDER_B);
 
-      // Parent with no children_order_hints
+      // Parent with no child_order_hints
       const parentIssue: Issue = {
         type: 'is',
         id: parentId,
@@ -217,7 +215,7 @@ describe('child ordering', () => {
         dependencies: [],
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-01T00:00:00Z',
-        // No children_order_hints
+        // No child_order_hints
       };
 
       const createChild = (id: string, title: string): Issue => ({
@@ -272,7 +270,7 @@ describe('child ordering', () => {
         dependencies: [],
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-01T00:00:00Z',
-        children_order_hints: [staleId, childBId, childAId],
+        child_order_hints: [staleId, childBId, childAId],
       };
 
       const createChild = (id: string, title: string): Issue => ({
@@ -310,8 +308,8 @@ describe('child ordering', () => {
     });
   });
 
-  describe('children_order_hints serialization', () => {
-    it('serializes and deserializes children_order_hints correctly', async () => {
+  describe('child_order_hints serialization', () => {
+    it('serializes and deserializes child_order_hints correctly', async () => {
       const parentId = testId(TEST_ULIDS.CHILD_ORDER_PARENT);
       const hints = [
         testId(TEST_ULIDS.CHILD_ORDER_C),
@@ -331,16 +329,16 @@ describe('child ordering', () => {
         dependencies: [],
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-01T00:00:00Z',
-        children_order_hints: hints,
+        child_order_hints: hints,
       };
 
       await writeIssue(issuesDir, issue);
       const loaded = await readIssue(issuesDir, parentId);
 
-      expect(loaded.children_order_hints).toEqual(hints);
+      expect(loaded.child_order_hints).toEqual(hints);
     });
 
-    it('handles null children_order_hints', async () => {
+    it('handles null child_order_hints', async () => {
       const parentId = testId(TEST_ULIDS.CHILD_ORDER_PARENT);
 
       const issue: Issue = {
@@ -355,19 +353,19 @@ describe('child ordering', () => {
         dependencies: [],
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-01T00:00:00Z',
-        children_order_hints: null,
+        child_order_hints: null,
       };
 
       await writeIssue(issuesDir, issue);
       const loaded = await readIssue(issuesDir, parentId);
 
-      expect(loaded.children_order_hints).toBeNull();
+      expect(loaded.child_order_hints).toBeNull();
     });
 
-    it('handles missing children_order_hints (backward compatibility)', async () => {
+    it('handles missing child_order_hints (backward compatibility)', async () => {
       const parentId = testId(TEST_ULIDS.CHILD_ORDER_PARENT);
 
-      // Issue without children_order_hints field at all
+      // Issue without child_order_hints field at all
       const issue: Issue = {
         type: 'is',
         id: parentId,
@@ -380,14 +378,14 @@ describe('child ordering', () => {
         dependencies: [],
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-01T00:00:00Z',
-        // No children_order_hints field
+        // No child_order_hints field
       };
 
       await writeIssue(issuesDir, issue);
       const loaded = await readIssue(issuesDir, parentId);
 
       // Should be undefined (not present)
-      expect(loaded.children_order_hints).toBeUndefined();
+      expect(loaded.child_order_hints).toBeUndefined();
     });
   });
 });
