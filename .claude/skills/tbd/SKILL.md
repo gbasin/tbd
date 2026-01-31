@@ -166,9 +166,10 @@ Run `tbd shortcut <name>` to use any of these shortcuts:
 | new-validation-plan | Create a validation/test plan showing what's tested and what remains |
 | plan-implementation-with-beads | Create implementation beads from a feature planning spec |
 | precommit-process | Full pre-commit checklist including spec sync, code review, and testing |
-| review-code-python | Perform a code review for Python code following best practices |
-| review-code-typescript | Perform a code review for TypeScript code following best practices |
-| review-github-pr | Review a pull request and optionally add comments or create fix beads |
+| review-code | Comprehensive code review for uncommitted changes, branch work, or GitHub PRs |
+| review-code-python | Python-focused code review (language-specific rules only) |
+| review-code-typescript | TypeScript-focused code review (language-specific rules only) |
+| review-github-pr | Review a GitHub pull request with follow-up actions (comment, fix, CI check) |
 | revise-all-architecture-docs | Comprehensive revision of all current architecture documents |
 | revise-architecture-doc | Update an architecture document to reflect current codebase state |
 | setup-github-cli | Ensure GitHub CLI (gh) is installed and working |
