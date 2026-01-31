@@ -490,27 +490,27 @@ The outbox model is recommended if:
 ### Phase 1: Core Workspace Commands
 
 **Directory Structure:**
-- [ ] Add `.tbd/workspaces/` to standard tbd structure
-- [ ] Workspace not gitignored (committed to user’s branch)
+- [x] Add `.tbd/workspaces/` to standard tbd structure
+- [x] Workspace not gitignored (committed to user’s branch)
 
 **`tbd save` Command:**
-- [ ] Parse `--workspace=<name>`, `--dir=<path>`, `--outbox` flags
-- [ ] Implement `--updates-only` vs default (all) behavior
-- [ ] Implement bidirectional merge to workspace
-- [ ] Conflicts go to workspace attic
-- [ ] Report what was saved
+- [x] Parse `--workspace=<name>`, `--dir=<path>`, `--outbox` flags
+- [ ] Implement `--updates-only` vs default (all) behavior (TODO: currently saves all)
+- [x] Implement bidirectional merge to workspace
+- [x] Conflicts go to workspace attic
+- [x] Report what was saved
 
 **`tbd import` Command:**
-- [ ] Parse `--workspace=<name>`, `--dir=<path>`, `--outbox` flags
-- [ ] Implement `--clear-on-success` flag (deletes source after successful import)
-- [ ] `--outbox` is shortcut for `--workspace=outbox --clear-on-success`
-- [ ] Implement merge from workspace to worktree
-- [ ] Commit merged changes to worktree
-- [ ] Report what was imported
+- [x] Parse `--workspace=<name>`, `--dir=<path>`, `--outbox` flags
+- [x] Implement `--clear-on-success` flag (deletes source after successful import)
+- [x] `--outbox` is shortcut for `--workspace=outbox --clear-on-success`
+- [x] Implement merge from workspace to worktree
+- [ ] Commit merged changes to worktree (TODO: import doesn’t auto-commit yet)
+- [x] Report what was imported
 
 **`tbd workspace` Subcommands:**
-- [ ] `tbd workspace list` - list workspaces with counts
-- [ ] `tbd workspace delete <name>` - remove workspace
+- [x] `tbd workspace list` - list workspaces with counts
+- [x] `tbd workspace delete <name>` - remove workspace
 
 ### Phase 2: Integration
 
@@ -890,11 +890,33 @@ describe('Workspace management', () => {
    - Option B: Track synced issue hashes in state.yml
    - Option C: Compare with remote tbd-sync branch
    - Recommendation: Option C - compare with what’s on remote
+   - **Status**: Not implemented yet - `--updates-only` flag is parsed but saves all
+     issues regardless. See implementation note below.
 
 4. **Should workspaces support issue deletion tracking?**
    - Current design: Only tracks created/updated issues
    - If user deletes an issue, should that be saved to workspace?
    - Recommendation: No - tbd doesn’t delete issues, so not needed
+
+### Implementation Questions (from 2026-01-30 implementation)
+
+5. **Should `tbd import` auto-commit to the worktree?**
+   - Spec says it should commit merged changes
+   - Current implementation: Does NOT auto-commit (merges data only)
+   - Rationale for not committing: User may want to review changes before committing
+   - Decision needed: Should import auto-commit, or leave that to user/`tbd sync`?
+
+6. **Merge behavior when workspace and worktree have same issue**
+   - Current implementation: Simple overwrite (worktree version wins on save, workspace
+     version wins on import)
+   - Spec describes bidirectional merge with conflict detection
+   - Full three-way merge requires tracking common ancestor (base version)
+   - Simplified approach may be sufficient for MVP
+
+7. **ID mapping merge behavior**
+   - Current implementation: Not implemented (mappings not copied)
+   - Spec describes union operation for ID mappings
+   - Need to decide if ID mappings should be workspace-specific or shared
 
 ## References
 
