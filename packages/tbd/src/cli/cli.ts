@@ -44,6 +44,7 @@ import { shortcutCommand } from './commands/shortcut.js';
 import { guidelinesCommand } from './commands/guidelines.js';
 import { templateCommand } from './commands/template.js';
 import { setupCommand } from './commands/setup.js';
+import { saveCommand } from './commands/save.js';
 import { CLIError } from './lib/errors.js';
 
 /**
@@ -112,6 +113,7 @@ function createProgram(): Command {
 
   program.commandsGroup('Sync and Status:');
   program.addCommand(syncCommand);
+  program.addCommand(saveCommand);
   program.addCommand(statusCommand);
   program.addCommand(statsCommand);
 
