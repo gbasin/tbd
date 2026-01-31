@@ -45,6 +45,7 @@ import { guidelinesCommand } from './commands/guidelines.js';
 import { templateCommand } from './commands/template.js';
 import { setupCommand } from './commands/setup.js';
 import { saveCommand } from './commands/save.js';
+import { workspaceCommand } from './commands/workspace.js';
 import { CLIError } from './lib/errors.js';
 
 /**
@@ -120,6 +121,7 @@ function createProgram(): Command {
   program.commandsGroup('Maintenance:');
   program.addCommand(doctorCommand);
   program.addCommand(atticCommand);
+  program.addCommand(workspaceCommand);
   program.addCommand(importCommand);
   program.addCommand(uninstallCommand);
 
