@@ -496,7 +496,8 @@ The outbox model is recommended if:
 **`tbd save` Command:**
 - [x] Parse `--workspace=<name>`, `--dir=<path>`, `--outbox` flags
 - [ ] Implement `--updates-only` (compare with remote tbd-sync) - see tbd-lka2
-- [x] Implement bidirectional merge to workspace
+- [ ] Use `mergeIssues()` for proper three-way merge - see tbd-hg05
+- [ ] Copy ID mappings to workspace - see tbd-eglf
 - [x] Conflicts go to workspace attic
 - [x] Report what was saved
 
@@ -504,9 +505,10 @@ The outbox model is recommended if:
 - [x] Parse `--workspace=<name>`, `--dir=<path>`, `--outbox` flags
 - [x] Implement `--clear-on-success` flag (deletes source after successful import)
 - [x] `--outbox` is shortcut for `--workspace=outbox --clear-on-success`
-- [x] Implement merge from workspace to worktree
+- [ ] Use `mergeIssues()` for proper three-way merge - see tbd-hg05
+- [ ] Merge ID mappings from workspace (union) - see tbd-eglf
 - [x] Do NOT auto-commit (by design - user reviews first)
-- [ ] Print message suggesting `tbd sync` after import
+- [x] Print message suggesting `tbd sync` after import
 - [x] Report what was imported
 
 **`tbd workspace` Subcommands:**
@@ -906,17 +908,20 @@ describe('Workspace management', () => {
    - After import, print a message suggesting: "Run `tbd sync` to commit and push"
    - This gives users a chance to review changes before committing
 
-6. **Merge behavior when workspace and worktree have same issue**
-   - Current implementation: Simple overwrite (worktree version wins on save, workspace
-     version wins on import)
-   - Spec describes bidirectional merge with conflict detection
-   - Full three-way merge requires tracking common ancestor (base version)
-   - Simplified approach may be sufficient for MVP
+6. ~~**Merge behavior when workspace and worktree have same issue**~~
+   - **Resolved**: Reuse existing `mergeIssues()` function from `git.ts`
+   - This provides field-by-field three-way merge with LWW conflict resolution
+   - For workspace operations, use null base (no common ancestor) - this falls back to
+     LWW based on `created_at`/`updated_at` timestamps
+   - Conflicts go to attic as they do in normal sync
+   - **Implementation**: Update `saveToWorkspace()` and `importFromWorkspace()` to call
+     `mergeIssues()` instead of simple overwrite
 
-7. **ID mapping merge behavior**
-   - Current implementation: Not implemented (mappings not copied)
-   - Spec describes union operation for ID mappings
-   - Need to decide if ID mappings should be workspace-specific or shared
+7. ~~**ID mapping merge behavior**~~
+   - **Resolved**: Copy ID mappings as union (add new entries, don’t overwrite)
+   - When saving: copy worktree mappings to workspace
+   - When importing: merge workspace mappings into worktree (union)
+   - **Implementation**: Add mapping copy to save/import functions
 
 ## References
 
