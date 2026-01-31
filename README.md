@@ -4,7 +4,7 @@
 agents.**
 
 **tbd** (short for “To Be Done,” or “TypeScript beads” if you prefer) combines three
-things that are each powerful on their own but unreasonably effective together:
+things that are each powerful on their own but work really well together:
 
 1. **Task tracking (beads):** Agent-friendly, CLI-native issue tracking for bugs,
    features, epics, and dependencies that persist across sessions in git.
@@ -20,31 +20,38 @@ things that are each powerful on their own but unreasonably effective together:
    These are essentially “self-injected context” for an agent to get smarter when it
    needs it.
 
-`tbd` comes pre-installed with guideline docs on dozens of topics, notably TypeScript
-and Python best practices and common agent pitfalls, red-green TDD, golden testing,
-Convex, monorepo project setup, error handling practices, and backward compatibility
-rules. But you can use your own if you prefer.
+`tbd` comes pre-installed with in-depth guidelines docs on many topics, including
+TypeScript and Python best practices and common agent pitfalls, red-green TDD, golden
+testing, Convex, monorepo project setup, error handling practices, and backward
+compatibility rules.
+(But you can use your own guidelines if you prefer.)
 
-I use `tbd` most frequently in Claude Code, where it self-installs as a skill, but it
+I use `tbd` most frequently in Claude Code since it’s most powerful as a skill, but it
 will work in Cursor, Codex, or any agent environment that can use the `tbd` CLI.
 
 ## Quick Start
 
 > [!TIP]
 > 
-> *Install `tbd` globally for convenience:*
+> If running on your own machine, install the `tbd` CLI yourself:
 > 
 > **`npm install -g get-tbd@latest`**
 > 
 > Then tell your agent:
 > 
 > ***“run tbd for instructions to set up this project”***
+> 
+> If running on a fresh cloud instance (like Claude Code Cloud), tell the agent:
+> 
+> ***“install tbd (npm install -g get-tbd@latest) and run tbd for instructions to set up
+> this project”***
 
-That’s it. Running `tbd` with no arguments gives your agent what it needs as well as
-information on how to help you.
-It will then bootstraps a SKILL.md into your project by running `tbd setup --auto`
-(which will add a `.tbd` directory and add itself to your `.claude` skills and hooks).
-And then it will use then use shortcuts to welcome you and get you started.
+That’s it.
+Running `tbd` with no arguments “primes” the agent with how to use tbd and how
+to help you. It will then bootstraps a SKILL.md into your project by running
+`tbd setup --auto` (which will add a `.tbd` directory and add itself to your `.claude`
+skills and hooks). And then it will use then use shortcuts to welcome you and get you
+started.
 
 You can then always ask questions like: “what can I do with tbd?”
 
