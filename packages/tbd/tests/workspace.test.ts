@@ -18,6 +18,20 @@ import {
   workspaceExists,
 } from '../src/file/workspace.js';
 import { writeIssue, listIssues } from '../src/file/storage.js';
+import {
+  loadIdMapping,
+  saveIdMapping,
+  addIdMapping,
+  type IdMapping,
+} from '../src/file/id-mapping.js';
+
+// Helper to create empty mapping
+function createEmptyMapping(): IdMapping {
+  return {
+    shortToUlid: new Map(),
+    ulidToShort: new Map(),
+  };
+}
 import { createTestIssue, testId, TEST_ULIDS } from './test-helpers.js';
 
 describe('workspace operations', () => {
@@ -196,6 +210,25 @@ describe('workspace operations', () => {
       expect(savedIssues[0]!.title).toBe('Updated Title');
     });
 
+    it('copies ID mappings to workspace', async () => {
+      // Create issue in worktree
+      const issue = createTestIssue({ id: testId(TEST_ULIDS.ULID_3), title: 'Test' });
+      await writeIssue(dataSyncDir, issue);
+
+      // Create ID mapping in worktree
+      const mapping = createEmptyMapping();
+      addIdMapping(mapping, TEST_ULIDS.ULID_3, 'abcd');
+      await saveIdMapping(dataSyncDir, mapping);
+
+      // Save to workspace
+      await saveToWorkspace(tempDir, dataSyncDir, { workspace: 'mapping-test' });
+
+      // Verify workspace has the mapping
+      const workspaceDir = join(tempDir, '.tbd', 'workspaces', 'mapping-test');
+      const wsMapping = await loadIdMapping(workspaceDir);
+      expect(wsMapping.shortToUlid.get('abcd')).toBe(TEST_ULIDS.ULID_3);
+    });
+
     it('records conflicts in workspace attic when both changed', async () => {
       // Create issue in workspace with one change
       const workspaceDir = join(tempDir, '.tbd', 'workspaces', 'conflict-test');
@@ -306,6 +339,33 @@ describe('workspace operations', () => {
 
       // Outbox should be deleted
       expect(await workspaceExists(tempDir, 'outbox')).toBe(false);
+    });
+
+    it('merges ID mappings from workspace into worktree', async () => {
+      // Create issue and mapping in workspace
+      const workspaceDir = join(tempDir, '.tbd', 'workspaces', 'mapping-import');
+      await mkdir(join(workspaceDir, 'issues'), { recursive: true });
+      await mkdir(join(workspaceDir, 'mappings'), { recursive: true });
+
+      const wsIssue = createTestIssue({ id: testId(TEST_ULIDS.ULID_6), title: 'WS Issue' });
+      await writeIssue(workspaceDir, wsIssue);
+
+      const wsMapping = createEmptyMapping();
+      addIdMapping(wsMapping, TEST_ULIDS.ULID_6, 'wxyz');
+      await saveIdMapping(workspaceDir, wsMapping);
+
+      // Create different mapping in worktree
+      const wtMapping = createEmptyMapping();
+      addIdMapping(wtMapping, TEST_ULIDS.ULID_7, 'efgh');
+      await saveIdMapping(dataSyncDir, wtMapping);
+
+      // Import from workspace
+      await importFromWorkspace(tempDir, dataSyncDir, { workspace: 'mapping-import' });
+
+      // Verify worktree has both mappings (union)
+      const finalMapping = await loadIdMapping(dataSyncDir);
+      expect(finalMapping.shortToUlid.get('wxyz')).toBe(TEST_ULIDS.ULID_6);
+      expect(finalMapping.shortToUlid.get('efgh')).toBe(TEST_ULIDS.ULID_7);
     });
 
     it('imports from arbitrary directory', async () => {

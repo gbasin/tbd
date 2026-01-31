@@ -18,6 +18,7 @@ import { writeFile } from 'atomically';
 
 import { listIssues, writeIssue, readIssue } from './storage.js';
 import { mergeIssues, type ConflictEntry } from './git.js';
+import { loadIdMapping, saveIdMapping, addIdMapping } from './id-mapping.js';
 import { WORKSPACES_DIR, getWorkspaceDir, isValidWorkspaceName } from '../lib/paths.js';
 import { now } from '../utils/time-utils.js';
 import type { AtticEntry } from '../lib/types.js';
@@ -239,7 +240,17 @@ export async function saveToWorkspace(
     }
   }
 
-  // TODO: Copy mappings
+  // Copy ID mappings from source to target (union operation)
+  const sourceMapping = await loadIdMapping(dataSyncDir);
+  const targetMapping = await loadIdMapping(targetDir);
+
+  // Merge: add source mappings to target (don't overwrite existing)
+  for (const [shortId, ulid] of sourceMapping.shortToUlid) {
+    if (!targetMapping.shortToUlid.has(shortId)) {
+      addIdMapping(targetMapping, ulid, shortId);
+    }
+  }
+  await saveIdMapping(targetDir, targetMapping);
 
   return {
     saved,
@@ -326,7 +337,17 @@ export async function importFromWorkspace(
     }
   }
 
-  // TODO: Copy mappings
+  // Merge ID mappings from source (workspace) to target (worktree) - union operation
+  const sourceMapping = await loadIdMapping(sourceDir);
+  const targetMapping = await loadIdMapping(dataSyncDir);
+
+  // Merge: add source mappings to target (don't overwrite existing)
+  for (const [shortId, ulid] of sourceMapping.shortToUlid) {
+    if (!targetMapping.shortToUlid.has(shortId)) {
+      addIdMapping(targetMapping, ulid, shortId);
+    }
+  }
+  await saveIdMapping(dataSyncDir, targetMapping);
 
   // Clear source workspace if requested
   let cleared = false;
