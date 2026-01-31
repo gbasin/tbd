@@ -45,6 +45,35 @@ export interface SaveResult {
 }
 
 /**
+ * Options for importFromWorkspace.
+ * One of workspace, dir, or outbox must be specified.
+ */
+export interface ImportOptions {
+  /** Named workspace under .tbd/workspaces/ */
+  workspace?: string;
+  /** Arbitrary directory path */
+  dir?: string;
+  /** Shortcut for --workspace=outbox --clear-on-success */
+  outbox?: boolean;
+  /** Delete workspace after successful import */
+  clearOnSuccess?: boolean;
+}
+
+/**
+ * Result from importFromWorkspace operation.
+ */
+export interface ImportResult {
+  /** Number of issues imported */
+  imported: number;
+  /** Number of conflicts (went to attic) */
+  conflicts: number;
+  /** Source directory where issues were imported from */
+  sourceDir: string;
+  /** Whether the source was deleted after import */
+  cleared: boolean;
+}
+
+/**
  * Ensure a directory exists.
  */
 async function ensureDir(dir: string): Promise<void> {
@@ -52,9 +81,12 @@ async function ensureDir(dir: string): Promise<void> {
 }
 
 /**
- * Get the target directory for save operation.
+ * Get the target/source directory for workspace operations.
  */
-function getTargetDir(tbdRoot: string, options: SaveOptions): string {
+function resolveWorkspaceDir(
+  tbdRoot: string,
+  options: { workspace?: string; dir?: string; outbox?: boolean },
+): string {
   if (options.dir) {
     return options.dir;
   }
@@ -69,6 +101,14 @@ function getTargetDir(tbdRoot: string, options: SaveOptions): string {
   }
 
   return join(tbdRoot, getWorkspaceDir(workspaceName));
+}
+
+/**
+ * Get the target directory for save operation.
+ * @deprecated Use resolveWorkspaceDir instead
+ */
+function getTargetDir(tbdRoot: string, options: SaveOptions): string {
+  return resolveWorkspaceDir(tbdRoot, options);
 }
 
 /**
@@ -119,6 +159,59 @@ export async function saveToWorkspace(
     saved,
     conflicts,
     targetDir,
+  };
+}
+
+/**
+ * Import issues from a workspace or directory to the data-sync directory.
+ *
+ * @param tbdRoot - The root directory of the tbd project
+ * @param dataSyncDir - The data-sync directory to import into
+ * @param options - Import options (workspace name, directory, or outbox)
+ * @returns Import result with counts
+ */
+export async function importFromWorkspace(
+  tbdRoot: string,
+  dataSyncDir: string,
+  options: ImportOptions,
+): Promise<ImportResult> {
+  const sourceDir = resolveWorkspaceDir(tbdRoot, options);
+
+  // Determine if we should clear on success
+  // --outbox implies --clear-on-success
+  const shouldClear = options.clearOnSuccess ?? options.outbox ?? false;
+
+  // List all issues in source workspace
+  const issues = await listIssues(sourceDir);
+
+  let imported = 0;
+  const conflicts = 0;
+
+  // Import each issue to data-sync
+  for (const issue of issues) {
+    // TODO: Check for conflicts if issue already exists
+    // For now, just overwrite
+    await writeIssue(dataSyncDir, issue);
+    imported++;
+  }
+
+  // TODO: Copy mappings
+
+  // Clear source workspace if requested
+  let cleared = false;
+  if (shouldClear && imported > 0) {
+    const workspaceName = options.outbox ? 'outbox' : options.workspace;
+    if (workspaceName) {
+      await deleteWorkspace(tbdRoot, workspaceName);
+      cleared = true;
+    }
+  }
+
+  return {
+    imported,
+    conflicts,
+    sourceDir,
+    cleared,
   };
 }
 

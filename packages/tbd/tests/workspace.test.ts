@@ -12,11 +12,12 @@ import { writeFile } from 'atomically';
 
 import {
   saveToWorkspace,
+  importFromWorkspace,
   listWorkspaces,
   deleteWorkspace,
   workspaceExists,
 } from '../src/file/workspace.js';
-import { writeIssue } from '../src/file/storage.js';
+import { writeIssue, listIssues } from '../src/file/storage.js';
 import { createTestIssue, testId, TEST_ULIDS } from './test-helpers.js';
 
 describe('workspace operations', () => {
@@ -153,6 +154,90 @@ describe('workspace operations', () => {
     it('returns true when workspace exists', async () => {
       await mkdir(join(tempDir, '.tbd', 'workspaces', 'exists'), { recursive: true });
       expect(await workspaceExists(tempDir, 'exists')).toBe(true);
+    });
+  });
+
+  describe('importFromWorkspace', () => {
+    it('imports issues from workspace to data-sync directory', async () => {
+      // Create issues in workspace
+      const workspaceDir = join(tempDir, '.tbd', 'workspaces', 'my-import');
+      await mkdir(join(workspaceDir, 'issues'), { recursive: true });
+      await mkdir(join(workspaceDir, 'mappings'), { recursive: true });
+
+      const issue1 = createTestIssue({ id: testId(TEST_ULIDS.ULID_6), title: 'Imported 1' });
+      const issue2 = createTestIssue({ id: testId(TEST_ULIDS.ULID_7), title: 'Imported 2' });
+      await writeIssue(workspaceDir, issue1);
+      await writeIssue(workspaceDir, issue2);
+
+      // Import from workspace
+      const result = await importFromWorkspace(tempDir, dataSyncDir, {
+        workspace: 'my-import',
+      });
+
+      expect(result.imported).toBe(2);
+      expect(result.conflicts).toBe(0);
+
+      // Verify issues in data-sync
+      const issues = await listIssues(dataSyncDir);
+      expect(issues.length).toBe(2);
+    });
+
+    it('does not delete workspace by default', async () => {
+      // Setup workspace
+      const workspaceDir = join(tempDir, '.tbd', 'workspaces', 'keep-me');
+      await mkdir(join(workspaceDir, 'issues'), { recursive: true });
+      const issue = createTestIssue({ id: testId(TEST_ULIDS.ULID_8), title: 'Keep' });
+      await writeIssue(workspaceDir, issue);
+
+      // Import without clear flag
+      await importFromWorkspace(tempDir, dataSyncDir, { workspace: 'keep-me' });
+
+      // Workspace should still exist
+      expect(await workspaceExists(tempDir, 'keep-me')).toBe(true);
+    });
+
+    it('deletes workspace with clearOnSuccess flag', async () => {
+      // Setup workspace
+      const workspaceDir = join(tempDir, '.tbd', 'workspaces', 'delete-me');
+      await mkdir(join(workspaceDir, 'issues'), { recursive: true });
+      const issue = createTestIssue({ id: testId(TEST_ULIDS.ULID_9), title: 'Delete' });
+      await writeIssue(workspaceDir, issue);
+
+      // Import with clear flag
+      await importFromWorkspace(tempDir, dataSyncDir, {
+        workspace: 'delete-me',
+        clearOnSuccess: true,
+      });
+
+      // Workspace should be deleted
+      expect(await workspaceExists(tempDir, 'delete-me')).toBe(false);
+    });
+
+    it('--outbox shortcut implies clearOnSuccess', async () => {
+      // Setup outbox
+      const outboxDir = join(tempDir, '.tbd', 'workspaces', 'outbox');
+      await mkdir(join(outboxDir, 'issues'), { recursive: true });
+      const issue = createTestIssue({ id: testId(TEST_ULIDS.ULID_10), title: 'Outbox' });
+      await writeIssue(outboxDir, issue);
+
+      // Import with --outbox
+      await importFromWorkspace(tempDir, dataSyncDir, { outbox: true });
+
+      // Outbox should be deleted
+      expect(await workspaceExists(tempDir, 'outbox')).toBe(false);
+    });
+
+    it('imports from arbitrary directory', async () => {
+      // Setup external directory
+      const externalDir = join(tempDir, 'external');
+      await mkdir(join(externalDir, 'issues'), { recursive: true });
+      const issue = createTestIssue({ id: testId(TEST_ULIDS.STORAGE_1), title: 'External' });
+      await writeIssue(externalDir, issue);
+
+      // Import from external
+      const result = await importFromWorkspace(tempDir, dataSyncDir, { dir: externalDir });
+
+      expect(result.imported).toBe(1);
     });
   });
 });
