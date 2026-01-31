@@ -258,6 +258,8 @@ class ImportHandler extends BaseCommand {
           if (result.cleared) {
             this.output.info(`Workspace "${sourceName}" cleared`);
           }
+          // Suggest next step
+          this.output.info('Run `tbd sync` to commit and push imported issues');
         }
       },
     );

@@ -495,7 +495,7 @@ The outbox model is recommended if:
 
 **`tbd save` Command:**
 - [x] Parse `--workspace=<name>`, `--dir=<path>`, `--outbox` flags
-- [ ] Implement `--updates-only` vs default (all) behavior (TODO: currently saves all)
+- [ ] Implement `--updates-only` (compare with remote tbd-sync) - see tbd-lka2
 - [x] Implement bidirectional merge to workspace
 - [x] Conflicts go to workspace attic
 - [x] Report what was saved
@@ -505,7 +505,8 @@ The outbox model is recommended if:
 - [x] Implement `--clear-on-success` flag (deletes source after successful import)
 - [x] `--outbox` is shortcut for `--workspace=outbox --clear-on-success`
 - [x] Implement merge from workspace to worktree
-- [ ] Commit merged changes to worktree (TODO: import doesn’t auto-commit yet)
+- [x] Do NOT auto-commit (by design - user reviews first)
+- [ ] Print message suggesting `tbd sync` after import
 - [x] Report what was imported
 
 **`tbd workspace` Subcommands:**
@@ -885,13 +886,12 @@ describe('Workspace management', () => {
    - `--outbox` shortcut includes `--clear-on-success` since that’s the expected
      workflow.
 
-3. **How to track “updated since last sync” for `--updates-only`?**
-   - Option A: Compare timestamps with last successful sync
-   - Option B: Track synced issue hashes in state.yml
-   - Option C: Compare with remote tbd-sync branch
-   - Recommendation: Option C - compare with what’s on remote
-   - **Status**: Not implemented yet - `--updates-only` flag is parsed but saves all
-     issues regardless. See implementation note below.
+3. ~~**How to track "updated since last sync" for `--updates-only`?**~~
+   - **Resolved**: Use Option C - compare with remote tbd-sync branch
+   - Compare local worktree issues with what’s on `origin/tbd-sync`
+   - Issues that differ (new, modified, or missing from remote) are “updated”
+   - Fallback to git diff in worktree when offline/remote unavailable
+   - **Implementation**: See tbd-lka2
 
 4. **Should workspaces support issue deletion tracking?**
    - Current design: Only tracks created/updated issues
@@ -900,11 +900,11 @@ describe('Workspace management', () => {
 
 ### Implementation Questions (from 2026-01-30 implementation)
 
-5. **Should `tbd import` auto-commit to the worktree?**
-   - Spec says it should commit merged changes
-   - Current implementation: Does NOT auto-commit (merges data only)
-   - Rationale for not committing: User may want to review changes before committing
-   - Decision needed: Should import auto-commit, or leave that to user/`tbd sync`?
+5. ~~**Should `tbd import` auto-commit to the worktree?**~~
+   - **Resolved**: NO - import should NOT auto-commit
+   - Current implementation is correct (merges data only)
+   - After import, print a message suggesting: "Run `tbd sync` to commit and push"
+   - This gives users a chance to review changes before committing
 
 6. **Merge behavior when workspace and worktree have same issue**
    - Current implementation: Simple overwrite (worktree version wins on save, workspace
