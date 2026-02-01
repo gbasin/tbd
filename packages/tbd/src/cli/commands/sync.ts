@@ -41,6 +41,12 @@ import {
 } from '../../lib/sync-summary.js';
 import { syncDocsWithDefaults, type SyncDocsResult } from '../../file/doc-sync.js';
 import { ValidationError } from '../lib/errors.js';
+import {
+  loadIdMapping,
+  saveIdMapping,
+  mergeIdMappings,
+  parseIdMappingFromYaml,
+} from '../../file/id-mapping.js';
 
 interface SyncOptions {
   push?: boolean;
@@ -739,9 +745,50 @@ class SyncHandler extends BaseCommand {
             }
           }
 
+          // Merge ids.yml (ID mappings are always additive, so we union both sides)
+          try {
+            const remoteIdsContent = await git(
+              'show',
+              `${remote}/${syncBranch}:${DATA_SYNC_DIR}/mappings/ids.yml`,
+            );
+            if (remoteIdsContent) {
+              const localMapping = await loadIdMapping(this.dataSyncDir);
+              const remoteMapping = parseIdMappingFromYaml(remoteIdsContent);
+              const mergedMapping = mergeIdMappings(localMapping, remoteMapping);
+              await saveIdMapping(this.dataSyncDir, mergedMapping);
+              this.output.debug(
+                `Merged ID mappings: ${localMapping.shortToUlid.size} local + ${remoteMapping.shortToUlid.size} remote = ${mergedMapping.shortToUlid.size} total`,
+              );
+            }
+          } catch (error) {
+            // Remote ids.yml doesn't exist or can't be parsed - keep local
+            this.output.debug(`Could not merge ids.yml: ${(error as Error).message}`);
+          }
+
           // Stage resolved files and complete merge
           // Use --no-verify to bypass parent repo hooks (lefthook, husky, etc.)
           await git('-C', worktreePath, 'add', '-A');
+
+          // SAFETY CHECK: Never commit files with unresolved merge conflict markers
+          // This prevents the bug where ids.yml or other files get committed with
+          // <<<<<<< HEAD markers still present
+          const conflictCheck = await git(
+            '-C',
+            worktreePath,
+            'diff',
+            '--cached',
+            '-S<<<<<<< ',
+            '--name-only',
+          );
+          if (conflictCheck.trim()) {
+            const conflictedFiles = conflictCheck.trim().split('\n');
+            throw new SyncError(
+              `Cannot commit: ${conflictedFiles.length} file(s) still have merge conflict markers:\n` +
+                conflictedFiles.map((f) => `  - ${f}`).join('\n') +
+                `\n\nThis is a bug in tbd sync. Please report it and manually resolve conflicts in:\n` +
+                `  ${worktreePath}`,
+            );
+          }
 
           try {
             await git(

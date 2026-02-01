@@ -8,8 +8,8 @@ import { Command } from 'commander';
 
 import { BaseCommand } from '../lib/base-command.js';
 import { applyLimit } from '../lib/limit-utils.js';
-import { requireInit, CLIError } from '../lib/errors.js';
-import { loadDataContext, type TbdDataContext } from '../lib/data-context.js';
+import { requireInit } from '../lib/errors.js';
+import { loadDataContext } from '../lib/data-context.js';
 import type { Issue, IssueStatusType, IssueKindType } from '../../lib/types.js';
 import { listIssues } from '../../file/storage.js';
 import { formatDisplayId, formatDebugId, extractUlidFromInternalId } from '../../lib/ids.js';
@@ -53,16 +53,9 @@ class ListHandler extends BaseCommand {
   async run(options: ListOptions): Promise<void> {
     const tbdRoot = await requireInit();
 
-    let issues: Issue[];
-    let dataCtx: TbdDataContext;
-
-    try {
-      // Load shared data context (dataSyncDir, mapping, config, prefix)
-      dataCtx = await loadDataContext(tbdRoot);
-      issues = await listIssues(dataCtx.dataSyncDir);
-    } catch {
-      throw new CLIError('Failed to read issues');
-    }
+    // Load shared data context (dataSyncDir, mapping, config, prefix)
+    const dataCtx = await loadDataContext(tbdRoot);
+    let issues = await listIssues(dataCtx.dataSyncDir);
 
     // Apply filters
     issues = this.filterIssues(issues, options, dataCtx.mapping);

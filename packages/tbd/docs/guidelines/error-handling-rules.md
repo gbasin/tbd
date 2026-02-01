@@ -446,6 +446,51 @@ catch (e) {
 
 **Tip**: Use `Error.cause` (ES2022) to chain errors without losing the original.
 
+### Anti-Pattern 9: Catch-and-Replace with Generic Error
+
+**The pattern**: Catching an exception and throwing a new generic error that loses the
+original message and stack trace.
+
+```typescript
+// ❌ BAD: Original error details lost
+try {
+  dataCtx = await loadDataContext(tbdRoot);
+  issues = await listIssues(dataCtx.dataSyncDir);
+} catch {
+  throw new CLIError('Failed to read issues');
+}
+// User sees: "Error: Failed to read issues"
+// Actual error was: "Implicit keys need to be on a single line at line 1..."
+// (YAML parse error due to merge conflict markers in file)
+```
+
+**Why it happens**: Developer wants to “clean up” the error message for users, assuming
+the original error is too technical.
+But this makes debugging impossible—the user can’t report the real problem, and even
+`--debug` mode shows nothing useful.
+
+**The fix**: Let errors propagate naturally, or include the original message.
+
+```typescript
+// ✅ GOOD: Let errors propagate (preferred for most cases)
+const dataCtx = await loadDataContext(tbdRoot);
+const issues = await listIssues(dataCtx.dataSyncDir);
+// Errors propagate to central handler which shows message + stack in debug mode
+
+// ✅ GOOD: If you must catch, preserve the original message
+try {
+  dataCtx = await loadDataContext(tbdRoot);
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  throw new CLIError(`Failed to load data: ${message}`, { cause: error });
+}
+```
+
+**Key insight**: The central error handler should add debug info (stack traces,
+context).
+Individual commands should not catch-and-replace unless adding genuinely useful
+context.
+
 ## Error Messages
 
 ### Make Errors Actionable
@@ -495,3 +540,24 @@ When implementing any operation that can fail:
 | Optimistic success | Search for success messages, trace back to verify guards |
 | Catch-and-continue | Audit catch blocks that log but don't throw/return |
 | Lost exception context | Grep for `new Error.*\.message` (wrapping without cause) |
+| Catch-and-replace | Grep for `} catch {` followed by `throw new` (bare catch discards error) |
+
+### Finding Catch-and-Replace Anti-Pattern
+
+This command finds catch blocks that throw new errors without using the original:
+
+```bash
+# Find catch blocks that throw new errors without capturing the original
+grep -rn -A2 "} catch {" --include="*.ts" | grep -B1 "throw new"
+```
+
+**What to look for**: Any `} catch {` (no error variable) followed by
+`throw new SomeError`. This means the original error is discarded.
+
+**Acceptable patterns**:
+- `throw new NotFoundError('Entity', id)` - Transforming “not found” to semantic error
+- `throw new NotInitializedError(...)` - Expected failure with clear guidance
+
+**Problematic patterns**:
+- `throw new CLIError('Failed to do X')` - Loses WHY it failed
+- `throw new Error('Operation failed')` - Generic message hides root cause

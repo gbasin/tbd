@@ -166,20 +166,40 @@ function isJsonMode(): boolean {
 }
 
 /**
+ * Check if --debug flag is present in argv.
+ */
+function isDebugMode(): boolean {
+  return process.argv.includes('--debug');
+}
+
+/**
  * Output error in the appropriate format (JSON or text).
+ * In debug mode, shows full error details and stack trace.
  */
 function outputError(message: string, error?: Error): void {
+  const debugMode = isDebugMode();
+
   if (isJsonMode()) {
-    const errorObj: { error: string; type?: string; details?: string } = { error: message };
+    const errorObj: { error: string; type?: string; details?: string; stack?: string } = {
+      error: message,
+    };
     if (error instanceof CLIError) {
       errorObj.type = error.name;
     }
     if (error && error.message !== message) {
       errorObj.details = error.message;
     }
+    if (debugMode && error?.stack) {
+      errorObj.stack = error.stack;
+    }
     console.error(JSON.stringify(errorObj));
   } else {
     console.error(`Error: ${message}`);
+    if (debugMode && error?.stack) {
+      console.error('');
+      console.error('Stack trace:');
+      console.error(error.stack);
+    }
   }
 }
 

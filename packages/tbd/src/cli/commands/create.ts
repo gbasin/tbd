@@ -58,8 +58,9 @@ class CreateHandler extends BaseCommand {
     if (options.file) {
       try {
         description = await readFile(options.file, 'utf-8');
-      } catch {
-        throw new CLIError(`Failed to read description from file: ${options.file}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new CLIError(`Failed to read description from file '${options.file}': ${message}`);
       }
     }
 
