@@ -16,6 +16,8 @@ tbd provides git-native issue tracking with:
 - Status values: `open`, `in_progress`, `blocked`, `deferred`, `closed`
 - Hierarchical organization via `parent_id`
 - Dependencies via `dependencies[].type: blocks`
+- Spec linking via `spec_path` field
+- Child ordering via `child_order_hints`
 - Extensibility via `extensions` namespace
 - CLI commands: `create`, `update`, `list`, `ready`, `blocked`, etc.
 
@@ -60,6 +62,12 @@ The parser automatically creates an implicit checkboxes field with:
 
 ### Simplified Plan Format
 
+**Key simplification: Use tbd short IDs directly as Markform IDs.**
+
+Since tbd short IDs (like `proj-a1b2`) are guaranteed unique within a project and are
+valid identifiers, we use them directly as Markform option IDs. No separate naming
+needed.
+
 ```markdown
 ---
 markform:
@@ -68,26 +76,27 @@ markform:
 ---
 <!-- form id="oauth_plan" title="OAuth Implementation Plan" -->
 
-## Phase 1: Research <!-- tbd:proj-a1b2 -->
+## Phase 1: Research <!-- #proj-a1b2 -->
 
-- [ ] Review OAuth 2.0 spec <!-- #review_oauth tbd:proj-c3d4 -->
-- [ ] Analyze competitor auth flows <!-- #competitor_analysis tbd:proj-e5f6 -->
+- [ ] Review OAuth 2.0 spec <!-- #proj-c3d4 -->
+- [ ] Analyze competitor auth flows <!-- #proj-e5f6 -->
 
-## Phase 2: Implementation <!-- tbd:proj-g7h8 -->
+## Phase 2: Implementation <!-- #proj-g7h8 -->
 
-- [x] Set up OAuth provider config <!-- #setup_oauth tbd:proj-i9j0 -->
-- [*] Implement token refresh <!-- #token_refresh tbd:proj-k1l2 -->
-- [/] Add rate limiting <!-- #rate_limiting tbd:proj-m3n4 -->
+- [x] Set up OAuth provider config <!-- #proj-i9j0 -->
+- [*] Implement token refresh <!-- #proj-k1l2 -->
+- [/] Add rate limiting <!-- #proj-m3n4 -->
 
 <!-- /form -->
 ```
 
 **Key features:**
 - No `{% field %}` wrappers needed
-- Each checkbox has a Markform ID (`#review_oauth`) for Markform API
-- Each checkbox can have a tbd reference (`tbd:proj-c3d4`) as metadata
-- Headings can also have tbd references for hierarchy
+- **Single ID per checkbox** - the tbd short ID IS the Markform ID
+- tbd short IDs are unique, so they work perfectly as Markform option IDs
+- Headings also get tbd short IDs for hierarchy
 - HTML comment syntax renders cleanly on GitHub
+- Much cleaner than separate `#markform_id tbd:proj-xxxx` annotations
 
 ### Status Mapping (tbd ↔ Markform)
 
@@ -111,18 +120,16 @@ With implicit checkboxes, tbd plan can use these Markform APIs:
 4. **`injectCheckboxIds()`** - Add IDs to checkboxes programmatically
 5. **`injectHeaderIds()`** - Add IDs to headings programmatically
 6. **`applyPatches()` with `set_checkboxes`** - Update checkbox states
-7. **Option metadata** - Store `tbd:proj-xxxx` references on checkbox options
 
-### Option Metadata for tbd References
+### Why tbd Short IDs Work as Markform IDs
 
-Markform now supports option metadata - extra attributes on checkbox annotations:
+The tbd short ID (e.g., `proj-a1b2`) is used directly as the Markform option ID because:
 
-```markdown
-- [ ] Task description <!-- #task_id tbd:proj-a1b2 assignee:alice due:2026-02-01 -->
-```
-
-The `tbd:proj-a1b2` attribute links the checkbox to a tbd issue. This is cleaner than
-the dual-ID system originally proposed.
+1. **Uniqueness guaranteed** - tbd generates unique short IDs within each project
+2. **Valid identifier format** - lowercase alphanumeric with hyphens is valid for Markform
+3. **Self-documenting** - the ID tells you which tbd issue it references
+4. **No mapping needed** - parse the ID, look up the issue directly
+5. **Cleaner syntax** - `<!-- #proj-a1b2 -->` vs `<!-- #task_1 tbd:proj-a1b2 -->`
 
 ### Design Benefits of Implicit Checkboxes
 
@@ -180,13 +187,13 @@ system-of-record for status, assignment, and dependencies.
 - Plan doc checkbox markers reflect tbd status (read-only sync)
 - Avoids dual-source-of-truth conflicts
 
-**Decision 2: Markform implicit checkboxes**
+**Decision 2: Markform implicit checkboxes with tbd short IDs**
 
 - Planfile uses Markform MF/0.1 with implicit checkboxes (no field wrappers needed)
 - Form wrapper required: `<!-- form id="..." -->` or `{% form %}`
-- Each checkbox has ID annotation: `<!-- #option_id tbd:proj-xxxx -->`
-- tbd issue reference stored as option metadata attribute
-- `tbd plan create` adds form wrapper and injects IDs via `injectCheckboxIds()`
+- **tbd short ID IS the Markform option ID**: `<!-- #proj-a1b2 -->`
+- No separate Markform ID needed - the tbd short ID serves both purposes
+- `tbd plan create` adds form wrapper and generates IDs for new checkboxes
 
 **Decision 3: Hierarchy from document structure**
 
@@ -222,11 +229,11 @@ system-of-record for status, assignment, and dependencies.
 - [ ] `tbd plan validate <file>` - Syntax and reference validation
 - [ ] Markform implicit checkboxes (form wrapper, no field wrappers)
 - [ ] Markform frontmatter (`markform: spec: MF/0.1`)
-- [ ] Option metadata for tbd references (`tbd:proj-xxxx`)
-- [ ] Use `injectCheckboxIds()` to add IDs to new checkboxes
+- [ ] tbd short IDs as Markform option IDs (`<!-- #proj-a1b2 -->`)
 - [ ] Hierarchy via `findEnclosingHeadings()` for parent context
 - [ ] Multi-state checkbox markers ([ ], [x], [*], [/], [-])
-- [ ] Extensions metadata for plan traceability
+- [ ] Set `spec_path` on created issues to link back to plan doc
+- [ ] Set `child_order_hints` based on document order
 - [ ] Use `markform apply` with `set_checkboxes` for state updates
 
 **Out of Scope (future):**
@@ -263,7 +270,7 @@ extension. This should be clarified in a future Markform spec revision to note t
 `.form.md` is *recommended* but other extensions like `.plan.md` are valid when the
 frontmatter is present.
 
-#### Full Example (Implicit Checkboxes)
+#### Full Example (tbd Short IDs as Markform IDs)
 
 ```markdown
 ---
@@ -273,26 +280,26 @@ markform:
 ---
 <!-- form id="oauth_plan" title="OAuth Implementation Plan" -->
 
-# OAuth Implementation <!-- tbd:proj-root -->
+# OAuth Implementation <!-- #proj-0001 -->
 
-## Phase 1: Research <!-- tbd:proj-a1b2 -->
+## Phase 1: Research <!-- #proj-a1b2 -->
 
-- [ ] Review OAuth 2.0 spec <!-- #review_spec tbd:proj-c3d4 -->
-- [ ] Analyze competitor auth flows <!-- #competitor tbd:proj-e5f6 -->
-- [ ] Document security requirements <!-- #security_reqs tbd:proj-g7h8 -->
+- [ ] Review OAuth 2.0 spec <!-- #proj-c3d4 -->
+- [ ] Analyze competitor auth flows <!-- #proj-e5f6 -->
+- [ ] Document security requirements <!-- #proj-g7h8 -->
 
-## Phase 2: Backend <!-- tbd:proj-i9j0 -->
+## Phase 2: Backend <!-- #proj-i9j0 -->
 
-- [x] Set up OAuth provider config <!-- #provider_config tbd:proj-k1l2 -->
-- [*] Implement token refresh <!-- #token_refresh tbd:proj-m3n4 -->
-- [ ] Add rate limiting <!-- #rate_limiting tbd:proj-o5p6 -->
-  - [ ] Design rate limit algorithm <!-- #rate_algo tbd:proj-q7r8 -->
-  - [ ] Implement token bucket <!-- #token_bucket tbd:proj-s9t0 -->
+- [x] Set up OAuth provider config <!-- #proj-k1l2 -->
+- [*] Implement token refresh <!-- #proj-m3n4 -->
+- [ ] Add rate limiting <!-- #proj-o5p6 -->
+  - [ ] Design rate limit algorithm <!-- #proj-q7r8 -->
+  - [ ] Implement token bucket <!-- #proj-s9t0 -->
 
-## Phase 3: Frontend <!-- tbd:proj-u1v2 -->
+## Phase 3: Frontend <!-- #proj-u1v2 -->
 
-- [ ] Create login button component <!-- #login_button tbd:proj-w3x4 -->
-- [/] Handle OAuth callback <!-- #oauth_callback tbd:proj-y5z6 -->
+- [ ] Create login button component <!-- #proj-w3x4 -->
+- [/] Handle OAuth callback <!-- #proj-y5z6 -->
 
 <!-- /form -->
 ```
@@ -304,21 +311,21 @@ markform:
 
 2. **Form wrapper required** - `<!-- form -->` tags define the Markform boundary
 
-3. **Single ID annotation per checkbox** - Combines Markform ID (`#review_spec`) and
-   tbd reference (`tbd:proj-c3d4`) in one annotation
+3. **tbd short ID = Markform ID** - Just `<!-- #proj-c3d4 -->`, no separate namespace
 
 4. **Nested checkboxes supported** - Indented checkboxes are collected as separate options
 
-5. **Heading references** - `<!-- tbd:proj-xxxx -->` on headings for hierarchy
+5. **Headings also get tbd IDs** - `<!-- #proj-a1b2 -->` for hierarchy tracking
 
 #### ID Annotation Format
 
 ```
-<!-- #markform_id tbd:proj-xxxx -->
+<!-- #proj-xxxx -->
 ```
 
-- `#markform_id` - Required Markform option ID (used by `set_checkboxes` API)
-- `tbd:proj-xxxx` - Optional tbd issue reference (stored as option metadata)
+The tbd short ID (e.g., `proj-a1b2`) serves as both:
+- The Markform option ID (used by `set_checkboxes` API)
+- The tbd issue reference (for sync and lookup)
 
 Both HTML comment (`<!-- -->`) and Markdoc (`{% %}`) syntax work identically.
 
@@ -394,16 +401,17 @@ function deriveStatus(children: Issue[]): Status {
    - Add `markform:` frontmatter
    - Add `<!-- form id="..." -->` wrapper
 3. Use `findAllCheckboxes()` to discover checkboxes with enclosing headings
-4. Use `injectCheckboxIds()` to add Markform IDs to checkboxes without IDs
-5. For each checkbox:
+4. For each checkbox without an ID:
    - Create tbd issue (kind: task)
    - Set `parent_id` based on `enclosingHeadings` (innermost heading's issue)
    - Set status from checkbox marker
    - Set `extensions.plan` metadata
-   - Add `tbd:proj-xxxx` to the checkbox's ID annotation
-6. For each heading without tbd reference:
+   - Use `injectCheckboxIds()` with generator that returns the new tbd short ID
+5. For checkboxes with existing IDs:
+   - Verify the ID matches a tbd issue
+6. For each heading without ID:
    - Create tbd issue (kind based on level)
-   - Use `injectHeaderIds()` or add `<!-- tbd:proj-xxxx -->` annotation
+   - Use `injectHeaderIds()` with generator that returns the new tbd short ID
 7. Write modified Markdown back to file
 
 **Options:**
@@ -436,19 +444,18 @@ Created 12 issues from docs/plans/oauth.plan.md:
 1. Parse planfile with `parseForm()`:
    - Implicit checkboxes creates field with ID `checkboxes`
    - All checkbox options available as `checkboxes.options`
-   - Option metadata contains `tbd:proj-xxxx` references
-2. Build tbd reference map from option metadata
-3. For each option with `tbd:` metadata:
-   - Load issue from tbd
+   - Option IDs are tbd short IDs (e.g., `proj-a1b2`)
+2. For each option with an ID that resolves to a tbd issue:
+   - Load issue from tbd using option ID as short ID
    - Compare option state to issue status
    - If mismatch: queue a `set_checkboxes` patch
-4. For options without tbd references:
+3. For options without valid tbd IDs:
    - Create new tbd issue
-   - Add `tbd:proj-xxxx` to option metadata (requires text edit)
-5. Apply state changes via `applyPatches()`:
+   - Update the checkbox ID via `injectCheckboxIds()` with the new short ID
+4. Apply state changes via `applyPatches()`:
    - Use `set_checkboxes` with implicit field ID `checkboxes`
    - Markform serializes updated states
-6. Write modified planfile via `getMarkdown()`
+5. Write modified planfile via `getMarkdown()`
 
 **Using Markform Apply:**
 
@@ -457,22 +464,19 @@ import { parseForm, applyPatches, getMarkdown } from 'markform';
 
 const parsed = parseForm(content);
 
-// Get tbd references from option metadata
+// Get checkbox options - the option ID IS the tbd short ID
 const options = parsed.schema.fields.find(f => f.id === 'checkboxes')?.options ?? [];
-const tbdRefs = new Map(options
-  .filter(opt => opt.metadata?.tbd)
-  .map(opt => [opt.metadata.tbd, opt.id])
-);
 
 // Build patches from tbd issue status
 const patches = [];
-for (const [tbdId, optionId] of tbdRefs) {
-  const issue = await loadIssue(tbdId);
+for (const option of options) {
+  // option.id is the tbd short ID (e.g., "proj-a1b2")
+  const issue = await loadIssue(option.id);
   const newState = tbdStatusToMarkformState(issue.status);
   patches.push({
     op: 'set_checkboxes',
     fieldId: 'checkboxes',  // implicit field ID
-    value: { [optionId]: newState }
+    value: { [option.id]: newState }
   });
 }
 
@@ -645,12 +649,12 @@ async function syncPlanFile(path: string): Promise<SyncResult> {
   if (!field) return { updated: 0 };
 
   // Build patches from tbd issue status
+  // option.id IS the tbd short ID (e.g., "proj-a1b2")
   const patches = [];
   for (const option of field.options) {
-    const tbdRef = option.metadata?.tbd;
-    if (!tbdRef) continue;
+    const issue = await loadIssue(option.id);  // Direct lookup by option ID
+    if (!issue) continue;  // Skip checkboxes not yet linked to issues
 
-    const issue = await loadIssue(tbdRef);
     const expectedState = tbdStatusToMarkformState(issue.status);
     const currentState = parsed.responsesByFieldId['checkboxes']?.values?.[option.id];
 
@@ -906,29 +910,26 @@ add `extensions.plan.order` field and `--sort=plan` option later.
 **Recommendation:** Defer entirely. v1 focuses on create/sync/status/validate.
 Schedule can be added once the core workflow is proven.
 
-### 7. Stable Node Keys
+### 7. Orphan References
 
-**Issue:** Using display IDs (`proj-a7k2`) as linkage means:
+**Issue:** Using tbd short IDs directly as Markform IDs means:
 - If issue is deleted, plan has orphan reference
 - If issue is recreated, gets different ID
 
-**Alternative:** Internal plan node ID separate from issue ID:
-```markdown
-- [ ] Task <!-- @plan:node-001 tbd:proj-a7k2 -->
-```
-
-**Recommendation:** Use display IDs for v1 (simpler). Track this as potential
-enhancement if orphan references become problematic.
+**Resolution:** This is acceptable behavior:
+- `tbd plan validate` detects orphan references
+- `tbd plan status` warns about broken references
+- Manual cleanup is appropriate - deleting issues is rare
+- Simpler ID scheme outweighs edge case complexity
 
 ### 8. Markform Integration Depth
 
-**Issue:** Full Markform would require:
-- Frontmatter: `markform: spec: MF/0.1`
-- Form wrapper: `<!-- form id="..." -->`
-- Field wrapper: `<!-- field kind="checkboxes" ... -->`
+**Resolved:** With implicit checkboxes, Markform integration is simpler:
+- Frontmatter: `markform: spec: MF/0.1` (required)
+- Form wrapper: `<!-- form id="..." -->` (required)
+- Field wrappers: NOT needed - implicit checkboxes mode
 
-**Recommendation:** Optional for v1. Create works without any Markform structure.
-Future: `--markform` flag to add full scaffolding.
+`tbd plan create` adds these automatically if missing. No `--markform` flag needed.
 
 ---
 
