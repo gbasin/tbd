@@ -1,14 +1,14 @@
 # Research Brief: Distributed Semi-Structured File Synchronization
 
-**Last Updated**: 2026-01-24
+**Last Updated**: 2026-02-01
 
 **Status**: In Progress
 
 **Related**:
 
-- [NATS FS Coordination Layer](../nats-fs-coordination-layer.md) - Initial exploration
-- [Entity Binding Model](../entity-binding-model.md) - Schema-driven entity design
-- [Distributed File Sync Consistency](../distributed-file-sync-consistency.md) - Consistency concepts reference
+- [NATS FS Coordination Layer](../archive/research-nats-fs-coordination-layer.md) - Initial exploration
+- [Entity Binding Model](../archive/research-entity-binding-model.md) - Schema-driven entity design
+- [Distributed Sync Concepts](../archive/research-distributed-sync-concepts.md) - Consistency concepts reference
 
 ---
 
@@ -882,9 +882,9 @@ For a practical sync layer, we recommend the **Firebase-inspired hybrid model**:
 - Lamport, "Time, Clocks, and the Ordering of Events" (1978)
 
 ### Related Work in This Repository
-- [NATS FS Coordination Layer](../nats-fs-coordination-layer.md)
-- [Entity Binding Model](../entity-binding-model.md)
-- [Distributed File Sync Consistency](../distributed-file-sync-consistency.md)
+- [NATS FS Coordination Layer](../archive/research-nats-fs-coordination-layer.md)
+- [Entity Binding Model](../archive/research-entity-binding-model.md)
+- [Distributed Sync Concepts](../archive/research-distributed-sync-concepts.md)
 
 ---
 
