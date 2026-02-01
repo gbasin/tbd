@@ -1,6 +1,7 @@
 ---
 title: New Guideline
 description: Create a new coding guideline document for tbd
+category: meta
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 This shortcut helps create new guideline documents that agents can reference via

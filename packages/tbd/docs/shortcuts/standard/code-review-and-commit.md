@@ -1,6 +1,7 @@
 ---
 title: Commit Code
 description: Run pre-commit checks, review changes, and commit code
+category: git
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 We track work as beads using tbd.

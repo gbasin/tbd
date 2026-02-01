@@ -1,6 +1,7 @@
 ---
 title: Pre-Commit Process
 description: Full pre-commit checklist including spec sync, code review, and testing
+category: git
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 We track work as beads using tbd.

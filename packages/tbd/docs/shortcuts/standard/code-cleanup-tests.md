@@ -1,6 +1,7 @@
 ---
 title: "Cleanup: Remove Trivial Tests"
 description: Review and remove tests that do not add meaningful coverage
+category: cleanup
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 # Shortcut: Remove Trivial Tests

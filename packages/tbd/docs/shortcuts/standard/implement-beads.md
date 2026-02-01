@@ -1,6 +1,7 @@
 ---
 title: Implement Beads
 description: Implement beads from a spec, following TDD and project rules
+category: planning
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 We track work as beads using tbd.

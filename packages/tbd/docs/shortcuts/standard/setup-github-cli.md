@@ -1,6 +1,7 @@
 ---
 title: Setup GitHub CLI
 description: Ensure GitHub CLI (gh) is installed and working
+category: session
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 The GitHub CLI (`gh`) is required for PR and issue operations.

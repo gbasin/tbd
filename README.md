@@ -1,7 +1,6 @@
 # tbd
 
-**Task management, spec-driven planning, and instant knowledge injection for AI coding
-agents.**
+**Task tracking, spec-driven planning, and knowledge injection for AI coding agents.**
 
 **tbd** (short for “To Be Done,” or “TypeScript beads” if you prefer) combines four
 things that are each powerful on their own but work even better together:
@@ -388,26 +387,35 @@ tbd template --add=<url> --name=<name>
 
 **Available shortcuts:**
 
-| Shortcut | Purpose |
-| --- | --- |
-| `new-plan-spec` | Create a feature planning spec |
-| `new-research-brief` | Create a research document |
-| `new-architecture-doc` | Create an architecture document |
-| `new-validation-plan` | Create a test/validation plan |
-| `plan-implementation-with-beads` | Break a spec into implementation beads |
-| `implement-beads` | Implement beads from a spec |
-| `review-code` | Comprehensive code review (uncommitted, branch, or PR) |
-| `review-github-pr` | Review a GitHub PR with commenting and CI checks |
-| `review-code-typescript` | TypeScript-focused code review |
-| `review-code-python` | Python-focused code review |
-| `precommit-process` | Pre-commit review and testing |
-| `code-review-and-commit` | Commit with pre-commit checks |
-| `create-or-update-pr-simple` | Basic PR creation |
-| `create-or-update-pr-with-validation-plan` | PR with a validation plan |
-| `code-cleanup-all` | Full code cleanup (duplicates, dead code, quality) |
-| `code-cleanup-tests` | Remove trivial/low-value tests |
-| `code-cleanup-docstrings` | Add docstrings to major functions |
-| `merge-upstream` | Merge origin/main with conflict resolution |
+| Category | Shortcut | Purpose |
+| --- | --- | --- |
+| **Planning** | `new-plan-spec` | Create a feature planning spec |
+|  | `plan-implementation-with-beads` | Break a spec into implementation beads |
+|  | `implement-beads` | Implement beads from a spec |
+|  | `new-validation-plan` | Create a test/validation plan |
+|  | `update-specs-status` | Review active specs and sync with tbd issues |
+| **Documentation** | `new-research-brief` | Create a research document |
+|  | `new-architecture-doc` | Create an architecture document |
+|  | `revise-architecture-doc` | Update an architecture doc to match current code |
+|  | `revise-all-architecture-docs` | Revise all current architecture documents |
+| **Review** | `review-code` | Comprehensive code review (uncommitted, branch, or PR) |
+|  | `review-github-pr` | Review a GitHub PR with commenting and CI checks |
+|  | `review-code-typescript` | TypeScript-focused code review |
+|  | `review-code-python` | Python-focused code review |
+| **Git** | `precommit-process` | Pre-commit review and testing |
+|  | `code-review-and-commit` | Commit with pre-commit checks |
+|  | `create-or-update-pr-simple` | Basic PR creation |
+|  | `create-or-update-pr-with-validation-plan` | PR with a validation plan |
+|  | `merge-upstream` | Merge origin/main with conflict resolution |
+| **Cleanup** | `code-cleanup-all` | Full code cleanup (duplicates, dead code, quality) |
+|  | `code-cleanup-tests` | Remove trivial/low-value tests |
+|  | `code-cleanup-docstrings` | Add docstrings to major functions |
+| **Session** | `agent-handoff` | Generate handoff prompt for another agent |
+|  | `welcome-user` | Welcome message after tbd installation |
+|  | `setup-github-cli` | Ensure GitHub CLI is installed and working |
+|  | `sync-failure-recovery` | Handle tbd sync failures |
+| **Meta** | `new-guideline` | Create a new coding guideline for tbd |
+|  | `new-shortcut` | Create a new shortcut for tbd |
 
 **Available guidelines:** See
 [Built-in Engineering Knowledge](#built-in-engineering-knowledge) for the full list of

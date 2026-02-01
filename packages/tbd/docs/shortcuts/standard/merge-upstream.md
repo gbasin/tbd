@@ -1,6 +1,7 @@
 ---
 title: Merge Upstream
 description: Merge origin/main into current branch with conflict resolution
+category: git
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 Merge upstream changes from origin/main into the current branch.

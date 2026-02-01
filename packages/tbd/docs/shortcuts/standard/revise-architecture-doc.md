@@ -1,6 +1,7 @@
 ---
 title: Revise Architecture Doc
 description: Update an architecture document to reflect current codebase state
+category: documentation
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 Review and update an architecture document to ensure accuracy with current code.

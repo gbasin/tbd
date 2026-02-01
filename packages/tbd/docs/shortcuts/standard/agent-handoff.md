@@ -1,6 +1,7 @@
 ---
 title: Agent Handoff
 description: Generate a concise handoff prompt for another coding agent to continue work
+category: session
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 Generate a high-signal handoff prompt for the next agent.

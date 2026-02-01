@@ -1,6 +1,7 @@
 ---
 title: New Plan Spec
 description: Create a new feature planning specification document
+category: planning
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 We track work as beads using tbd.

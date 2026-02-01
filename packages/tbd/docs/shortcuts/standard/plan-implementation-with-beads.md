@@ -1,6 +1,7 @@
 ---
 title: Plan Implementation with Beads
 description: Create implementation beads from a feature planning spec
+category: planning
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 Break a plan spec (or other work) into implementation beads.

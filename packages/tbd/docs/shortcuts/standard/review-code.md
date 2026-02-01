@@ -1,6 +1,7 @@
 ---
 title: Review Code
 description: Comprehensive code review for uncommitted changes, branch work, or GitHub PRs
+category: review
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 This is the **core code review** shortcut.

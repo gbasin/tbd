@@ -1,6 +1,7 @@
 ---
 title: Review GitHub PR
 description: Review a GitHub pull request with follow-up actions (comment, fix, CI check)
+category: review
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 This shortcut reviews a **GitHub pull request** and handles GitHub-specific follow-ups

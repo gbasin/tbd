@@ -1,6 +1,7 @@
 ---
 title: New Shortcut
 description: Create a new shortcut (reusable instruction template) for tbd
+category: meta
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 Create a new shortcut for `tbd shortcut <name>`.
@@ -16,6 +17,7 @@ Create a new shortcut for `tbd shortcut <name>`.
 ---
 title: [Title]
 description: [One line for --list output]
+category: meta
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 [Concise instructions. Focus on what's specific to this task.

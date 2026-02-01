@@ -50,6 +50,8 @@ export interface DocFrontmatter {
   title?: string;
   /** Brief description for fuzzy matching and listing */
   description?: string;
+  /** Category for filtering (e.g., planning, review, git) */
+  category?: string;
   /** Optional categorization tags */
   tags?: string[];
 }
@@ -249,6 +251,7 @@ export class DocCache {
       return {
         title: typeof parsed.title === 'string' ? parsed.title : undefined,
         description: typeof parsed.description === 'string' ? parsed.description : undefined,
+        category: typeof parsed.category === 'string' ? parsed.category : undefined,
         tags: Array.isArray(parsed.tags)
           ? parsed.tags.filter((t) => typeof t === 'string')
           : undefined,

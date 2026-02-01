@@ -1,6 +1,7 @@
 ---
 title: Review Code (Python)
 description: Python-focused code review (language-specific rules only)
+category: review
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 This shortcut performs a **Python-focused** code review, checking Python-specific best

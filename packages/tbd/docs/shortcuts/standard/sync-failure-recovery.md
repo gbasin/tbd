@@ -1,6 +1,7 @@
 ---
 title: Sync Failure Recovery
 description: Handle tbd sync failures by saving to workspace and recovering later
+category: session
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 When `tbd sync` fails to push (e.g., network errors, permission issues, branch

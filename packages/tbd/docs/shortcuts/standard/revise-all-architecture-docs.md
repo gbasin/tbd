@@ -1,6 +1,7 @@
 ---
 title: Revise All Architecture Docs
 description: Comprehensive revision of all current architecture documents
+category: documentation
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 We track work as beads using tbd.

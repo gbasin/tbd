@@ -1,6 +1,7 @@
 ---
 title: Welcome User
 description: Welcome message for users after tbd installation or setup
+category: session
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 Welcome the user with the message below.

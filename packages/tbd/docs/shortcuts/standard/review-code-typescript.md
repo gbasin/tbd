@@ -1,6 +1,7 @@
 ---
 title: Review Code (TypeScript)
 description: TypeScript-focused code review (language-specific rules only)
+category: review
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 This shortcut performs a **TypeScript-focused** code review, checking

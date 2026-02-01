@@ -1,6 +1,7 @@
 ---
 title: Update Specs Status
 description: Review active specs and sync their status with tbd issues
+category: planning
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 Review all active specs and ensure tbd issues accurately reflect current progress.

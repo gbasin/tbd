@@ -33,53 +33,16 @@ interface ShortcutOptions {
 
 /**
  * Shortcut categories for filtering.
- * Categories are inferred from shortcut names.
+ * Categories are read from frontmatter.
  */
-type ShortcutCategory = 'planning' | 'implementation' | 'quality' | 'shipping';
-
-/**
- * Infer category from shortcut name.
- * Returns undefined if no category matches.
- */
-function inferCategory(name: string): ShortcutCategory | undefined {
-  // Planning: specs, architecture, research, planning docs
-  if (
-    name.includes('plan-spec') ||
-    name.includes('architecture') ||
-    name.includes('research') ||
-    name.includes('validation-spec') ||
-    name.includes('implementation-spec') ||
-    name.includes('beads-from-spec') ||
-    name.includes('update-spec') ||
-    name.includes('refine-spec') ||
-    name.includes('revise-')
-  ) {
-    return 'planning';
-  }
-
-  // Implementation: coding, implementing
-  if (name.includes('implement-') || name.includes('coding-spike')) {
-    return 'implementation';
-  }
-
-  // Shipping: commit, PR, merge (checked before quality since some shortcuts have both)
-  if (name.includes('-commit') || name.includes('pr-') || name.includes('merge-')) {
-    return 'shipping';
-  }
-
-  // Quality: review, testing, precommit, cleanup
-  if (
-    name.includes('review-') ||
-    name.includes('precommit') ||
-    name.includes('-cleanup-') ||
-    name.includes('cleanup-') ||
-    name.includes('validation-plan')
-  ) {
-    return 'quality';
-  }
-
-  return undefined;
-}
+type ShortcutCategory =
+  | 'planning'
+  | 'documentation'
+  | 'review'
+  | 'git'
+  | 'cleanup'
+  | 'session'
+  | 'meta';
 
 class ShortcutHandler extends BaseCommand {
   async run(query: string | undefined, options: ShortcutOptions): Promise<void> {
@@ -176,10 +139,10 @@ class ShortcutHandler extends BaseCommand {
   ): Promise<void> {
     let docs = cache.list(includeAll);
 
-    // Filter by category if specified
+    // Filter by category if specified (read from frontmatter)
     if (category) {
       docs = docs.filter((d) => {
-        const docCategory = inferCategory(d.name);
+        const docCategory = d.frontmatter?.category as ShortcutCategory | undefined;
         return docCategory === category;
       });
     }
@@ -190,6 +153,7 @@ class ShortcutHandler extends BaseCommand {
           name: d.name,
           title: d.frontmatter?.title,
           description: d.frontmatter?.description,
+          category: d.frontmatter?.category,
           path: d.path,
           sourceDir: d.sourceDir,
           sizeBytes: d.sizeBytes,
@@ -405,7 +369,7 @@ export const shortcutCommand = new Command('shortcut')
   .option('--all', 'Include shadowed shortcuts (use with --list)')
   .option(
     '--category <category>',
-    'Filter by category: planning, implementation, quality, shipping',
+    'Filter by category: planning, documentation, review, git, cleanup, session, meta',
   )
   .option('--refresh', 'Refresh the cached shortcut directory')
   .option('--quiet', 'Suppress output (use with --refresh)')

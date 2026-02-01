@@ -1,6 +1,7 @@
 ---
 title: Clean Up All Code
 description: Full cleanup cycle including duplicate removal, dead code, and code quality improvements
+category: cleanup
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 # Shortcut: Clean Up Code

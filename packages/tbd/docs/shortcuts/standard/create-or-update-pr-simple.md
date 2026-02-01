@@ -1,6 +1,7 @@
 ---
 title: Create or Update PR (Simple)
 description: Create or update a pull request with a concise summary
+category: git
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 We track work as beads using tbd.

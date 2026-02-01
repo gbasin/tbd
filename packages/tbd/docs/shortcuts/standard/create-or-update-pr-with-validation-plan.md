@@ -1,6 +1,7 @@
 ---
 title: Create or Update PR with Validation Plan
 description: Create or update a pull request with a detailed test/validation plan
+category: git
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 We track work as beads using tbd.

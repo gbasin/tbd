@@ -1,6 +1,7 @@
 ---
 title: New Research Doc
 description: Create a research document for investigating a topic or technology
+category: documentation
 author: Joshua Levy (github.com/jlevy) with LLM assistance
 ---
 We track work as beads using tbd.
