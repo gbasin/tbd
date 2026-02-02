@@ -7,7 +7,8 @@
 import { Command } from 'commander';
 import { readdir, readFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { stringify as stringifyYaml } from 'yaml';
+import { parseYamlWithConflictDetection } from '../../utils/yaml-utils.js';
 
 import { writeFile } from 'atomically';
 
@@ -72,11 +73,12 @@ async function listAtticEntries(filterById?: string): Promise<AtticEntry[]> {
     if (filterById && parsed.entityId !== filterById) continue;
 
     try {
-      const content = await readFile(join(atticPath, file), 'utf-8');
-      const entry = parseYaml(content) as AtticEntry;
+      const filePath = join(atticPath, file);
+      const content = await readFile(filePath, 'utf-8');
+      const entry = parseYamlWithConflictDetection<AtticEntry>(content, filePath);
       entries.push(entry);
     } catch {
-      // Skip invalid files
+      // Skip invalid files (including those with merge conflicts)
     }
   }
 
