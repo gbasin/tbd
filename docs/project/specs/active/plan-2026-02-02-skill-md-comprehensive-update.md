@@ -4,7 +4,17 @@
 
 **Author:** Claude with Joshua Levy
 
-**Status:** In Progress (Phase 3-4 remaining)
+**Status:** In Progress
+
+## Progress Summary
+
+| Phase | Description | Status |
+| --- | --- | --- |
+| Phase 1 | Update Source Files | ✅ Complete |
+| Phase 2 | Regenerate and Verify | ✅ Complete |
+| Phase 3 | YAML Technical Debt Cleanup | 🔲 Pending |
+
+* * *
 
 ## Overview
 
@@ -29,6 +39,10 @@ is critical.
 - Restructuring the skill file format
 - Adding new shortcuts or guidelines
 
+* * *
+
+# Phase 1: Update Source Files ✅ COMPLETE
+
 ## Background
 
 Users often say things like “use beads” or “use the shortcut” and agents need to
@@ -37,6 +51,7 @@ The current SKILL.md is good but has gaps compared to the README and doesn’t c
 capabilities.
 
 The generated `.claude/skills/tbd/SKILL.md` comes from two source files:
+
 - `packages/tbd/docs/install/claude-header.md` - frontmatter (name, description,
   allowed-tools)
 - `packages/tbd/docs/shortcuts/system/skill.md` - main content
@@ -71,6 +86,7 @@ shortcuts, templates, commit, PR workflows, code review, testing best practices,
 ### Missing Trigger Keywords
 
 Current triggers are missing these important terms:
+
 - `bd` (the original Beads CLI name)
 - `features`, `epics` (issue types)
 - `TDD`, `test-driven`
@@ -106,24 +122,9 @@ Current triggers are missing these important terms:
 | "What issues are stale?" | `tbd stale` |
 | "Fix repository problems" | `tbd doctor --fix` |
 
-## Design
+## Implementation (Complete)
 
-### Approach
-
-Update both source files to comprehensively cover tbd’s capabilities while keeping the
-content concise and scannable for agents.
-
-### Components
-
-1. **claude-header.md** - Update description field with expanded capabilities and
-   trigger keywords
-2. **skill.md** - Update intro, action table, and commands section
-
-## Implementation Plan
-
-### Phase 1: Update Source Files
-
-#### Task 1: Update claude-header.md description
+### Task 1: Update claude-header.md description ✅
 
 **New description:**
 
@@ -148,7 +149,7 @@ allowed-tools: Bash(tbd:*), Read, Write
 ---
 ```
 
-#### Task 2: Update skill.md intro (4 pillars)
+### Task 2: Update skill.md intro (4 pillars) ✅
 
 **New intro:**
 
@@ -165,75 +166,23 @@ allowed-tools: Bash(tbd:*), Read, Write
    commits, PRs, cleanup, handoffs).
 ```
 
-#### Task 3: Expand User Request → Agent Action table in skill.md
+### Task 3: Expand User Request → Agent Action table ✅
 
-Replace current table with categorized, expanded version:
+Replaced with categorized, expanded version covering Issues/Beads, Planning & Specs,
+Code Review & Commits, Guidelines & Knowledge, Documentation, Cleanup & Maintenance, and
+Sessions & Handoffs.
 
-```markdown
-## User Request → Agent Action
+### Task 4: Add Labels & Search commands section ✅
 
-| User Says | You (the Agent) Run |
-| --- | --- |
-| **Issues/Beads** | |
-| "There's a bug where ..." | `tbd create "..." --type=bug` |
-| "Create a task/feature for ..." | `tbd create "..." --type=task` or `--type=feature` |
-| "Let's work on issues/beads" | `tbd ready` |
-| "Show me issue X" | `tbd show <id>` |
-| "Close this issue" | `tbd close <id>` |
-| "Search issues for X" | `tbd search "X"` |
-| "Add label X to issue" | `tbd label add <id> <label>` |
-| "What issues are stale?" | `tbd stale` |
-| **Planning & Specs** | |
-| "Plan a new feature" / "Create a spec" | `tbd shortcut new-plan-spec` |
-| "Break spec into beads" | `tbd shortcut plan-implementation-with-beads` |
-| "Implement these beads" | `tbd shortcut implement-beads` |
-| **Code Review & Commits** | |
-| "Review this code" / "Code review" | `tbd shortcut review-code` |
-| "Review this PR" | `tbd shortcut review-github-pr` |
-| "Commit this" / "Use the commit shortcut" | `tbd shortcut code-review-and-commit` |
-| "Create a PR" / "File a PR" | `tbd shortcut create-or-update-pr-simple` |
-| "Merge main into my branch" | `tbd shortcut merge-upstream` |
-| **Guidelines & Knowledge** | |
-| "Use TypeScript best practices" | `tbd guidelines typescript-rules` |
-| "Use Python best practices" | `tbd guidelines python-rules` |
-| "Build a TypeScript CLI" | `tbd guidelines typescript-cli-tool-rules` |
-| "Improve monorepo setup" | `tbd guidelines typescript-monorepo-patterns` |
-| "Add golden/e2e testing" | `tbd guidelines golden-testing-guidelines` |
-| "Use TDD" / "Test-driven development" | `tbd guidelines general-tdd-guidelines` |
-| "Convex best practices" | `tbd guidelines convex-rules` |
-| **Documentation** | |
-| "Research this topic" | `tbd shortcut new-research-brief` |
-| "Document architecture" | `tbd shortcut new-architecture-doc` |
-| **Cleanup & Maintenance** | |
-| "Clean up this code" / "Remove dead code" | `tbd shortcut code-cleanup-all` |
-| "Fix repository problems" | `tbd doctor --fix` |
-| **Sessions & Handoffs** | |
-| "Hand off to another agent" | `tbd shortcut agent-handoff` |
-| "Check out this library's source" | `tbd shortcut checkout-third-party-repo` |
-| *(your choice whenever appropriate)* | `tbd list`, `tbd dep add`, `tbd close`, `tbd sync`, etc. |
-```
+Added new section with `tbd search`, `tbd label`, and `tbd stale` commands.
 
-#### Task 4: Add Labels & Search commands section to skill.md
+### Task 5: Update Dependencies & Sync section ✅
 
-Add new section after “Dependencies & Sync”:
+Added `tbd doctor --fix` to existing table.
 
-```markdown
-### Labels & Search
+* * *
 
-| Command | Purpose |
-| --- | --- |
-| `tbd search <query>` | Search issues by text |
-| `tbd label add <id> <label>` | Add label to issue |
-| `tbd label remove <id> <label>` | Remove label from issue |
-| `tbd label list` | List all labels in use |
-| `tbd stale` | List issues not updated recently |
-```
-
-#### Task 5: Update Dependencies & Sync section
-
-Add `tbd doctor --fix` to existing table.
-
-### Phase 2: Regenerate and Verify
+# Phase 2: Regenerate and Verify ✅ COMPLETE
 
 - [x] Run `tbd setup --auto` to regenerate SKILL.md
 - [x] Verify all changes appear in generated file
@@ -241,215 +190,7 @@ Add `tbd doctor --fix` to existing table.
   - Description: ~1,019 chars (within 1,024 limit)
   - Total skill footprint: ~1,128 chars (well within 15K cumulative budget)
   - SKILL.md lines: 247 (within 500 guideline)
-- [ ] Test that skill triggers correctly on key phrases
-
-### Phase 3-4: Systematic YAML Handling Cleanup (tbd-roc3)
-
-During verification, discovered that YAML handling across the codebase is inconsistent
-and has accumulated technical debt.
-This phase addresses all YAML-related issues systematically.
-
-#### Problem Statement
-
-The codebase has multiple approaches to YAML parsing and writing:
-
-1. **Inconsistent libraries**: Both `gray-matter` and `yaml` packages are used,
-   sometimes in the same file
-2. **Manual string reconstruction**: `markdown-utils.ts` manually reconstructs YAML
-   instead of using library stringify functions
-3. **Missing Zod validation**: Many files parse YAML without schema validation, despite
-   schemas existing
-4. **Inconsistent error handling**: Some files use `parseYamlWithConflictDetection`,
-   others use raw `parseYaml`
-
-#### Technical Debt Audit
-
-**Files with YAML parsing:**
-
-| File | Library | Zod Validation | Issues |
-| --- | --- | --- | --- |
-| `parser.ts` | gray-matter + yaml | ✓ IssueSchema | Good - uses custom engine |
-| `config.ts` | yaml | ✓ ConfigSchema | Good |
-| `id-mapping.ts` | yaml (via yaml-utils) | ✗ Raw cast | Missing schema |
-| `attic.ts` | yaml | ✗ Raw cast | AtticEntrySchema exists but unused |
-| `search.ts` | yaml | ✗ Raw cast | LocalStateSchema exists but unused |
-| `prefix-detection.ts` | yaml | ✗ Raw cast | Missing schema |
-| `doc-cache.ts` | gray-matter | ✗ Raw cast | Missing frontmatter schema |
-| `markdown-utils.ts` | gray-matter | N/A | **Manual reconstruction - main bug** |
-
-**The core issue in `markdown-utils.ts`:**
-
-```typescript
-// Current approach (lines 44-66) - BROKEN
-const lines: string[] = [];
-for (const [key, value] of Object.entries(data)) {
-  lines.push(`${key}: ${String(value)}`);  // Doesn't quote special chars!
-}
-frontmatter = lines.join('\n');
-```
-
-This fails when values contain `: ` patterns (like “Use for: tracking”) because they
-appear as separate YAML keys when parsed.
-
-#### Design: Unified YAML Handling
-
-**Principle 1: Use `yaml` package for all stringify operations**
-
-The `yaml` package (v2.x) properly handles:
-- Quoting strings with special characters
-- Block scalars for multiline strings
-- Consistent formatting options
-
-**Principle 2: Use gray-matter with custom yaml engine for frontmatter**
-
-`parser.ts` already does this correctly:
-
-```typescript
-const matterOptions: GrayMatterOption<string, typeof matterOptions> = {
-  engines: {
-    yaml: {
-      parse: (str: string): object => parseYaml(str) as object,
-      stringify: (obj: object): string => stringifyYaml(obj),
-    },
-  },
-};
-```
-
-**Principle 3: Always validate with Zod schemas after parsing**
-
-Every YAML parse should be followed by schema validation:
-
-```typescript
-const raw = parseYaml(content);
-const validated = SomeSchema.parse(raw);  // Throws on invalid data
-```
-
-**Principle 4: Use `parseYamlWithConflictDetection` for user-editable files**
-
-Files that could have merge conflicts should use the wrapper that provides helpful
-errors.
-
-#### Implementation Tasks
-
-##### Task 3.1: Fix markdown-utils.ts to use yaml package stringify
-
-**Current (broken):**
-
-```typescript
-export function parseMarkdown(content: string): ParsedMarkdown {
-  const parsed = matter(normalized);
-  // Manual reconstruction - breaks on special characters
-  const lines: string[] = [];
-  for (const [key, value] of Object.entries(data)) {
-    lines.push(`${key}: ${String(value)}`);
-  }
-  frontmatter = lines.join('\n');
-}
-```
-
-**Fixed:**
-
-```typescript
-import { stringify as stringifyYaml } from 'yaml';
-
-export function parseMarkdown(content: string): ParsedMarkdown {
-  const parsed = matter(normalized);
-  const data = parsed.data;
-
-  if (data && Object.keys(data).length > 0) {
-    // Use yaml package for proper stringification
-    frontmatter = stringifyYaml(data, {
-      lineWidth: 0,  // Don't wrap lines
-      defaultStringType: 'QUOTE_DOUBLE',  // Quote strings with special chars
-    }).trim();
-  }
-}
-```
-
-##### Task 3.2: Add Zod schemas for missing file types
-
-Create schemas in `schemas.ts`:
-
-```typescript
-// ID mapping file schema
-export const IdMappingSchema = z.record(z.string(), z.string());
-
-// Beads config schema (for prefix detection)
-export const BeadsConfigSchema = z.object({
-  prefix: z.string().optional(),
-}).passthrough();  // Allow unknown fields
-
-// Doc frontmatter schema
-export const DocFrontmatterSchema = z.object({
-  name: z.string().optional(),
-  description: z.string().optional(),
-  categories: z.array(z.string()).optional(),
-}).passthrough();
-```
-
-##### Task 3.3: Update files to use Zod validation
-
-| File | Change |
-| --- | --- |
-| `id-mapping.ts` | Add `IdMappingSchema.parse()` after yaml parse |
-| `attic.ts` | Add `AtticEntrySchema.parse()` after yaml parse |
-| `search.ts` | Use existing `LocalStateSchema.parse()` |
-| `prefix-detection.ts` | Add `BeadsConfigSchema.parse()` |
-| `doc-cache.ts` | Add `DocFrontmatterSchema.parse()` |
-
-##### Task 3.4: Standardize error handling
-
-Update all YAML parse sites to use `parseYamlWithConflictDetection` for user files:
-
-```typescript
-// User-editable files (issues, config, etc.)
-const data = parseYamlWithConflictDetection(content, filePath);
-
-// Internal files (id mappings, state, etc.)
-const data = parseYaml(content);
-```
-
-##### Task 3.5: Add comprehensive tests
-
-```typescript
-describe('YAML handling', () => {
-  it('properly quotes strings with colon patterns', () => {
-    const input = { description: 'Use for: tracking. Invoke when: mentioned.' };
-    const yaml = stringifyYaml(input);
-    const reparsed = parseYaml(yaml);
-    expect(reparsed.description).toBe(input.description);
-  });
-
-  it('handles multiline strings correctly', () => {
-    const input = { description: 'Line one.\nLine two.' };
-    const yaml = stringifyYaml(input);
-    const reparsed = parseYaml(yaml);
-    expect(reparsed.description).toBe(input.description);
-  });
-});
-```
-
-#### Acceptance Criteria
-
-- [ ] All YAML stringify operations use `yaml` package, not manual string concatenation
-- [ ] All YAML parse operations are followed by Zod schema validation
-- [ ] `parseYamlWithConflictDetection` used for user-editable files
-- [ ] Generated SKILL.md parses correctly with only 3 top-level keys (name, description,
-  allowed-tools)
-- [ ] Test coverage for YAML edge cases (colons, newlines, quotes)
-- [ ] No TypeScript `as` casts for YAML parse results (use Zod instead)
-
-#### Files to Modify
-
-1. `packages/tbd/src/utils/markdown-utils.ts` - Use yaml stringify
-2. `packages/tbd/src/lib/schemas.ts` - Add missing schemas
-3. `packages/tbd/src/file/id-mapping.ts` - Add Zod validation
-4. `packages/tbd/src/cli/commands/attic.ts` - Use existing AtticEntrySchema
-5. `packages/tbd/src/cli/commands/search.ts` - Use existing LocalStateSchema
-6. `packages/tbd/src/cli/lib/prefix-detection.ts` - Add Zod validation
-7. `packages/tbd/src/file/doc-cache.ts` - Add frontmatter schema
-8. `packages/tbd/tests/markdown-utils.test.ts` - Add YAML edge case tests
-9. `packages/tbd/tests/yaml-handling.test.ts` - New comprehensive YAML tests
+- [x] Documented skill description budget constraints in guidelines
 
 ## Detailed Comparison: Old vs New Description
 
@@ -511,6 +252,223 @@ describe('YAML handling', () => {
 | search | No | Yes | **Added** |
 | checkout library, source code review | No | Yes | **Added** |
 | any workflow shortcut | No | Yes | **Added** |
+
+* * *
+
+# Phase 3: YAML Technical Debt Cleanup 🔲 PENDING
+
+**Tracking:** tbd-roc3
+
+During Phase 2 verification, discovered that YAML handling across the codebase is
+inconsistent and has accumulated technical debt.
+The generated SKILL.md has YAML frontmatter issues where multiline descriptions are not
+properly quoted, causing them to be parsed as multiple YAML keys instead of a single
+description value.
+
+## Problem Statement
+
+The codebase has multiple approaches to YAML parsing and writing:
+
+1. **Inconsistent libraries**: Both `gray-matter` and `yaml` packages are used,
+   sometimes in the same file
+2. **Manual string reconstruction**: `markdown-utils.ts` manually reconstructs YAML
+   instead of using library stringify functions
+3. **Missing Zod validation**: Many files parse YAML without schema validation, despite
+   schemas existing
+4. **Inconsistent error handling**: Some files use `parseYamlWithConflictDetection`,
+   others use raw `parseYaml`
+
+## Technical Debt Audit
+
+**Files with YAML parsing:**
+
+| File | Library | Zod Validation | Issues |
+| --- | --- | --- | --- |
+| `parser.ts` | gray-matter + yaml | ✓ IssueSchema | Good - uses custom engine |
+| `config.ts` | yaml | ✓ ConfigSchema | Good |
+| `id-mapping.ts` | yaml (via yaml-utils) | ✗ Raw cast | Missing schema |
+| `attic.ts` | yaml | ✗ Raw cast | AtticEntrySchema exists but unused |
+| `search.ts` | yaml | ✗ Raw cast | LocalStateSchema exists but unused |
+| `prefix-detection.ts` | yaml | ✗ Raw cast | Missing schema |
+| `doc-cache.ts` | gray-matter | ✗ Raw cast | Missing frontmatter schema |
+| `markdown-utils.ts` | gray-matter | N/A | **Manual reconstruction - main bug** |
+
+**The core issue in `markdown-utils.ts`:**
+
+```typescript
+// Current approach (lines 44-66) - BROKEN
+const lines: string[] = [];
+for (const [key, value] of Object.entries(data)) {
+  lines.push(`${key}: ${String(value)}`);  // Doesn't quote special chars!
+}
+frontmatter = lines.join('\n');
+```
+
+This fails when values contain `: ` patterns (like “Use for: tracking”) because they
+appear as separate YAML keys when parsed.
+
+## Design: Unified YAML Handling
+
+**Principle 1: Use `yaml` package for all stringify operations**
+
+The `yaml` package (v2.x) properly handles:
+
+- Quoting strings with special characters
+- Block scalars for multiline strings
+- Consistent formatting options
+
+**Principle 2: Use gray-matter with custom yaml engine for frontmatter**
+
+`parser.ts` already does this correctly:
+
+```typescript
+const matterOptions: GrayMatterOption<string, typeof matterOptions> = {
+  engines: {
+    yaml: {
+      parse: (str: string): object => parseYaml(str) as object,
+      stringify: (obj: object): string => stringifyYaml(obj),
+    },
+  },
+};
+```
+
+**Principle 3: Always validate with Zod schemas after parsing**
+
+Every YAML parse should be followed by schema validation:
+
+```typescript
+const raw = parseYaml(content);
+const validated = SomeSchema.parse(raw);  // Throws on invalid data
+```
+
+**Principle 4: Use `parseYamlWithConflictDetection` for user-editable files**
+
+Files that could have merge conflicts should use the wrapper that provides helpful
+errors.
+
+## Implementation Tasks
+
+### Task 3.1: Fix markdown-utils.ts to use yaml package stringify
+
+**Current (broken):**
+
+```typescript
+export function parseMarkdown(content: string): ParsedMarkdown {
+  const parsed = matter(normalized);
+  // Manual reconstruction - breaks on special characters
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(data)) {
+    lines.push(`${key}: ${String(value)}`);
+  }
+  frontmatter = lines.join('\n');
+}
+```
+
+**Fixed:**
+
+```typescript
+import { stringify as stringifyYaml } from 'yaml';
+
+export function parseMarkdown(content: string): ParsedMarkdown {
+  const parsed = matter(normalized);
+  const data = parsed.data;
+
+  if (data && Object.keys(data).length > 0) {
+    // Use yaml package for proper stringification
+    frontmatter = stringifyYaml(data, {
+      lineWidth: 0,  // Don't wrap lines
+      defaultStringType: 'QUOTE_DOUBLE',  // Quote strings with special chars
+    }).trim();
+  }
+}
+```
+
+### Task 3.2: Add Zod schemas for missing file types
+
+Create schemas in `schemas.ts`:
+
+```typescript
+// ID mapping file schema
+export const IdMappingSchema = z.record(z.string(), z.string());
+
+// Beads config schema (for prefix detection)
+export const BeadsConfigSchema = z.object({
+  prefix: z.string().optional(),
+}).passthrough();  // Allow unknown fields
+
+// Doc frontmatter schema
+export const DocFrontmatterSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+  categories: z.array(z.string()).optional(),
+}).passthrough();
+```
+
+### Task 3.3: Update files to use Zod validation
+
+| File | Change |
+| --- | --- |
+| `id-mapping.ts` | Add `IdMappingSchema.parse()` after yaml parse |
+| `attic.ts` | Add `AtticEntrySchema.parse()` after yaml parse |
+| `search.ts` | Use existing `LocalStateSchema.parse()` |
+| `prefix-detection.ts` | Add `BeadsConfigSchema.parse()` |
+| `doc-cache.ts` | Add `DocFrontmatterSchema.parse()` |
+
+### Task 3.4: Standardize error handling
+
+Update all YAML parse sites to use `parseYamlWithConflictDetection` for user files:
+
+```typescript
+// User-editable files (issues, config, etc.)
+const data = parseYamlWithConflictDetection(content, filePath);
+
+// Internal files (id mappings, state, etc.)
+const data = parseYaml(content);
+```
+
+### Task 3.5: Add comprehensive tests
+
+```typescript
+describe('YAML handling', () => {
+  it('properly quotes strings with colon patterns', () => {
+    const input = { description: 'Use for: tracking. Invoke when: mentioned.' };
+    const yaml = stringifyYaml(input);
+    const reparsed = parseYaml(yaml);
+    expect(reparsed.description).toBe(input.description);
+  });
+
+  it('handles multiline strings correctly', () => {
+    const input = { description: 'Line one.\nLine two.' };
+    const yaml = stringifyYaml(input);
+    const reparsed = parseYaml(yaml);
+    expect(reparsed.description).toBe(input.description);
+  });
+});
+```
+
+## Acceptance Criteria
+
+- [ ] All YAML stringify operations use `yaml` package, not manual string concatenation
+- [ ] All YAML parse operations are followed by Zod schema validation
+- [ ] `parseYamlWithConflictDetection` used for user-editable files
+- [ ] Generated SKILL.md parses correctly with only 3 top-level keys (name, description,
+  allowed-tools)
+- [ ] Test coverage for YAML edge cases (colons, newlines, quotes)
+- [ ] No TypeScript `as` casts for YAML parse results (use Zod instead)
+
+## Files to Modify
+
+1. `packages/tbd/src/utils/markdown-utils.ts` - Use yaml stringify
+2. `packages/tbd/src/lib/schemas.ts` - Add missing schemas
+3. `packages/tbd/src/file/id-mapping.ts` - Add Zod validation
+4. `packages/tbd/src/cli/commands/attic.ts` - Use existing AtticEntrySchema
+5. `packages/tbd/src/cli/commands/search.ts` - Use existing LocalStateSchema
+6. `packages/tbd/src/cli/lib/prefix-detection.ts` - Add Zod validation
+7. `packages/tbd/src/file/doc-cache.ts` - Add frontmatter schema
+8. `packages/tbd/tests/markdown-utils.test.ts` - Add YAML edge case tests
+9. `packages/tbd/tests/yaml-handling.test.ts` - New comprehensive YAML tests
+
+* * *
 
 ## Testing Strategy
 
