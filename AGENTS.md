@@ -173,6 +173,7 @@ Run `tbd shortcut <name>` to use any of these shortcuts:
 | Name | Description |
 | --- | --- |
 | agent-handoff | Generate a concise handoff prompt for another coding agent to continue work |
+| checkout-third-party-repo | Get source code for libraries and third-party repos using git. Essential for reliable source code review. Prefer this to web searches or fetching of web pages from github.com as it is far more effective (github.com blocks web scraping from main website). |
 | code-cleanup-all | Full cleanup cycle including duplicate removal, dead code, and code quality improvements |
 | code-cleanup-docstrings | Review and add concise docstrings to major functions and types |
 | code-cleanup-tests | Review and remove tests that do not add meaningful coverage |
