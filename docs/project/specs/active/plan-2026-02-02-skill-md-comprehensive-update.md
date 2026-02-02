@@ -4,7 +4,7 @@
 
 **Author:** Claude with Joshua Levy
 
-**Status:** Implemented
+**Status:** In Progress (Phase 3-4 remaining)
 
 ## Overview
 
@@ -243,16 +243,213 @@ Add `tbd doctor --fix` to existing table.
   - SKILL.md lines: 247 (within 500 guideline)
 - [ ] Test that skill triggers correctly on key phrases
 
-### Phase 3: YAML Consistency Cleanup (tbd-roc3)
+### Phase 3-4: Systematic YAML Handling Cleanup (tbd-roc3)
 
-During verification, discovered that multiline YAML descriptions are not being generated
-consistently.
-The source uses `>-` block scalar syntax, but generated files have separate
-lines that may be parsed as separate YAML keys.
+During verification, discovered that YAML handling across the codebase is inconsistent
+and has accumulated technical debt.
+This phase addresses all YAML-related issues systematically.
 
-- [ ] Investigate skill file generation code in tbd setup
-- [ ] Ensure generated YAML frontmatter uses consistent multiline syntax
-- [ ] Add tests for YAML frontmatter parsing/generation
+#### Problem Statement
+
+The codebase has multiple approaches to YAML parsing and writing:
+
+1. **Inconsistent libraries**: Both `gray-matter` and `yaml` packages are used,
+   sometimes in the same file
+2. **Manual string reconstruction**: `markdown-utils.ts` manually reconstructs YAML
+   instead of using library stringify functions
+3. **Missing Zod validation**: Many files parse YAML without schema validation, despite
+   schemas existing
+4. **Inconsistent error handling**: Some files use `parseYamlWithConflictDetection`,
+   others use raw `parseYaml`
+
+#### Technical Debt Audit
+
+**Files with YAML parsing:**
+
+| File | Library | Zod Validation | Issues |
+| --- | --- | --- | --- |
+| `parser.ts` | gray-matter + yaml | ✓ IssueSchema | Good - uses custom engine |
+| `config.ts` | yaml | ✓ ConfigSchema | Good |
+| `id-mapping.ts` | yaml (via yaml-utils) | ✗ Raw cast | Missing schema |
+| `attic.ts` | yaml | ✗ Raw cast | AtticEntrySchema exists but unused |
+| `search.ts` | yaml | ✗ Raw cast | LocalStateSchema exists but unused |
+| `prefix-detection.ts` | yaml | ✗ Raw cast | Missing schema |
+| `doc-cache.ts` | gray-matter | ✗ Raw cast | Missing frontmatter schema |
+| `markdown-utils.ts` | gray-matter | N/A | **Manual reconstruction - main bug** |
+
+**The core issue in `markdown-utils.ts`:**
+
+```typescript
+// Current approach (lines 44-66) - BROKEN
+const lines: string[] = [];
+for (const [key, value] of Object.entries(data)) {
+  lines.push(`${key}: ${String(value)}`);  // Doesn't quote special chars!
+}
+frontmatter = lines.join('\n');
+```
+
+This fails when values contain `: ` patterns (like “Use for: tracking”) because they
+appear as separate YAML keys when parsed.
+
+#### Design: Unified YAML Handling
+
+**Principle 1: Use `yaml` package for all stringify operations**
+
+The `yaml` package (v2.x) properly handles:
+- Quoting strings with special characters
+- Block scalars for multiline strings
+- Consistent formatting options
+
+**Principle 2: Use gray-matter with custom yaml engine for frontmatter**
+
+`parser.ts` already does this correctly:
+
+```typescript
+const matterOptions: GrayMatterOption<string, typeof matterOptions> = {
+  engines: {
+    yaml: {
+      parse: (str: string): object => parseYaml(str) as object,
+      stringify: (obj: object): string => stringifyYaml(obj),
+    },
+  },
+};
+```
+
+**Principle 3: Always validate with Zod schemas after parsing**
+
+Every YAML parse should be followed by schema validation:
+
+```typescript
+const raw = parseYaml(content);
+const validated = SomeSchema.parse(raw);  // Throws on invalid data
+```
+
+**Principle 4: Use `parseYamlWithConflictDetection` for user-editable files**
+
+Files that could have merge conflicts should use the wrapper that provides helpful
+errors.
+
+#### Implementation Tasks
+
+##### Task 3.1: Fix markdown-utils.ts to use yaml package stringify
+
+**Current (broken):**
+
+```typescript
+export function parseMarkdown(content: string): ParsedMarkdown {
+  const parsed = matter(normalized);
+  // Manual reconstruction - breaks on special characters
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(data)) {
+    lines.push(`${key}: ${String(value)}`);
+  }
+  frontmatter = lines.join('\n');
+}
+```
+
+**Fixed:**
+
+```typescript
+import { stringify as stringifyYaml } from 'yaml';
+
+export function parseMarkdown(content: string): ParsedMarkdown {
+  const parsed = matter(normalized);
+  const data = parsed.data;
+
+  if (data && Object.keys(data).length > 0) {
+    // Use yaml package for proper stringification
+    frontmatter = stringifyYaml(data, {
+      lineWidth: 0,  // Don't wrap lines
+      defaultStringType: 'QUOTE_DOUBLE',  // Quote strings with special chars
+    }).trim();
+  }
+}
+```
+
+##### Task 3.2: Add Zod schemas for missing file types
+
+Create schemas in `schemas.ts`:
+
+```typescript
+// ID mapping file schema
+export const IdMappingSchema = z.record(z.string(), z.string());
+
+// Beads config schema (for prefix detection)
+export const BeadsConfigSchema = z.object({
+  prefix: z.string().optional(),
+}).passthrough();  // Allow unknown fields
+
+// Doc frontmatter schema
+export const DocFrontmatterSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+  categories: z.array(z.string()).optional(),
+}).passthrough();
+```
+
+##### Task 3.3: Update files to use Zod validation
+
+| File | Change |
+| --- | --- |
+| `id-mapping.ts` | Add `IdMappingSchema.parse()` after yaml parse |
+| `attic.ts` | Add `AtticEntrySchema.parse()` after yaml parse |
+| `search.ts` | Use existing `LocalStateSchema.parse()` |
+| `prefix-detection.ts` | Add `BeadsConfigSchema.parse()` |
+| `doc-cache.ts` | Add `DocFrontmatterSchema.parse()` |
+
+##### Task 3.4: Standardize error handling
+
+Update all YAML parse sites to use `parseYamlWithConflictDetection` for user files:
+
+```typescript
+// User-editable files (issues, config, etc.)
+const data = parseYamlWithConflictDetection(content, filePath);
+
+// Internal files (id mappings, state, etc.)
+const data = parseYaml(content);
+```
+
+##### Task 3.5: Add comprehensive tests
+
+```typescript
+describe('YAML handling', () => {
+  it('properly quotes strings with colon patterns', () => {
+    const input = { description: 'Use for: tracking. Invoke when: mentioned.' };
+    const yaml = stringifyYaml(input);
+    const reparsed = parseYaml(yaml);
+    expect(reparsed.description).toBe(input.description);
+  });
+
+  it('handles multiline strings correctly', () => {
+    const input = { description: 'Line one.\nLine two.' };
+    const yaml = stringifyYaml(input);
+    const reparsed = parseYaml(yaml);
+    expect(reparsed.description).toBe(input.description);
+  });
+});
+```
+
+#### Acceptance Criteria
+
+- [ ] All YAML stringify operations use `yaml` package, not manual string concatenation
+- [ ] All YAML parse operations are followed by Zod schema validation
+- [ ] `parseYamlWithConflictDetection` used for user-editable files
+- [ ] Generated SKILL.md parses correctly with only 3 top-level keys (name, description,
+  allowed-tools)
+- [ ] Test coverage for YAML edge cases (colons, newlines, quotes)
+- [ ] No TypeScript `as` casts for YAML parse results (use Zod instead)
+
+#### Files to Modify
+
+1. `packages/tbd/src/utils/markdown-utils.ts` - Use yaml stringify
+2. `packages/tbd/src/lib/schemas.ts` - Add missing schemas
+3. `packages/tbd/src/file/id-mapping.ts` - Add Zod validation
+4. `packages/tbd/src/cli/commands/attic.ts` - Use existing AtticEntrySchema
+5. `packages/tbd/src/cli/commands/search.ts` - Use existing LocalStateSchema
+6. `packages/tbd/src/cli/lib/prefix-detection.ts` - Add Zod validation
+7. `packages/tbd/src/file/doc-cache.ts` - Add frontmatter schema
+8. `packages/tbd/tests/markdown-utils.test.ts` - Add YAML edge case tests
+9. `packages/tbd/tests/yaml-handling.test.ts` - New comprehensive YAML tests
 
 ## Detailed Comparison: Old vs New Description
 
@@ -339,3 +536,14 @@ lines that may be parsed as separate YAML keys.
   for skill frontmatter
 - [skill.md](../../../../packages/tbd/docs/shortcuts/system/skill.md) - Source for skill
   content
+
+### YAML Library References
+
+- [yaml package (npm)](https://www.npmjs.com/package/yaml) - Modern YAML
+  parser/stringifier
+- [yaml stringify options](https://eemeli.org/yaml/#tostring-options) - Options for
+  controlling output format
+- [gray-matter (GitHub)](https://github.com/jonschlinkert/gray-matter) - Frontmatter
+  parser with stringify support
+- [YAML multiline strings](https://yaml-multiline.info/) - Reference for block scalar
+  syntax (`>-`, `|`, etc.)
