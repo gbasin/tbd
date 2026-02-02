@@ -22,6 +22,7 @@ import { now } from '../../utils/time-utils.js';
 import { loadIdMapping } from '../../file/id-mapping.js';
 import { readConfig } from '../../file/config.js';
 import type { AtticEntry } from '../../lib/types.js';
+import { AtticEntrySchema } from '../../lib/schemas.js';
 
 /**
  * Get attic entry filename from components.
@@ -75,10 +76,11 @@ async function listAtticEntries(filterById?: string): Promise<AtticEntry[]> {
     try {
       const filePath = join(atticPath, file);
       const content = await readFile(filePath, 'utf-8');
-      const entry = parseYamlWithConflictDetection<AtticEntry>(content, filePath);
+      const rawData = parseYamlWithConflictDetection<unknown>(content, filePath);
+      const entry = AtticEntrySchema.parse(rawData);
       entries.push(entry);
     } catch {
-      // Skip invalid files (including those with merge conflicts)
+      // Skip invalid files (including those with merge conflicts or schema errors)
     }
   }
 
