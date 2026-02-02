@@ -235,9 +235,24 @@ Add `tbd doctor --fix` to existing table.
 
 ### Phase 2: Regenerate and Verify
 
-- [ ] Run `tbd setup --auto` to regenerate SKILL.md
-- [ ] Verify all changes appear in generated file
+- [x] Run `tbd setup --auto` to regenerate SKILL.md
+- [x] Verify all changes appear in generated file
+- [x] Verify budget constraints met:
+  - Description: ~1,019 chars (within 1,024 limit)
+  - Total skill footprint: ~1,128 chars (well within 15K cumulative budget)
+  - SKILL.md lines: 247 (within 500 guideline)
 - [ ] Test that skill triggers correctly on key phrases
+
+### Phase 3: YAML Consistency Cleanup (tbd-roc3)
+
+During verification, discovered that multiline YAML descriptions are not being generated
+consistently.
+The source uses `>-` block scalar syntax, but generated files have separate
+lines that may be parsed as separate YAML keys.
+
+- [ ] Investigate skill file generation code in tbd setup
+- [ ] Ensure generated YAML frontmatter uses consistent multiline syntax
+- [ ] Add tests for YAML frontmatter parsing/generation
 
 ## Detailed Comparison: Old vs New Description
 
