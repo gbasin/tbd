@@ -257,7 +257,7 @@ Added `tbd doctor --fix` to existing table.
 
 # Phase 3: YAML Technical Debt Cleanup 🔲 PENDING
 
-**Tracking:** tbd-roc3
+**Tracking:** tbd-hl7d (epic)
 
 During Phase 2 verification, discovered that YAML handling across the codebase is
 inconsistent and has accumulated technical debt.
