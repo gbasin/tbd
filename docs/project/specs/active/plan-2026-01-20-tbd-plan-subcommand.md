@@ -195,7 +195,7 @@ Synced docs/plans/oauth.plan.md:
 
 ### `tbd plan status <file>`
 
-Show sync status without making changes (dry-run report).
+Show plan issues and preview what `sync` would change.
 
 ```bash
 tbd plan status <file> [options]
@@ -205,11 +205,36 @@ Options:
   --quiet             Only show if there are changes needed
 ```
 
-**Output categories:**
-- Marker mismatches - checkbox state ≠ issue status
-- Missing IDs - plan items without ID annotations
-- Broken references - IDs that don't resolve to issues
-- Title mismatches (warning) - plan text differs from issue title
+**Output:** Similar to `tbd list` but scoped to issues in this plan, plus a dry-run
+of sync changes.
+
+```
+Plan: docs/plans/oauth.plan.md
+
+Issues (12 total, 3 in_progress, 2 blocked):
+  proj-a1b2  [*] OAuth Implementation (epic)
+  proj-c3d4  [ ] Review OAuth 2.0 spec
+  proj-e5f6  [x] Set up OAuth provider config
+  proj-g7h8  [*] Implement token refresh
+  proj-i9j0  [/] Handle OAuth callback
+  ...
+
+Sync preview (4 changes):
+  proj-c3d4  [ ] → [x]  (issue is closed)
+  proj-g7h8  [*] → [x]  (issue is closed)
+  proj-k1l2  (new)      "Add rate limiting"
+  proj-m3n4  (orphan)   ID not found in tbd
+
+Run `tbd plan sync docs/plans/oauth.plan.md` to apply changes.
+```
+
+**Output sections:**
+1. **Issues list** - All issues belonging to this plan, with status markers
+2. **Sync preview** - Dry-run of what `sync` would change:
+   - Marker updates (checkbox state ≠ issue status)
+   - New issues to create (plan items without IDs)
+   - Orphan references (IDs that don't resolve)
+   - Title mismatches (warning only)
 
 ### `tbd plan validate <file>`
 
