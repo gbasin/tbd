@@ -26,7 +26,9 @@ import {
   ensureWorktreeAttached,
   type ConflictEntry,
   type PushResult,
+  type PushErrorCategory,
 } from '../../file/git.js';
+import { saveToWorkspace } from '../../file/workspace.js';
 import { resolveDataSyncDir, DATA_SYNC_DIR, WORKTREE_DIR } from '../../lib/paths.js';
 import { join } from 'node:path';
 import {
@@ -638,6 +640,68 @@ class SyncHandler extends BaseCommand {
     }
   }
 
+  /**
+   * Handle permanent push failures by automatically saving to outbox.
+   *
+   * When a push fails with a permanent error (HTTP 403, permission denied, etc.),
+   * the data is automatically saved to the outbox to prevent loss. The user is
+   * then instructed to commit the outbox to their working branch.
+   *
+   * See: plan-2026-01-30-workspace-sync-alt.md §Agent Behavior on Sync Failure
+   */
+  private async handlePermanentPushFailure(
+    displayError: string,
+    unpushedCommits: number,
+    summary: SyncSummary,
+    conflicts: ConflictEntry[],
+  ): Promise<void> {
+    this.output.error(`Push failed (permanent): ${displayError}`);
+    console.log(`  ${unpushedCommits} commit(s) could not be pushed to remote.`);
+    console.log(`  This is a permanent error (permission denied or authentication failure).`);
+    console.log(`  Retrying will not help.`);
+    console.log('');
+
+    // Auto-save to outbox
+    const saveSpinner = this.output.spinner('Saving to outbox to prevent data loss...');
+    try {
+      const saveResult = await saveToWorkspace(this.tbdRoot, this.dataSyncDir, { outbox: true });
+      saveSpinner.stop();
+
+      if (saveResult.saved > 0) {
+        this.output.success(`Saved ${saveResult.saved} issue(s) to outbox`);
+        console.log('');
+        console.log('  To preserve your changes, commit the outbox to your working branch:');
+        console.log('');
+        console.log('    git add .tbd/workspaces/outbox');
+        console.log('    git commit -m "tbd: save outbox (sync failed)"');
+        console.log('    git push');
+        console.log('');
+        console.log('  Later, when sync is available, recover with:');
+        console.log('');
+        console.log('    tbd import --outbox');
+        console.log('    tbd sync');
+      } else {
+        this.output.info('No issues to save (already synced or empty)');
+      }
+    } catch (saveError) {
+      saveSpinner.stop();
+      this.output.warn(`Could not auto-save to outbox: ${(saveError as Error).message}`);
+      console.log('');
+      console.log('  To manually preserve changes:');
+      console.log('    tbd save --outbox');
+    }
+
+    // Output data for JSON mode
+    this.output.data({
+      summary,
+      conflicts: conflicts.length,
+      pushFailed: true,
+      pushErrorCategory: 'permanent',
+      unpushedCommits,
+      autoSavedToOutbox: true,
+    });
+  }
+
   private async fullSync(syncBranch: string, remote: string, _force?: boolean): Promise<void> {
     const spinner = this.output.spinner('Syncing with remote...');
     const summary: SyncSummary = emptySummary();
@@ -835,6 +899,7 @@ class SyncHandler extends BaseCommand {
     // Push if we have commits ahead of remote
     let pushFailed = false;
     let pushError = '';
+    let pushErrorCategory: PushErrorCategory | undefined;
     if (aheadCommits > 0) {
       this.output.debug(`Pushing ${aheadCommits} commit(s) to remote`);
       const result = await this.doPushWithRetry(syncBranch, remote);
@@ -844,7 +909,8 @@ class SyncHandler extends BaseCommand {
       if (!result.success) {
         pushFailed = true;
         pushError = result.error ?? 'Unknown push error';
-        this.output.debug(`Push failed: ${pushError}`);
+        pushErrorCategory = result.errorCategory;
+        this.output.debug(`Push failed (${pushErrorCategory ?? 'unknown'}): ${pushError}`);
       } else {
         // Show pushed commits in debug mode
         await this.showGitLogDebug(`-${aheadCommits}`, 'Commits sent');
@@ -858,32 +924,44 @@ class SyncHandler extends BaseCommand {
 
     // Report push failure - don't silently swallow it
     if (pushFailed) {
-      this.output.data(
-        {
-          summary,
-          conflicts: conflicts.length,
-          pushFailed,
-          pushError,
-          unpushedCommits: aheadCommits,
-        },
-        () => {
-          // Extract meaningful error from git output (look for HTTP errors, permission issues, etc.)
-          let displayError = pushError;
-          const httpMatch = /HTTP (\d+)/.exec(pushError);
-          const curlMatch = /curl \d+ (.+?)(?:\n|$)/.exec(pushError);
-          if (httpMatch) {
-            displayError = `HTTP ${httpMatch[1]}${curlMatch ? ` - ${curlMatch[1]}` : ''}`;
-          } else {
-            // Fall back to first meaningful line (skip "Command failed: git push...")
-            const lines = pushError.split('\n').filter((l) => l && !l.startsWith('Command failed'));
-            displayError = lines[0] ?? pushError;
-          }
-          this.output.error(`Push failed: ${displayError}`);
-          console.log(`  ${aheadCommits} commit(s) not pushed to remote.`);
-          console.log(`  Run 'tbd sync' to retry or 'tbd sync --status' to check status.`);
-          console.log(`  To preserve changes locally: tbd save --outbox`);
-        },
-      );
+      // Extract meaningful error from git output (look for HTTP errors, permission issues, etc.)
+      let displayError = pushError;
+      const httpMatch = /HTTP (\d+)/.exec(pushError);
+      const curlMatch = /curl \d+ (.+?)(?:\n|$)/.exec(pushError);
+      if (httpMatch) {
+        displayError = `HTTP ${httpMatch[1]}${curlMatch ? ` - ${curlMatch[1]}` : ''}`;
+      } else {
+        // Fall back to first meaningful line (skip "Command failed: git push...")
+        const lines = pushError.split('\n').filter((l) => l && !l.startsWith('Command failed'));
+        displayError = lines[0] ?? pushError;
+      }
+
+      // For permanent errors (permission denied, auth failures), auto-save to outbox
+      // to prevent data loss, since retrying won't help
+      if (pushErrorCategory === 'permanent') {
+        await this.handlePermanentPushFailure(displayError, aheadCommits, summary, conflicts);
+      } else {
+        // For transient/unknown errors, suggest retry
+        this.output.data(
+          {
+            summary,
+            conflicts: conflicts.length,
+            pushFailed,
+            pushError,
+            pushErrorCategory,
+            unpushedCommits: aheadCommits,
+          },
+          () => {
+            this.output.error(`Push failed: ${displayError}`);
+            console.log(`  ${aheadCommits} commit(s) not pushed to remote.`);
+            if (pushErrorCategory === 'transient') {
+              console.log(`  This appears to be a transient error. Try again later.`);
+            }
+            console.log(`  Run 'tbd sync' to retry or 'tbd sync --status' to check status.`);
+            console.log(`  To preserve changes locally: tbd save --outbox`);
+          },
+        );
+      }
       return;
     }
 

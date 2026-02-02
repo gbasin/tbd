@@ -550,6 +550,105 @@ function isNonFastForward(error: unknown): boolean {
 }
 
 /**
+ * Push error categories for distinguishing transient vs permanent failures.
+ */
+export type PushErrorCategory = 'permanent' | 'transient' | 'unknown';
+
+/**
+ * Check if error is a permanent push failure that cannot be resolved by retrying.
+ *
+ * Permanent errors include:
+ * - HTTP 403 Forbidden (permission denied, e.g., Claude Code branch restrictions)
+ * - HTTP 401 Unauthorized (authentication failure)
+ * - HTTP 404 Not Found (repository doesn't exist or no access)
+ * - SSH permission denied
+ * - Repository not found
+ *
+ * When a permanent error occurs, data should be saved locally (outbox) to prevent loss.
+ */
+export function isPermanentPushError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  const msgLower = msg.toLowerCase();
+
+  // HTTP status codes indicating permanent failures
+  if (/HTTP\s*4(01|03|04)/i.test(msg)) {
+    return true;
+  }
+
+  // Permission/authentication errors
+  if (
+    msgLower.includes('permission denied') ||
+    msgLower.includes('access denied') ||
+    msgLower.includes('authentication failed') ||
+    msgLower.includes('could not read from remote') ||
+    msgLower.includes('repository not found') ||
+    msgLower.includes('forbidden')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if error is a transient push failure that may succeed on retry.
+ *
+ * Transient errors include:
+ * - Network timeouts
+ * - Connection refused/reset
+ * - DNS resolution failures
+ * - Server temporarily unavailable (5xx errors)
+ * - Rate limiting (HTTP 429)
+ *
+ * These errors may resolve on their own; user should retry later.
+ */
+export function isTransientPushError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  const msgLower = msg.toLowerCase();
+
+  // HTTP 5xx server errors and rate limiting
+  if (/HTTP\s*(5\d\d|429)/i.test(msg)) {
+    return true;
+  }
+
+  // Network/connection errors
+  if (
+    msgLower.includes('timeout') ||
+    msgLower.includes('timed out') ||
+    msgLower.includes('connection refused') ||
+    msgLower.includes('connection reset') ||
+    msgLower.includes('network') ||
+    msgLower.includes('dns') ||
+    msgLower.includes('resolve host') ||
+    msgLower.includes('temporarily unavailable') ||
+    msgLower.includes('try again')
+  ) {
+    return true;
+  }
+
+  // curl errors that indicate transient issues
+  if (/curl\s*(7|28|52|56)/i.test(msg)) {
+    // 7: Failed to connect, 28: Operation timeout, 52: Empty reply, 56: Recv failure
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Classify a push error into a category.
+ */
+export function classifyPushError(error: unknown): PushErrorCategory {
+  if (isPermanentPushError(error)) {
+    return 'permanent';
+  }
+  if (isTransientPushError(error)) {
+    return 'transient';
+  }
+  return 'unknown';
+}
+
+/**
  * Push result with retry information.
  */
 export interface PushResult {
@@ -557,6 +656,8 @@ export interface PushResult {
   attempt: number;
   conflicts?: ConflictEntry[];
   error?: string;
+  /** Error category for determining appropriate recovery action */
+  errorCategory?: PushErrorCategory;
 }
 
 /**
@@ -574,16 +675,31 @@ export async function pushWithRetry(
 ): Promise<PushResult> {
   for (let attempt = 1; attempt <= MAX_PUSH_RETRIES; attempt++) {
     try {
-      // Try to push
-      await git('push', remote, syncBranch);
+      // Try to push with --no-verify to skip pre-push hooks
+      // This is an internal sync operation and shouldn't run user's test suites
+      await git('push', '--no-verify', remote, syncBranch);
       return { success: true, attempt };
     } catch (error) {
-      if (!isNonFastForward(error)) {
-        // Unrecoverable error
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const errorCategory = classifyPushError(error);
+
+      // For permanent errors (permissions, auth), don't retry - return immediately
+      if (errorCategory === 'permanent') {
         return {
           success: false,
           attempt,
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMsg,
+          errorCategory,
+        };
+      }
+
+      if (!isNonFastForward(error)) {
+        // Non-retryable error (but not permanent - could be transient or unknown)
+        return {
+          success: false,
+          attempt,
+          error: errorMsg,
+          errorCategory,
         };
       }
 
@@ -592,6 +708,7 @@ export async function pushWithRetry(
           success: false,
           attempt,
           error: `Push failed after ${MAX_PUSH_RETRIES} attempts. Remote has conflicting changes.`,
+          errorCategory: 'transient', // Non-fast-forward is effectively transient
         };
       }
 
@@ -608,7 +725,12 @@ export async function pushWithRetry(
     }
   }
 
-  return { success: false, attempt: MAX_PUSH_RETRIES, error: 'Unexpected error in push retry' };
+  return {
+    success: false,
+    attempt: MAX_PUSH_RETRIES,
+    error: 'Unexpected error in push retry',
+    errorCategory: 'unknown',
+  };
 }
 
 /**
