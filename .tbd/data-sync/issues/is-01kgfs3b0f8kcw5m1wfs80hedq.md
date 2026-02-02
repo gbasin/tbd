@@ -8,8 +8,8 @@ kind: task
 labels: []
 priority: 2
 status: closed
-title: "Fix YAML frontmatter consistency: ensure multiline descriptions use proper YAML syntax in generated files"
+title: Systematic YAML handling cleanup across codebase
 type: is
-updated_at: 2026-02-02T18:26:06.524Z
-version: 3
+updated_at: 2026-02-02T18:50:41.973Z
+version: 4
 ---
