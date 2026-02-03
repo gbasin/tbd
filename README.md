@@ -234,9 +234,11 @@ opinionated rules with concrete examples, built from months of heavy agentic cod
 | [general-testing-rules](packages/tbd/docs/guidelines/general-testing-rules.md) | Minimal tests for maximum coverage, avoiding redundant test cases |
 | [typescript-code-coverage](packages/tbd/docs/guidelines/typescript-code-coverage.md) | Code coverage best practices with Vitest and v8 provider |
 | [typescript-rules](packages/tbd/docs/guidelines/typescript-rules.md) | Strict type safety, no `any`, type guards, null safety, async patterns |
+| [typescript-sorting-patterns](packages/tbd/docs/guidelines/typescript-sorting-patterns.md) | Deterministic sorting, comparison chains for multi-field sorts |
 | [pnpm-monorepo-patterns](packages/tbd/docs/guidelines/pnpm-monorepo-patterns.md) | pnpm workspaces, tsdown, Vitest, Changesets, publint, dual ESM/CJS |
 | [bun-monorepo-patterns](packages/tbd/docs/guidelines/bun-monorepo-patterns.md) | Bun workspaces, Bunup, Biome, bun test, standalone executables |
 | [typescript-cli-tool-rules](packages/tbd/docs/guidelines/typescript-cli-tool-rules.md) | Commander.js patterns, picocolors, terminal formatting |
+| [cli-agent-skill-patterns](packages/tbd/docs/guidelines/cli-agent-skill-patterns.md) | Building CLIs that function as agent skills in Claude Code |
 | [typescript-yaml-handling-rules](packages/tbd/docs/guidelines/typescript-yaml-handling-rules.md) | YAML parsing/serialization with the `yaml` package, Zod validation, consistent formatting |
 | [python-rules](packages/tbd/docs/guidelines/python-rules.md) | Type hints, docstrings, exception handling, resource management |
 | [python-cli-patterns](packages/tbd/docs/guidelines/python-cli-patterns.md) | Modern Python CLI stack: uv, Typer, Rich, Ruff, BasedPyright |
@@ -319,8 +321,9 @@ GH_PROMPT_DISABLED=1
 Create a [Personal Access Token](https://github.com/settings/tokens?type=beta)
 (fine-grained recommended) with **Contents** and **Pull requests** read/write
 permissions. For Claude Code Cloud, set these in your project’s environment variables.
-For local CLI usage, add them to your shell profile (`~/.zshrc` or `~/.bashrc`). See
-[GitHub CLI setup docs](docs/general/agent-setup/github-cli-setup.md) for details.
+For local CLI usage, add them to your shell profile (`~/.zshrc` or `~/.bashrc`). See the
+[setup-github-cli shortcut](packages/tbd/docs/shortcuts/standard/setup-github-cli.md)
+for details.
 
 To disable automatic `gh` installation, pass `--no-gh-cli` during setup or set
 `use_gh_cli: false` in `.tbd/config.yml` under `settings:`.
@@ -416,6 +419,8 @@ tbd template --add=<url> --name=<name>
 |  | `welcome-user` | Welcome message after tbd installation |
 |  | `setup-github-cli` | Ensure GitHub CLI is installed and working |
 |  | `sync-failure-recovery` | Handle tbd sync failures |
+|  | `checkout-third-party-repo` | Clone library source code for review |
+| **Exploration** | `coding-spike` | Prototype to validate a spec through implementation |
 | **Meta** | `new-guideline` | Create a new coding guideline for tbd |
 |  | `new-shortcut` | Create a new shortcut for tbd |
 
