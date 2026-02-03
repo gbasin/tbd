@@ -10,8 +10,8 @@
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { writeFile } from 'atomically';
-import { stringify as stringifyYaml } from 'yaml';
-import { parseYamlWithConflictDetection } from '../utils/yaml-utils.js';
+
+import { parseYamlWithConflictDetection, stringifyYaml } from '../utils/yaml-utils.js';
 
 import {
   generateShortId,

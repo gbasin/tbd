@@ -1,12 +1,13 @@
 /**
  * Markdown utilities for processing markdown content.
  *
- * Uses gray-matter for parsing and yaml package for stringify to ensure
+ * Uses gray-matter for parsing and centralized yaml-utils for stringify to ensure
  * proper handling of special YAML characters (colons, quotes, etc.).
  */
 
 import matter from 'gray-matter';
-import { stringify as stringifyYaml } from 'yaml';
+
+import { stringifyYamlCompact } from './yaml-utils.js';
 
 export interface ParsedMarkdown {
   /** Raw frontmatter string (without --- delimiters), or null if no frontmatter */
@@ -44,9 +45,9 @@ export function parseMarkdown(content: string): ParsedMarkdown {
     let frontmatter: string | null = null;
 
     if (data && Object.keys(data).length > 0) {
-      // Use yaml package stringify for proper handling of special characters
+      // Use centralized yaml-utils for proper handling of special characters
       // (colons, quotes, multiline strings, etc.)
-      frontmatter = stringifyYaml(data, { lineWidth: 0 }).trimEnd();
+      frontmatter = stringifyYamlCompact(data).trimEnd();
     } else {
       // Empty frontmatter (just --- followed by ---)
       frontmatter = '';

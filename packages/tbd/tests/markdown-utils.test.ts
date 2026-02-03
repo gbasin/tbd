@@ -19,7 +19,8 @@ status: open
 Body content here.`;
 
     const frontmatter = parseFrontmatter(content);
-    expect(frontmatter).toBe('title: Test\nstatus: open');
+    // Keys are sorted alphabetically by yaml serialization
+    expect(frontmatter).toBe('status: open\ntitle: Test');
   });
 
   it('returns null for content without frontmatter', () => {
@@ -47,14 +48,16 @@ Body without closing delimiter.`;
     const content = '---\r\ntitle: Test\r\nstatus: open\r\n---\r\n\r\nBody content.';
 
     const frontmatter = parseFrontmatter(content);
-    expect(frontmatter).toBe('title: Test\nstatus: open');
+    // Keys are sorted alphabetically by yaml serialization
+    expect(frontmatter).toBe('status: open\ntitle: Test');
   });
 
   it('handles mixed LF and CRLF line endings', () => {
     const content = '---\r\ntitle: Mixed\nstatus: open\r\n---\n\nBody.';
 
     const frontmatter = parseFrontmatter(content);
-    expect(frontmatter).toBe('title: Mixed\nstatus: open');
+    // Keys are sorted alphabetically by yaml serialization
+    expect(frontmatter).toBe('status: open\ntitle: Mixed');
   });
 
   it('handles frontmatter with trailing whitespace on delimiter', () => {
@@ -291,8 +294,9 @@ allowed-tools: Bash, Read
     const toInsert = '<!-- DO NOT EDIT -->';
 
     const result = insertAfterFrontmatter(content, toInsert);
-    // Frontmatter should be intact
-    expect(result).toMatch(/^---\nname: skill/);
+    // Frontmatter should be intact (keys may be sorted alphabetically)
+    expect(result).toMatch(/^---\n/);
+    expect(result).toContain('name: skill');
     expect(result).toContain('description: A skill description');
     expect(result).toContain('allowed-tools: Bash, Read');
     expect(result).toContain('---\n');

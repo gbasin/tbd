@@ -7,8 +7,8 @@
 import { Command } from 'commander';
 import { readdir, readFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { stringify as stringifyYaml } from 'yaml';
-import { parseYamlWithConflictDetection } from '../../utils/yaml-utils.js';
+
+import { parseYamlWithConflictDetection, stringifyYaml } from '../../utils/yaml-utils.js';
 
 import { writeFile } from 'atomically';
 
@@ -99,7 +99,8 @@ export async function saveAtticEntry(entry: AtticEntry): Promise<void> {
 
   const filename = getAtticFilename(entry.entity_id, entry.timestamp, entry.field);
   const filepath = join(atticPath, filename);
-  const content = stringifyYaml(entry, { sortMapEntries: true });
+  // Uses default options which include sortMapEntries: true
+  const content = stringifyYaml(entry);
 
   await writeFile(filepath, content);
 }
