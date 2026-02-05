@@ -1,5 +1,13 @@
 # get-tbd
 
+## 0.1.17
+
+### Patch Changes
+
+- 3f1a09c: Add interactive markdown rendering with pagination for doc commands
+  (guidelines, shortcuts, templates) and improve YAML frontmatter styling with syntax
+  highlighting.
+
 ## 0.1.16
 
 ### Patch Changes
