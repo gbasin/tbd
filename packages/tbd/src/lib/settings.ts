@@ -71,3 +71,13 @@ export const YAML_STRINGIFY_OPTIONS_COMPACT: YamlStringifyOptions = {
  * Same as YAML for consistency.
  */
 export const TEXT_LINE_WIDTH = 88;
+
+// =============================================================================
+// CLI Output
+// =============================================================================
+
+/**
+ * Minimum content length (in lines) before pagination is triggered.
+ * ~50 lines is slightly more than one terminal screen.
+ */
+export const PAGINATION_LINE_THRESHOLD = 50;

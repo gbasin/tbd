@@ -10,6 +10,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { BaseCommand } from '../lib/base-command.js';
+import { shouldUseInteractiveOutput } from '../lib/context.js';
+import { renderMarkdown, paginateOutput } from '../lib/output.js';
 import { findTbdRoot } from '../../file/config.js';
 import { DocCache, generateShortcutDirectory } from '../../file/doc-cache.js';
 import { DEFAULT_SHORTCUT_PATHS, DEFAULT_GUIDELINES_PATHS } from '../../lib/paths.js';
@@ -55,16 +57,22 @@ async function loadDocContent(filename: string): Promise<string> {
 class SkillHandler extends BaseCommand {
   async run(options: SkillOptions): Promise<void> {
     await this.execute(async () => {
+      let content: string;
       if (options.brief) {
         // Brief mode: just output skill-brief.md
-        const content = await loadDocContent('skill-brief.md');
-        console.log(content);
-        return;
+        content = await loadDocContent('skill-brief.md');
+      } else {
+        // Full mode: compose header + skill.md + shortcut directory
+        content = await this.composeFullSkill();
       }
 
-      // Full mode: compose header + skill.md + shortcut directory
-      const content = await this.composeFullSkill();
-      console.log(content);
+      // Output with interactive formatting (colors, pagination) when appropriate
+      if (shouldUseInteractiveOutput(this.ctx)) {
+        const rendered = renderMarkdown(content, this.ctx.color);
+        await paginateOutput(rendered, true);
+      } else {
+        console.log(content);
+      }
     }, 'Failed to output skill content');
   }
 

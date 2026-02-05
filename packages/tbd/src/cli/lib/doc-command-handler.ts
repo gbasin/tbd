@@ -9,13 +9,14 @@ import type { Command } from 'commander';
 import pc from 'picocolors';
 
 import { BaseCommand } from './base-command.js';
+import { shouldUseInteractiveOutput } from './context.js';
 import { GUIDELINES_AGENT_HEADER } from './doc-prompts.js';
 import { requireInit } from './errors.js';
 import { DocCache, SCORE_PREFIX_MATCH } from '../../file/doc-cache.js';
 import { addDoc, type DocType } from '../../file/doc-add.js';
 import { truncate } from '../../lib/truncate.js';
 import { formatDocSize } from '../../lib/format-utils.js';
-import { getTerminalWidth } from './output.js';
+import { getTerminalWidth, renderMarkdown, paginateOutput } from './output.js';
 
 /**
  * Configuration for a doc command handler.
@@ -193,11 +194,7 @@ export abstract class DocCommandHandler extends BaseCommand {
           content: exactMatch.doc.content,
         });
       } else {
-        const header = this.getAgentHeader();
-        if (header) {
-          console.log(header + '\n');
-        }
-        console.log(exactMatch.doc.content);
+        await this.outputDocContent(exactMatch.doc.content);
       }
       return;
     }
@@ -233,11 +230,28 @@ export abstract class DocCommandHandler extends BaseCommand {
         content: best.doc.content,
       });
     } else {
-      const header = this.getAgentHeader();
-      if (header) {
-        console.log(header + '\n');
-      }
-      console.log(best.doc.content);
+      await this.outputDocContent(best.doc.content);
+    }
+  }
+
+  /**
+   * Output document content with interactive formatting (colors, pagination) when appropriate.
+   * For non-interactive output (pipes, agents), outputs plain text.
+   */
+  protected async outputDocContent(content: string): Promise<void> {
+    // Build output with optional agent header
+    let output = content;
+    const header = this.getAgentHeader();
+    if (header) {
+      output = header + '\n\n' + output;
+    }
+
+    // Use interactive formatting (colors, pagination) only for TTY
+    if (shouldUseInteractiveOutput(this.ctx)) {
+      output = renderMarkdown(output, this.ctx.color);
+      await paginateOutput(output, true);
+    } else {
+      console.log(output);
     }
   }
 

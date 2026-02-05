@@ -8,9 +8,11 @@ import pc from 'picocolors';
 import type { Command } from 'commander';
 import { marked } from 'marked';
 import { markedTerminal } from 'marked-terminal';
+import { spawn } from 'node:child_process';
 
 import type { CommandContext, ColorOption } from './context.js';
 import { shouldColorize } from './context.js';
+import { PAGINATION_LINE_THRESHOLD } from '../../lib/settings.js';
 
 /**
  * Standard icons for CLI output. Use these constants instead of hardcoded characters.
@@ -210,6 +212,48 @@ export function renderMarkdown(content: string, colorOption: ColorOption = 'auto
 
   // marked.parse returns string with sync renderer
   return marked.parse(content) as string;
+}
+
+/**
+ * Output content with pagination if it exceeds threshold and TTY is interactive.
+ * Uses PAGER env var or falls back to 'less -R' (supports colors).
+ *
+ * When output is piped or not a TTY, outputs directly without pagination.
+ * This ensures agents and scripts get clean output.
+ *
+ * @param content - Content to output
+ * @param hasColors - If true, content has ANSI colors (use -R flag for less)
+ * @returns Promise that resolves when output is complete
+ */
+export async function paginateOutput(content: string, hasColors = false): Promise<void> {
+  const lines = content.split('\n').length;
+
+  // Don't paginate short content or non-TTY
+  if (lines < PAGINATION_LINE_THRESHOLD || !process.stdout.isTTY) {
+    console.log(content);
+    return;
+  }
+
+  const pager = process.env.PAGER ?? (hasColors ? 'less -R' : 'less');
+  const [cmd, ...args] = pager.split(' ');
+
+  return new Promise((resolve) => {
+    const child = spawn(cmd!, args, {
+      stdio: ['pipe', 'inherit', 'inherit'],
+    });
+
+    child.stdin.write(content);
+    child.stdin.end();
+
+    child.on('close', () => {
+      resolve();
+    });
+    child.on('error', () => {
+      // Fall back to direct output if pager fails (e.g., less not installed)
+      console.log(content);
+      resolve();
+    });
+  });
 }
 
 /**
