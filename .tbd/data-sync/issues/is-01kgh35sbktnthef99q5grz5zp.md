@@ -10,8 +10,8 @@ priority: 1
 status: open
 title: tbd doctor shows 0 issues when remote tbd-sync branch has data
 type: is
-updated_at: 2026-02-03T06:36:34.104Z
-version: 3
+updated_at: 2026-02-05T07:26:02.745Z
+version: 4
 ---
 ## Problem
 
