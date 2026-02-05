@@ -216,10 +216,33 @@ export function renderMarkdown(content: string, colorOption: ColorOption = 'auto
 }
 
 /**
+ * Render YAML frontmatter with custom styling.
+ * Keys are dimmed, values are bold.
+ *
+ * @param frontmatter - Raw YAML frontmatter string (without --- delimiters)
+ * @returns Styled frontmatter string
+ */
+function renderYamlFrontmatter(frontmatter: string): string {
+  const lines = frontmatter.split('\n');
+  const styledLines = lines.map((line) => {
+    // Match YAML key: value pattern
+    const match = /^(\s*)([^:]+:)(.*)$/.exec(line);
+    if (match) {
+      const [, indent, key, value] = match;
+      // Key (including colon) is dim, value is bold
+      return indent + pc.dim(key) + pc.bold(value);
+    }
+    // Lines without key: pattern (e.g., continuation lines) stay as-is but bold
+    return pc.bold(line);
+  });
+  return styledLines.join('\n');
+}
+
+/**
  * Render markdown with proper YAML frontmatter handling.
  *
  * Separates YAML frontmatter from markdown body and renders them appropriately:
- * - Frontmatter is rendered as a YAML code block (gets syntax highlighting)
+ * - Frontmatter keys are dimmed, values are bold (no indentation)
  * - Body is rendered as regular markdown
  *
  * Works with or without frontmatter - if no frontmatter exists, renders as plain markdown.
@@ -243,10 +266,11 @@ export function renderMarkdownWithFrontmatter(
 
   let result = '';
 
-  // Render frontmatter as YAML code block if present
+  // Render frontmatter with custom YAML styling if present
   if (frontmatter !== null && frontmatter.length > 0) {
-    const yamlBlock = '```yaml\n' + frontmatter + '\n```\n\n';
-    result += renderMarkdown(yamlBlock, colorOption);
+    result += pc.dim('---') + '\n';
+    result += renderYamlFrontmatter(frontmatter) + '\n';
+    result += pc.dim('---') + '\n\n';
   }
 
   // Render body as markdown
