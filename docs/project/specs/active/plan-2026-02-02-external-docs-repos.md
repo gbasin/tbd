@@ -4,9 +4,9 @@ description: Pull shortcuts, guidelines, and templates from external git reposit
 ---
 # Feature: External Docs Repos
 
-**Date:** 2026-02-02 (last updated 2026-02-02)
+**Date:** 2026-02-02 (last updated 2026-02-08)
 
-**Status:** Draft
+**Status:** Draft (under review)
 
 ## Overview
 
@@ -16,8 +16,10 @@ This allows:
 
 - Community-maintained docs that evolve independently of tbd releases
 - Project-specific doc repos that can be shared across teams
-- “Bleeding edge” guidelines that update more frequently than tbd npm releases
+- "Bleeding edge" guidelines that update more frequently than tbd npm releases
 - Potential simplification by moving general-purpose docs out of the tbd codebase
+- **Domain-specific knowledge repos** (e.g., Rust porting playbooks, security checklists)
+  that teams can opt into per-project with a single command
 
 ## Goals
 
@@ -27,6 +29,12 @@ This allows:
 - Make sync work seamlessly with repo sources (checkout on first sync, pull on
   subsequent)
 - Keep configuration simple and declarative
+- **Single CLI command** to add a knowledge repo so that `tbd sync` immediately includes
+  all its docs
+- **Optional namespacing** to avoid collisions when multiple repos provide docs with
+  similar names
+- **Path mapping** so repos with non-standard structures (e.g., `reference/` instead of
+  `guidelines/`) can still be integrated cleanly
 
 ## Non-Goals
 
@@ -57,8 +65,8 @@ docs_cache:
 
 ### Problems with Current Approach
 
-1. **URL sources require per-file enumeration** - Can’t say “all guidelines from this
-   repo”
+1. **URL sources require per-file enumeration** - Can't say "all guidelines from this
+   repo"
 2. **No auto-discovery** - Adding a new guideline to an external repo requires config
    changes
 3. **tbd-specific docs mixed with general docs** - Guidelines like `typescript-rules.md`
@@ -89,6 +97,62 @@ This creates a design consideration: where should each type live?
 tbd-specific shortcuts naturally belong in the tbd codebase.
 General guidelines can be externalized.
 
+### Real-World Use Case: rust-porting-playbook
+
+The [rust-porting-playbook](https://github.com/jlevy/rust-porting-playbook) repo
+demonstrates the primary use case for this feature. It contains:
+
+```
+rust-porting-playbook/
+  guidelines/           # 6 files, compact AI-optimized rules (~2-3K tokens each)
+    rust-general-rules.md
+    python-to-rust-porting-rules.md
+    rust-cli-app-patterns.md
+    rust-project-setup.md
+    python-to-rust-cli-porting.md
+    test-coverage-for-porting.md
+  reference/            # 8 files, comprehensive guides/playbooks
+    python-to-rust-playbook.md
+    python-to-rust-mapping-reference.md
+    rust-cli-best-practices.md
+    rust-code-review-checklist.md
+    ...
+  case-studies/         # 8 files, real-world porting examples
+    flowmark/
+      flowmark-port-analysis.md
+      flowmark-port-decision-log.md
+      ...
+```
+
+**Key observations from this use case:**
+
+1. **Already designed for tbd** - README explicitly shows `tbd guidelines <name>` commands
+2. **Guidelines have proper frontmatter** (title, description) matching tbd format
+3. **Guidelines reference other tbd guidelines** (e.g., "see `tbd guidelines
+   rust-cli-app-patterns`")
+4. **Only `guidelines/` maps directly** to tbd's existing structure - `reference/` and
+   `case-studies/` are doc types not currently handled
+5. **No manifest file** - tbd must auto-discover docs by scanning directories
+
+The desired end-to-end workflow:
+
+```bash
+# One command to add the repo
+tbd source add github.com/jlevy/rust-porting-playbook
+
+# Sync pulls all docs
+tbd sync
+
+# Immediately available
+tbd guidelines rust-general-rules
+tbd guidelines python-to-rust-playbook   # from reference/
+tbd guidelines --list                     # shows all including new ones
+```
+
+This use case reveals that the spec must handle **path mapping** (mapping `reference/`
+docs into tbd's `guidelines/` category) and **namespace collision avoidance** (what if
+two repos both provide `rust-general-rules.md`?).
+
 ## Design
 
 ### Approach
@@ -98,7 +162,8 @@ path pattern. On sync:
 
 1. Check out or update the repo (shallow clone to repo cache - see Cache Location)
 2. Scan for matching docs based on path pattern
-3. Sync matching files to `.tbd/docs/`
+3. Map source paths to tbd doc categories
+4. Sync matching files to `.tbd/docs/`, optionally namespaced
 
 ### Proposed Config Format
 
@@ -115,43 +180,118 @@ docs_cache:
     # Speculate repo for general guidelines, shortcuts, templates
     - type: repo
       url: github.com/jlevy/speculate
-      ref: main                    # Always explicit in config for clarity
+      ref: main
       paths:
         - guidelines/
         - shortcuts/standard/
         - templates/
 
-    # Optional: additional project-specific or org-specific repos
-    # - type: repo
-    #   url: github.com/myorg/coding-standards
-    #   ref: main
-    #   paths:
-    #     - guidelines/
+    # Domain knowledge repo with path mapping and namespace
+    - type: repo
+      url: github.com/jlevy/rust-porting-playbook
+      ref: main
+      namespace: rust-porting         # Optional: prefix to avoid collisions
+      paths:
+        - guidelines/                 # -> guidelines/rust-porting/ (namespaced)
+        - reference/ -> guidelines    # -> guidelines/rust-porting/ (mapped + namespaced)
 
   # Per-file overrides (highest precedence, applied after sources)
   files:
     guidelines/custom.md: https://example.com/custom.md
 ```
 
-**Key simplification:** No `lookup_path` needed.
-Source order IS the precedence.
+**Key design decisions:**
 
-- During sync, sources are processed in order; first source to provide a file wins
-- At runtime, lookup uses fixed search order: `shortcuts/system/` →
-  `shortcuts/standard/` → `guidelines/` → `templates/`
-- The files in `.tbd/docs/` are already the “winning” versions from sync
+1. **Source order IS the precedence** - no separate `lookup_path` needed
+2. **Path mapping with `->` syntax** - `reference/ -> guidelines` maps source dir to tbd
+   category
+3. **Optional `namespace:`** - creates a subdirectory for the source's docs to avoid
+   collisions
+4. **`ref` is always explicit** in config.yml for clarity
 
-**Config explicitness:** The `ref` field is always written explicitly to config.yml for
-clarity, even when using the default (`main`). This makes it clear which version is
-being used without requiring knowledge of defaults.
+### Namespace Design
+
+The `namespace` field on a repo source controls where files land in `.tbd/docs/`:
+
+**Without namespace** (flat):
+
+```yaml
+- type: repo
+  url: github.com/jlevy/speculate
+  paths:
+    - guidelines/              # -> .tbd/docs/guidelines/typescript-rules.md
+```
+
+**With namespace:**
+
+```yaml
+- type: repo
+  url: github.com/jlevy/rust-porting-playbook
+  namespace: rust-porting
+  paths:
+    - guidelines/              # -> .tbd/docs/guidelines/rust-porting/rust-general-rules.md
+    - reference/ -> guidelines # -> .tbd/docs/guidelines/rust-porting/python-to-rust-playbook.md
+```
+
+**Lookup behavior with namespaces:**
+
+- **Exact match with namespace**: `tbd guidelines rust-porting/rust-general-rules`
+- **Fuzzy match by name**: `tbd guidelines rust-general-rules` (finds it if name is
+  unique)
+- **List shows namespace**: `tbd guidelines --list` shows
+  `rust-porting/rust-general-rules`
+
+This matches how file lookup already works in `DocCache` - it scans directories
+recursively and matches against filenames. The namespace is just a subdirectory, so
+existing fuzzy search handles it naturally.
+
+**When to use namespaces:**
+
+- **Speculate**: No namespace needed (it's the canonical source for general docs)
+- **Domain repos** (rust-porting-playbook, security-checklists): Use namespace to avoid
+  collisions with other sources
+- **Org-specific repos**: Optionally namespace to distinguish from community docs
+
+**Default behavior for `tbd source add`**: When adding a repo that already has docs with
+names that would collide with existing ones, tbd should **suggest a namespace** (derived
+from the repo name by default, e.g., `rust-porting-playbook` -> `rust-porting`). The
+user can accept, modify, or skip namespacing.
+
+### Path Mapping
+
+External repos don't always follow tbd's directory conventions. Path mapping allows
+mapping source directories to tbd's standard categories:
+
+```yaml
+paths:
+  - guidelines/                    # Identity: guidelines/ -> guidelines/
+  - shortcuts/standard/            # Identity: shortcuts/standard/ -> shortcuts/standard/
+  - reference/ -> guidelines       # Map: reference/ files become guidelines
+  - playbooks/ -> guidelines       # Map: playbooks/ files become guidelines
+  - workflows/ -> shortcuts        # Map: workflows/ files become shortcuts
+```
+
+**Rules:**
+
+1. Bare path (`guidelines/`) = identity mapping (source dir name = dest category)
+2. Arrow syntax (`reference/ -> guidelines`) = explicit mapping
+3. Destination must be one of: `guidelines`, `shortcuts/standard`, `shortcuts/custom`,
+   `templates`
+4. If `namespace` is set, it's applied as a subdirectory under the destination
+
+**Why these rules:** tbd's lookup system has fixed search paths
+(`guidelines/`, `shortcuts/system/`, `shortcuts/standard/`, `templates/`). Mapping
+external paths into these categories ensures docs are discoverable without changing the
+runtime lookup logic. This is a significant simplification - the lookup code doesn't need
+to know about external repos at all.
 
 ### Format Version Compatibility
 
 This feature adds a new `sources` field to `docs_cache`, which requires a format version
 bump from `f03` to `f04`. This ensures:
 
-1. **Older tbd versions** see the unknown format and error with “format ‘f04’ is from a
-   newer tbd version” rather than silently stripping the `sources` field
+1. **Older tbd versions** see the unknown format and error with "format 'f04' is from a
+   newer tbd version" rather than silently stripping the `sources` field
 2. **Migration path** is clear: f03 configs without `sources` continue to work unchanged
 3. **Forward safety**: Users mixing tbd versions get explicit upgrade prompts
 
@@ -164,14 +304,14 @@ f04: {
   changes: [
     'Added docs_cache.sources: array for repo and internal doc sources',
     'Sources define bulk doc sync from git repos or internal bundled docs',
+    'Removed docs_cache.lookup_path: now uses fixed search order',
   ],
-  migration: 'No migration needed - sources is additive',
+  migration: 'Removes lookup_path, clears doc cache for fresh sync',
 },
 ```
 
-**Migration**: The migration function updates `tbd_format: f03` → `tbd_format: f04` but
-makes no other changes.
-This ensures migration only runs once.
+**Migration**: The migration function updates `tbd_format: f03` -> `tbd_format: f04` and
+removes the deprecated `lookup_path` field.
 Existing `docs_cache.files` continues to work as explicit overrides.
 The `sources` field is optional and defaults to `[{ type: internal }]` for
 backward-compatible behavior.
@@ -189,7 +329,7 @@ This ensures:
 The migration or `tbd setup` should:
 
 ```typescript
-// During f03→f04 migration or source config changes:
+// During f03->f04 migration or source config changes:
 if (formatChanged || sourcesConfigChanged) {
   // 1. Clear doc cache entirely
   await rm(join(tbdRoot, '.tbd/docs'), { recursive: true, force: true });
@@ -204,11 +344,11 @@ sources.
 
 ### Migration Pattern: Version-Only Bump
 
-This is the first “version-only” migration in tbd - where we bump the format version
+This is the first "version-only" migration in tbd - where we bump the format version
 without transforming any data.
 This pattern is needed when:
 
-1. **Adding optional fields** that older versions would silently strip (Zod’s `strip()`)
+1. **Adding optional fields** that older versions would silently strip (Zod's `strip()`)
 2. **No data transformation required** - old configs work as-is with new code
 3. **Forward compatibility protection** - older tbd versions must reject the new format
 
@@ -217,13 +357,13 @@ This pattern is needed when:
 Without bumping the format version, this scenario could occur:
 
 1. User A runs tbd 0.2.0, adds `docs_cache.sources` to their config
-2. User B (same repo) runs tbd 0.1.x, which doesn’t know about `sources`
-3. Zod’s `strip()` silently removes the `sources` field when parsing
+2. User B (same repo) runs tbd 0.1.x, which doesn't know about `sources`
+3. Zod's `strip()` silently removes the `sources` field when parsing
 4. User B runs `tbd setup` or any config-writing operation
-5. The `sources` config is lost - User A’s changes are silently destroyed
+5. The `sources` config is lost - User A's changes are silently destroyed
 
-By bumping to f04, step 3 instead produces: “format ‘f04’ is from a newer tbd version.
-Please upgrade: npm install -g get-tbd@latest”
+By bumping to f04, step 3 instead produces: "format 'f04' is from a newer tbd version.
+Please upgrade: npm install -g get-tbd@latest"
 
 **Implementation checklist:**
 
@@ -278,7 +418,7 @@ export const CURRENT_FORMAT = 'f04';
 
 // 5. Add to describeMigration()
 if (current === 'f03') {
-  descriptions.push('f03 → f04: Add external repo sources, remove lookup_path');
+  descriptions.push('f03 -> f04: Add external repo sources, remove lookup_path');
   current = 'f04';
 }
 ```
@@ -317,7 +457,10 @@ it('should reject f04 config on older tbd version', () => {
 
 ### Repo Structure Convention
 
-External repos should follow tbd’s standard structure:
+External repos can follow tbd's standard structure **or** use path mapping to adapt their
+own structure.
+
+**Preferred structure** (no path mapping needed):
 
 ```
 repo-root/
@@ -329,6 +472,16 @@ repo-root/
       my-shortcut.md
   templates/
     my-template.md
+```
+
+**Alternative structure** (uses path mapping):
+
+```
+repo-root/
+  guidelines/           # maps directly
+  reference/            # -> guidelines (via path mapping)
+  case-studies/         # -> guidelines (via path mapping, or excluded)
+  workflows/            # -> shortcuts/standard (via path mapping)
 ```
 
 Front matter is optional but recommended:
@@ -343,6 +496,43 @@ requires_tbd: true
 ---
 ```
 
+### Optional Repo Manifest (tbd-docs.yml)
+
+External repos can optionally include a `tbd-docs.yml` manifest that declares how their
+docs should be integrated. This is a convenience for repo authors - tbd reads this file
+during `tbd source add` to auto-configure path mapping:
+
+```yaml
+# tbd-docs.yml in repo root
+name: rust-porting-playbook
+description: Comprehensive playbook for porting applications to Rust
+suggested_namespace: rust-porting
+
+# Declare how paths map to tbd categories
+paths:
+  - guidelines/                    # identity: guidelines -> guidelines
+  - reference/ -> guidelines       # map reference docs as guidelines
+  # case-studies/ omitted = not synced by default
+
+# Optional: recommended docs to load first
+entry_points:
+  - guidelines/rust-general-rules.md
+  - reference/python-to-rust-playbook.md
+```
+
+When `tbd source add github.com/jlevy/rust-porting-playbook` is run:
+
+1. Clone the repo (shallow)
+2. Check for `tbd-docs.yml`
+3. If found: use its path mappings and suggested namespace as defaults
+4. If not found: auto-discover `guidelines/`, `shortcuts/`, `templates/` dirs
+5. Prompt user to confirm (or use `--yes` to accept defaults)
+6. Write source config to `.tbd/config.yml`
+7. Run initial sync
+
+This means repo authors can provide a good out-of-the-box experience without requiring
+users to manually configure path mappings.
+
 ### Source Precedence
 
 When the same destination path is specified by multiple sources:
@@ -354,24 +544,36 @@ When the same destination path is specified by multiple sources:
 This allows users to override specific docs while pulling bulk from repos.
 
 **Sync behavior:** During sync, sources are processed in order.
-If a file path already exists (from an earlier source), it’s skipped.
+If a file path already exists (from an earlier source), it's skipped.
 This means the first source to provide a file wins.
+
+**Collision warning:** When a source provides a file that would be shadowed by a
+higher-precedence source, tbd should log a warning (unless the source has a namespace,
+in which case collisions are impossible within namespaced directories):
+
+```
+  Warning: guidelines/rust-general-rules.md from rust-porting-playbook
+  shadowed by same file from speculate (higher precedence)
+  Hint: Add namespace: rust-porting to avoid this collision
+```
 
 **Runtime lookup:** Uses a fixed search order for name resolution:
 1. `.tbd/docs/shortcuts/system/` (tbd internals)
 2. `.tbd/docs/shortcuts/standard/` (standard shortcuts)
-3. `.tbd/docs/guidelines/` (guidelines)
-4. `.tbd/docs/templates/` (templates)
+3. `.tbd/docs/shortcuts/custom/` (user custom shortcuts)
+4. `.tbd/docs/guidelines/` (guidelines, searched recursively including subdirs)
+5. `.tbd/docs/templates/` (templates)
 
 Since sync already resolved precedence, lookup just finds the first match in these
-directories.
+directories. Namespaced docs in subdirectories (e.g.,
+`guidelines/rust-porting/rust-general-rules.md`) are found by the recursive scan.
 
 ### Checkout Strategy
 
 **Why shallow clone (not worktree):**
 
-tbd uses worktrees for the tbd-sync branch because that’s a branch of the **same** repo.
-External doc repos are completely separate git repositories - you can’t worktree into a
+tbd uses worktrees for the tbd-sync branch because that's a branch of the **same** repo.
+External doc repos are completely separate git repositories - you can't worktree into a
 different remote. Shallow clone is the correct approach for external repos.
 
 **Primary: Git sparse checkout**
@@ -398,16 +600,27 @@ Limited to GitHub repos.
 
 ### Cache Location
 
-Repo checkouts are stored per-project in `.tbd/repo-cache/` (gitignored):
+Repo checkouts are stored per-project in `.tbd/repo-cache/` (gitignored).
+
+**Cache key**: Use a readable directory name derived from the URL rather than a hash.
+This makes debugging and manual inspection easier:
 
 ```
 .tbd/
   repo-cache/           # Added to .tbd/.gitignore by setup
-    <url-hash>/
+    jlevy-rust-porting-playbook/     # <owner>-<repo> from URL
       .git/             # shallow clone
       guidelines/       # sparse checkout
+      reference/
+    jlevy-speculate/
+      .git/
+      guidelines/
       shortcuts/
 ```
+
+Name derivation: extract `<owner>/<repo>` from the URL, join with `-`, lowercase.
+Handle collisions (different hosts with same owner/repo) by appending a short hash suffix
+when needed.
 
 This keeps each project isolated with its own cache.
 The `tbd setup` command will add `repo-cache/` to `.tbd/.gitignore`.
@@ -416,12 +629,18 @@ The `tbd setup` command will add `repo-cache/` to `.tbd/.gitignore`.
 
 `tbd sync --docs` (or auto-sync):
 
-1. For each `type: repo` source: a. Compute cache path from URL hash b. If not cached:
-   sparse clone with specified paths c. If cached: `git fetch && git checkout <ref>` d.
-   Scan for `.md` files matching path patterns e. Add to sync manifest
+1. For each `type: repo` source:
+   a. Compute cache path from URL
+   b. If not cached: sparse clone with specified paths
+   c. If cached: `git fetch && git checkout <ref>`
+   d. Scan for `.md` files matching path patterns
+   e. Apply path mapping (e.g., `reference/` -> `guidelines/`)
+   f. Apply namespace prefix if configured
+   g. Add to sync manifest
 
-2. For `type: internal` source: a. Scan bundled docs (existing behavior) b. Add to sync
-   manifest
+2. For `type: internal` source:
+   a. Scan bundled docs (existing behavior)
+   b. Add to sync manifest
 
 3. Apply explicit `files:` overrides (URL or internal sources)
 
@@ -434,14 +653,16 @@ The `tbd setup` command will add `repo-cache/` to `.tbd/.gitignore`.
 **New files:**
 
 - `src/file/repo-cache.ts` - Git sparse checkout operations
-- `src/lib/repo-source.ts` - Repo source parsing and validation
+- `src/lib/repo-source.ts` - Repo source parsing, validation, path mapping
+- `src/cli/commands/source.ts` - `tbd source add/list/remove` commands
 
 **Modified files:**
 
 - `src/lib/tbd-format.ts` - Add f04 format version with migration
 - `src/lib/schemas.ts` - Add `DocsSourceSchema`, update `DocsCacheSchema`
-- `src/file/doc-sync.ts` - Integrate repo sources
+- `src/file/doc-sync.ts` - Integrate repo sources, namespace support
 - `src/cli/commands/sync.ts` - Handle repo checkout errors/progress
+- `src/cli/lib/doc-cache.ts` - Recursive subdirectory scan for namespaced docs
 
 ### Error Handling
 
@@ -449,6 +670,9 @@ The `tbd setup` command will add `repo-cache/` to `.tbd/.gitignore`.
 - **Invalid repo URL**: Error at config parse time
 - **Missing ref**: Error with helpful message suggesting valid refs
 - **Auth required**: Error with suggestion to use `gh auth login` or SSH
+- **Path mapping target invalid**: Error at config parse time with valid options
+- **Namespace collision** (two non-namespaced sources with same filename): Warn during
+  sync, suggest namespace
 
 ## Alternatives Considered
 
@@ -475,37 +699,47 @@ npm publish workflow, version lag
 Use git submodules for external doc repos.
 
 **Pros:** Native git versioning **Cons:** Submodule UX is poor, requires user git
-knowledge, complicates tbd’s git usage
+knowledge, complicates tbd's git usage
 
-**Verdict:** Poor UX, conflicts with tbd’s sync model.
+**Verdict:** Poor UX, conflicts with tbd's sync model.
 
 ## Implementation Plan
 
-### Phase 1: Core Infrastructure
+### Phase 1: Core Infrastructure + CLI
 
-- [ ] Bump format version f03 → f04 in `tbd-format.ts` (add FORMAT_HISTORY entry, update
-  CURRENT_FORMAT, add migration function - no-op since sources is additive)
+- [ ] Bump format version f03 -> f04 in `tbd-format.ts` (add FORMAT_HISTORY entry, update
+  CURRENT_FORMAT, add migration function)
 - [ ] Add `DocsSourceSchema` with repo type support to `schemas.ts`
+  - Include `namespace`, `paths` with mapping syntax validation
 - [ ] Update `DocsCacheSchema` to include optional `sources` array
 - [ ] Implement `RepoCache` class for sparse checkouts (`repo-cache.ts`)
-- [ ] Update `DocSync` to handle repo sources
+- [ ] Add path mapping logic (`reference/ -> guidelines` parsing and application)
+- [ ] Update `DocSync` to handle repo sources with namespace/mapping
 - [ ] Clear `.tbd/docs/` during migration (fresh sync after format or source changes)
+- [ ] Implement `tbd source add <url>` command
+  - Clone, check for `tbd-docs.yml`, auto-discover paths, suggest namespace
+  - Write to config, run initial sync
+- [ ] Implement `tbd source list` and `tbd source remove <url>`
 - [ ] Add `--repos` flag to `tbd sync` for repo-only sync
 
-### Phase 2: Integration
+### Phase 2: Integration and Polish
 
 - [ ] Update `tbd setup` to configure default sources (Speculate)
 - [ ] Update `tbd setup` to add `repo-cache/` to `.tbd/.gitignore`
-- [ ] Handle source precedence correctly
+- [ ] Handle source precedence correctly with collision warnings
 - [ ] Add progress indicators for repo checkout
 - [ ] Error handling and recovery
-
-### Phase 3: Polish and Documentation
-
 - [ ] Add `tbd doctor` checks for repo cache health
+- [ ] Recursive subdirectory scan in DocCache for namespaced docs
+- [ ] Test with rust-porting-playbook as integration test case
+
+### Phase 3: Documentation and Examples
+
 - [ ] Document repo structure conventions
+- [ ] Document `tbd-docs.yml` manifest format
 - [ ] Create example external guidelines repo
 - [ ] Migration guide for moving docs to external repo
+- [ ] Update tbd README with external docs section
 
 ### Phase 4: Speculate Migration
 
@@ -541,7 +775,7 @@ shortcuts/
 templates/              # plan-spec.md, research-brief.md, etc.
 ```
 
-**Key differences (current state → will be resolved by migration):**
+**Key differences (current state -> will be resolved by migration):**
 
 | Aspect | Speculate (current) | tbd | After Migration |
 | --- | --- | --- | --- |
@@ -567,16 +801,17 @@ tbd-specific docs remain in tbd.
 
 **Speculate repo changes:**
 
-1. **Adopt tbd’s front matter format** - Add `title:`, `author:`, `category:` fields
+1. **Adopt tbd's front matter format** - Add `title:`, `author:`, `category:` fields
 2. **Rename directories** to match tbd expectations:
-   - `agent-rules/` + `agent-guidelines/` → `guidelines/`
-   - `agent-shortcuts/` → `shortcuts/standard/`
-   - Templates → `templates/`
-3. **Remove shortcut prefix** from filenames: `shortcut-commit-code.md` →
+   - `agent-rules/` + `agent-guidelines/` -> `guidelines/`
+   - `agent-shortcuts/` -> `shortcuts/standard/`
+   - Templates -> `templates/`
+3. **Remove shortcut prefix** from filenames: `shortcut-commit-code.md` ->
    `commit-code.md`
 4. **Use tbd-style references**: e.g., `tbd shortcut review-code`,
    `tbd guidelines typescript-rules` (Speculate docs assume tbd is available -
    simplifies implementation, no translation needed)
+5. **Add `tbd-docs.yml` manifest** for automatic integration
 
 **tbd changes:**
 
@@ -595,25 +830,26 @@ See `tbd guidelines commit-conventions` for details.
 
 This simplifies implementation (no translation layer needed) and assumes Speculate docs
 are primarily consumed via tbd.
-Users who want Speculate without tbd can still read the docs - they just won’t have the
+Users who want Speculate without tbd can still read the docs - they just won't have the
 CLI commands available.
 
 #### Migration Tasks
 
-- [ ] Audit all tbd docs: classify as “general” (→ Speculate) or “tbd-specific” (→ keep)
-- [ ] Update Speculate repo structure to match tbd’s expected layout
+- [ ] Audit all tbd docs: classify as "general" (-> Speculate) or "tbd-specific" (-> keep)
+- [ ] Update Speculate repo structure to match tbd's expected layout
 - [ ] Update Speculate front matter to include all required fields
 - [ ] Rename Speculate files (remove `shortcut-` prefix, etc.)
 - [ ] Update shortcut references to use tbd syntax (`tbd shortcut <name>`)
 - [ ] Copy improved docs from tbd back to Speculate
+- [ ] Add `tbd-docs.yml` to Speculate repo
 - [ ] Remove duplicated docs from tbd, configure Speculate as source
-- [ ] Test round-trip: Speculate → tbd sync → verify all shortcuts/guidelines work
+- [ ] Test round-trip: Speculate -> tbd sync -> verify all shortcuts/guidelines work
 - [ ] Update Speculate README with new structure and tbd integration docs
 - [ ] Consider deprecating/simplifying Speculate CLI (users can use tbd instead)
 
 #### Speculate CLI Future
 
-Once tbd can pull docs from Speculate, the Speculate CLI’s main value is diminished.
+Once tbd can pull docs from Speculate, the Speculate CLI's main value is diminished.
 Options:
 
 1. **Deprecate**: Point users to tbd for full workflow tooling
@@ -625,32 +861,39 @@ tool (`speculate init`), while tbd handles all doc/shortcut/guideline management
 
 ## Testing Strategy
 
-- Unit tests for format migration f03 → f04 (verify no-op behavior, version bump)
-- Unit tests for `DocsSourceSchema` validation
+- Unit tests for format migration f03 -> f04 (verify version bump, lookup_path removal)
+- Unit tests for `DocsSourceSchema` validation (including path mapping syntax)
+- Unit tests for path mapping logic (parsing `reference/ -> guidelines`, namespace
+  application)
 - Unit tests for `RepoCache` sparse checkout logic
+- Unit tests for namespace collision detection and warning
 - Integration tests with mock git repos
+- Integration test with rust-porting-playbook as real repo (6 guidelines, 8 references)
 - Golden tests for config parsing with sources
 - Test older tbd version rejects f04 configs (manual or CI matrix)
+- Test `tbd source add` with repos that have/don't have `tbd-docs.yml`
 - Manual testing with real public repos
 
 ## Rollout Plan
 
 **Phases 1-3: External Repo Support**
 
-1. Implement repo source infrastructure (format bump, schema, RepoCache)
-2. Test with Speculate repo as pilot
-3. Iterate on config format based on real usage
+1. Implement repo source infrastructure (format bump, schema, RepoCache, path mapping)
+2. Implement `tbd source add/list/remove` CLI commands
+3. Test with rust-porting-playbook and Speculate repos as pilots
+4. Iterate on config format and namespace UX based on real usage
 
 **Phase 4: Speculate Migration**
 
-4. Restructure Speculate repo to match tbd’s expected layout
-5. Update Speculate front matter, file naming, and shortcut references (use tbd syntax)
-6. Copy improved docs from tbd → Speculate (general guidelines, shortcuts, templates)
-7. Test round-trip: Speculate → tbd sync → verify all docs work
-8. Configure tbd to use Speculate as default source (automatic in setup)
-9. Remove duplicated general docs from tbd bundled set
-10. Keep only tbd-specific docs internal (system shortcuts, tbd-enhanced shortcuts)
-11. Simplify or deprecate Speculate CLI
+5. Restructure Speculate repo to match tbd's expected layout
+6. Add `tbd-docs.yml` manifest to Speculate
+7. Update Speculate front matter, file naming, and shortcut references (use tbd syntax)
+8. Copy improved docs from tbd -> Speculate (general guidelines, shortcuts, templates)
+9. Test round-trip: Speculate -> tbd sync -> verify all docs work
+10. Configure tbd to use Speculate as default source (automatic in setup)
+11. Remove duplicated general docs from tbd bundled set
+12. Keep only tbd-specific docs internal (system shortcuts, tbd-enhanced shortcuts)
+13. Simplify or deprecate Speculate CLI
 
 ## Open Questions
 
@@ -664,9 +907,11 @@ tool (`speculate init`), while tbd handles all doc/shortcut/guideline management
 
 4. **Version pinning UX:** Should `ref` default to `main` (always latest) or require
    explicit pinning? Latest is convenient but less reproducible.
+   **Recommendation:** Default to `main` for simplicity. Users who need reproducibility
+   can pin to a tag. `tbd source add` always writes the ref explicitly.
 
-5. **What happens when external docs conflict with internal?** Proposed: explicit
-   precedence order. But should we warn on conflicts?
+5. ~~**What happens when external docs conflict with internal?**~~ **Decided:** Explicit
+   precedence order with collision warnings. Namespaces eliminate collisions entirely.
 
 6. **Should external repos be able to declare dependencies on other repos?** (Probably
    not initially - keep it simple.)
@@ -675,37 +920,23 @@ tool (`speculate init`), while tbd handles all doc/shortcut/guideline management
    (`tbd shortcut <name>`) directly.
    No translation needed initially.
 
-8. ~~**Speculate directory structure:**~~ **Decided:** Speculate adopts tbd’s exact
+8. ~~**Speculate directory structure:**~~ **Decided:** Speculate adopts tbd's exact
    structure (`guidelines/`, `shortcuts/standard/`, `templates/`). Config `paths:`
    selects subpaths to sync.
    Source order in config = precedence (no separate lookup_path needed).
 
-9. **Which docs are “general” vs “tbd-specific”?** Need explicit audit.
-   Some shortcuts like `code-review-and-commit` are enhanced for tbd but could have a
-   generic version.
+9. ~~**Which docs are "general" vs "tbd-specific"?**~~ Need explicit audit (Phase 4
+   task).
+
+10. ~~**Name collisions between repos:**~~ **Decided:** Optional `namespace:` field
+    creates subdirectories. `tbd source add` suggests namespace when collisions detected.
+    Fuzzy search handles namespaced lookups transparently.
+
+11. ~~**Non-standard repo structures (reference/, case-studies/):**~~ **Decided:** Path
+    mapping with `->` syntax. Repos can also provide `tbd-docs.yml` manifest for
+    automatic configuration.
 
 ## Future Work
-
-**CLI commands for managing sources** (not in initial implementation):
-
-```bash
-# Add a repo source (defaults to ref: main, writes explicitly to config)
-tbd source add github.com/org/guidelines
-
-# Add with specific ref
-tbd source add github.com/org/guidelines --ref v2.0
-
-# List configured sources
-tbd source list
-
-# Remove a source
-tbd source remove github.com/org/guidelines
-```
-
-These commands would:
-- Default `ref` to `main` but always write it explicitly to config.yml
-- Validate the repo is accessible before adding
-- Handle precedence (append to sources array by default, or allow position control)
 
 **Generic shortcut reference syntax** (not in initial implementation):
 
@@ -714,6 +945,22 @@ remapped to `tbd shortcut <name>` during sync.
 This would make Speculate docs more tool-agnostic for users who might use them outside
 tbd. For now, Speculate uses tbd syntax directly.
 
+**Source pinning/lockfile** (not in initial implementation):
+
+A `.tbd/sources.lock` file that records the exact commit SHA of each repo source after
+sync. This would provide full reproducibility without requiring users to pin to tags.
+
+**Repo dependency declarations** (not in initial implementation):
+
+Allow repos to declare dependencies on other repos in `tbd-docs.yml`:
+
+```yaml
+dependencies:
+  - github.com/jlevy/speculate  # requires general coding rules
+```
+
+This could auto-add dependencies when a source is added.
+
 ## References
 
 - Current doc sync implementation:
@@ -721,4 +968,71 @@ tbd. For now, Speculate uses tbd syntax directly.
 - Config schema: [schemas.ts](../../packages/tbd/src/lib/schemas.ts)
 - Related spec: plan-2026-01-26-configurable-doc-cache-sync.md
 - Speculate repo: https://github.com/jlevy/speculate
-- Local checkout: attic/speculate/ (for comparison during implementation)
+- rust-porting-playbook: https://github.com/jlevy/rust-porting-playbook
+- Local checkouts: attic/speculate/, attic/rust-porting-playbook/
+
+---
+
+## Engineering Review Notes (2026-02-08)
+
+### What the spec gets right
+
+1. **Git sparse checkout approach is solid** - correct choice over submodules, npm
+   packages, or API-only fetching. Works with any git host.
+2. **Format version bump is necessary and well-reasoned** - the Zod `strip()` data loss
+   scenario is real and the forward compatibility protection is important.
+3. **Source precedence model is clean** - source order = precedence is simple and
+   predictable.
+4. **Per-project cache** is appropriate for isolation.
+5. **Migration pattern documentation** is thorough and will serve as a template for future
+   migrations.
+6. **Alternatives analysis** is complete and well-reasoned.
+
+### Issues identified and addressed in this revision
+
+1. **Non-standard doc types were not handled** - The original spec assumed external repos
+   would follow tbd's exact structure (`guidelines/`, `shortcuts/standard/`,
+   `templates/`). Real repos like rust-porting-playbook have `reference/` and
+   `case-studies/` directories that don't map to any tbd category. **Fix:** Added path
+   mapping with `->` syntax.
+
+2. **No collision avoidance mechanism** - When multiple repos provide docs with the same
+   filename (e.g., two repos both have `rust-general-rules.md`), the original spec relied
+   only on precedence (silent shadowing). **Fix:** Added optional `namespace:` field that
+   creates subdirectories, plus collision warnings during sync.
+
+3. **CLI for source management was deferred to "Future Work"** - The user's core need is
+   "a single CLI command to add a knowledge repo." Without `tbd source add`, the feature
+   requires manual config editing, which defeats the simplicity goal. **Fix:** Moved
+   `tbd source add/list/remove` to Phase 1.
+
+4. **No manifest format for repo authors** - Repo authors had no way to declare how
+   their docs should integrate with tbd. Users had to manually figure out path mappings.
+   **Fix:** Added optional `tbd-docs.yml` manifest that `tbd source add` reads
+   automatically.
+
+5. **Cache directory naming was opaque** - Using URL hashes makes debugging harder. **Fix:**
+   Changed to readable `<owner>-<repo>` directory names.
+
+6. **Lookup didn't support namespaced subdirectories** - The fixed search order
+   (`guidelines/`, etc.) would need recursive scanning to find namespaced docs. **Fix:**
+   Specified that `guidelines/` is searched recursively, which the existing `DocCache`
+   scan logic already supports.
+
+### Remaining risks
+
+1. **Sparse checkout compatibility** - `git sparse-checkout` behavior varies across git
+   versions (requires Git 2.25+). Need to verify minimum git version and provide helpful
+   error messages.
+
+2. **Sync performance with many sources** - Each repo source requires a `git fetch` on
+   sync. With many sources, this could make `tbd sync` slow. Consider parallel fetches
+   and/or a `--offline` flag to skip repo updates.
+
+3. **Config file growth** - The `files:` section in config.yml already lists 50+ entries.
+   Adding sources with many docs could make the config unwieldy. Consider whether the
+   `files:` section should only contain explicit overrides (not auto-discovered files from
+   sources).
+
+4. **Speculate migration is a large scope** - Phase 4 essentially restructures an entire
+   external project. Consider treating it as a separate spec with its own timeline.
