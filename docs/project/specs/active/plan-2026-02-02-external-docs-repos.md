@@ -4,7 +4,7 @@ description: Pull shortcuts, guidelines, templates, and references from external
 ---
 # Feature: External Docs Repos
 
-**Date:** 2026-02-02 (last updated 2026-02-08)
+**Date:** 2026-02-02 (last updated 2026-02-08, implementation details added)
 
 **Status:** Draft
 
@@ -1397,6 +1397,926 @@ The DOC_TYPES registry makes adding new types straightforward:
 - `examples/` - Code examples and snippets
 - `recipes/` - Step-by-step guides for specific tasks
 - `glossary/` - Term definitions
+
+## Detailed Implementation Notes
+
+This section provides code-level implementation details for each phase, derived from
+a thorough review of the current codebase (as of 2026-02-08).
+
+### Current Codebase Inventory
+
+**Files that will be modified or serve as reference:**
+
+| File | Role | Impact |
+| --- | --- | --- |
+| `src/lib/tbd-format.ts` | Format versioning, migration | Add f04, migration function |
+| `src/lib/schemas.ts` | Zod schemas | Add `DocsSourceSchema`, update `DocsCacheSchema` |
+| `src/lib/paths.ts` | Path constants | Simplify, derive from doc-types registry |
+| `src/file/doc-sync.ts` | Sync docs from sources | Major rewrite for prefix-based sync, repo sources |
+| `src/file/doc-cache.ts` | Cache + lookup | Major rewrite for prefix-aware recursive loading |
+| `src/file/doc-add.ts` | `--add` URL handler | Update for prefix-based storage |
+| `src/file/config.ts` | Config read/write | Update for new schema |
+| `src/cli/commands/shortcut.ts` | Shortcut command | Migrate to DocCommandHandler or update paths |
+| `src/cli/commands/guidelines.ts` | Guidelines command | Update paths to use registry |
+| `src/cli/commands/template.ts` | Template command | Update paths to use registry |
+| `src/cli/commands/sync.ts` | Sync command | Add repo checkout handling |
+| `src/cli/commands/setup.ts` | Setup command | Configure default sources, add repo-cache gitignore |
+| `src/cli/lib/doc-command-handler.ts` | Shared doc command base | Update for prefix-aware loading |
+
+**New files to create:**
+
+| File | Purpose |
+| --- | --- |
+| `src/lib/doc-types.ts` | Doc type registry (single source of truth) |
+| `src/lib/repo-url.ts` | URL normalization and slugification |
+| `src/file/repo-cache.ts` | Git sparse checkout operations |
+| `src/cli/commands/reference.ts` | New `tbd reference` command |
+| `tests/repo-url.test.ts` | Unit tests for URL utility |
+| `tests/doc-types.test.ts` | Unit tests for doc type registry |
+
+### Phase 0: Speculate Prep — Detailed Steps
+
+**Precondition:** The Speculate repo at `github.com/jlevy/speculate` does NOT have a `tbd`
+branch yet (confirmed 2026-02-08). It has branches: `main`, `tbd-sync`.
+
+**Current Speculate structure** (confirmed from repo):
+
+```
+docs/general/
+  agent-rules/            # 12 files (general-coding-rules.md, typescript-rules.md, etc.)
+  agent-guidelines/       # 5 files (general-tdd-guidelines.md, golden-testing-guidelines.md, etc.)
+  agent-shortcuts/        # 21+ files (shortcut-commit-code.md, shortcut-create-pr-simple.md, etc.)
+  agent-setup/            # 2 files (github-cli-setup.md, shortcut-setup-beads.md)
+```
+
+**Restructuring plan for Speculate `tbd` branch:**
+
+1. `agent-rules/` → `guidelines/` (12 files, rename)
+2. `agent-guidelines/` → `guidelines/` (5 files, merge with above)
+3. `agent-shortcuts/shortcut-*.md` → `shortcuts/*.md` (strip `shortcut-` prefix)
+4. `agent-setup/github-cli-setup.md` → `shortcuts/setup-github-cli.md`
+5. Create `templates/` from docs/project/ templates
+6. Create `references/` for reference docs
+
+**File mapping (Speculate old → new):**
+
+| Old Path | New Path |
+| --- | --- |
+| `agent-rules/typescript-rules.md` | `guidelines/typescript-rules.md` |
+| `agent-rules/python-rules.md` | `guidelines/python-rules.md` |
+| `agent-rules/general-coding-rules.md` | `guidelines/general-coding-rules.md` |
+| `agent-guidelines/general-tdd-guidelines.md` | `guidelines/general-tdd-guidelines.md` |
+| `agent-shortcuts/shortcut-commit-code.md` | `shortcuts/review-code.md` (or similar) |
+| `agent-setup/github-cli-setup.md` | `shortcuts/setup-github-cli.md` |
+
+**Important:** Content from tbd's bundled docs should be copied to Speculate `tbd` branch
+for any general-purpose docs that are more up to date in tbd. Compare file-by-file.
+
+**tbd repo changes (in Phase 0):**
+
+- Add `sync-repos.sh` to repo root
+- Add `repos/` to root `.gitignore`
+- Run `sync-repos.sh` to verify it works
+
+### Phase 1: Core Infrastructure — Detailed Steps
+
+#### Step 1.1: Create `src/lib/doc-types.ts`
+
+```typescript
+// Single source of truth for doc types
+export const DOC_TYPES = {
+  shortcut: {
+    directory: 'shortcuts',
+    command: 'shortcut',
+    singular: 'shortcut',
+    plural: 'shortcuts',
+    description: 'Reusable instruction templates for common tasks',
+  },
+  guideline: {
+    directory: 'guidelines',
+    command: 'guidelines',
+    singular: 'guideline',
+    plural: 'guidelines',
+    description: 'Coding rules and best practices',
+  },
+  template: {
+    directory: 'templates',
+    command: 'template',
+    singular: 'template',
+    plural: 'templates',
+    description: 'Document templates for specs and research',
+  },
+  reference: {
+    directory: 'references',
+    command: 'reference',
+    singular: 'reference',
+    plural: 'references',
+    description: 'Reference documentation and API specs',
+  },
+} as const;
+
+export type DocTypeName = keyof typeof DOC_TYPES;
+
+// Infer doc type from a path like "spec/guidelines/typescript-rules.md"
+export function inferDocType(relativePath: string): DocTypeName | undefined {
+  const segments = relativePath.split('/');
+  // In prefix-based storage: {prefix}/{type-dir}/{name}.md
+  // typeDir is segments[1] if prefix-based, or segments[0] if flat
+  for (const [name, config] of Object.entries(DOC_TYPES)) {
+    for (const segment of segments) {
+      if (config.directory === segment) {
+        return name as DocTypeName;
+      }
+    }
+  }
+  return undefined;
+}
+
+// Get all directory names from registry
+export function getDocTypeDirectories(): string[] {
+  return Object.values(DOC_TYPES).map((dt) => dt.directory);
+}
+```
+
+#### Step 1.2: Create `src/lib/repo-url.ts`
+
+**Note on slugification:** The spec mentions `@github/slugify` but this package is designed
+for title → URL slug conversion. For repo URL → filesystem slug, a simpler approach is
+better: replace `/` and `:` with `-`, strip protocol. This avoids an unnecessary dependency.
+
+```typescript
+export interface NormalizedRepoUrl {
+  host: string;     // 'github.com'
+  owner: string;    // 'jlevy'
+  repo: string;     // 'speculate'
+  https: string;    // 'https://github.com/jlevy/speculate.git'
+  ssh: string;      // 'git@github.com:jlevy/speculate.git'
+}
+
+// Normalize any git URL format to canonical form
+export function normalizeRepoUrl(url: string): NormalizedRepoUrl { ... }
+
+// Convert URL to filesystem-safe slug
+// 'github.com/jlevy/speculate' → 'github.com-jlevy-speculate'
+export function repoUrlToSlug(url: string): string {
+  const normalized = normalizeRepoUrl(url);
+  return `${normalized.host}-${normalized.owner}-${normalized.repo}`;
+}
+
+// Get clone URL for git operations
+export function getCloneUrl(url: string, preferSsh: boolean = false): string { ... }
+```
+
+**Test cases for `repo-url.test.ts`:**
+
+- `github.com/org/repo` → normalized form
+- `https://github.com/org/repo` → same normalized form
+- `https://github.com/org/repo.git` → same
+- `git@github.com:org/repo.git` → same
+- Trailing slashes stripped
+- Invalid URLs throw descriptive errors
+- Round-trip: `slug(normalize(x))` is deterministic
+- Special characters in repo names
+
+#### Step 1.3: Update `src/lib/tbd-format.ts`
+
+**Current state:** `CURRENT_FORMAT = 'f03'`, `RawConfig` type, `MigrationResult` type.
+
+**Changes needed:**
+
+1. Add `warnings: string[]` to `MigrationResult` interface (currently missing, but
+   tests in spec expect it)
+2. Add `f04` to `FORMAT_HISTORY`
+3. Add `sources` to `RawConfig.docs_cache` type
+4. Implement `migrate_f03_to_f04()`:
+   - Remove `lookup_path` from `docs_cache`
+   - Convert `files:` to `sources:` using `convertFilesToSources()`
+   - See spec body for detailed algorithm
+5. Add to `migrateToLatest()` chain
+6. Update `CURRENT_FORMAT` to `'f04'`
+7. Add to `describeMigration()`
+
+**`getExpectedDefaultFiles()` implementation:** This function needs to return what
+`generateDefaultDocCacheConfig()` in `doc-sync.ts` would produce. It can:
+- Call `generateDefaultDocCacheConfig()` directly (requires async), OR
+- Hardcode the expected pattern: any `files` entry where `source === 'internal:' + dest`
+  is a default entry. This is simpler and doesn't require filesystem access.
+
+**Recommended approach for identifying defaults:**
+
+```typescript
+function isDefaultFileEntry(dest: string, source: string): boolean {
+  return source === `internal:${dest}`;
+}
+```
+
+This avoids needing to enumerate bundled docs and correctly identifies any entry where the
+destination path matches the internal source path (which is always true for defaults).
+
+#### Step 1.4: Update `src/lib/schemas.ts`
+
+Add to existing schemas:
+
+```typescript
+export const DocsSourceSchema = z.object({
+  type: z.enum(['internal', 'repo']),
+  prefix: z.string().min(1).max(16).regex(/^[a-z0-9-]+$/),
+  url: z.string().optional(),
+  ref: z.string().optional(),
+  paths: z.array(z.string()),
+  hidden: z.boolean().optional(),
+});
+
+// Update DocsCacheSchema - keep backward compatibility during migration
+export const DocsCacheSchema = z.object({
+  sources: z.array(DocsSourceSchema).optional(),
+  files: z.record(z.string(), z.string()).optional(),
+  // REMOVED: lookup_path (replaced by prefix system)
+  // Keep in schema for migration parsing but don't use
+  lookup_path: z.array(z.string()).optional(),
+});
+```
+
+**Important:** Since `ConfigSchema` uses Zod's default `strip()` mode, removing
+`lookup_path` from the schema would cause it to be silently stripped from existing
+f03 configs. This is fine ONLY because the format version bump to f04 prevents older
+versions from seeing the stripped field. The migration explicitly removes it.
+
+#### Step 1.5: Create `src/file/repo-cache.ts`
+
+```typescript
+export class RepoCache {
+  private readonly cacheDir: string;  // .tbd/repo-cache/
+
+  constructor(tbdRoot: string) {
+    this.cacheDir = join(tbdRoot, '.tbd', 'repo-cache');
+  }
+
+  // Check out or update a repo
+  async ensureRepo(url: string, ref: string, paths: string[]): Promise<string> {
+    const slug = repoUrlToSlug(url);
+    const repoDir = join(this.cacheDir, slug);
+
+    if (await this.isCloned(repoDir)) {
+      await this.updateRepo(repoDir, ref, paths);
+    } else {
+      await this.cloneRepo(url, repoDir, ref, paths);
+    }
+
+    return repoDir;
+  }
+
+  private async cloneRepo(url: string, dir: string, ref: string, paths: string[]): Promise<void> {
+    const cloneUrl = getCloneUrl(url);
+    await mkdir(dirname(dir), { recursive: true });
+
+    // Shallow sparse clone
+    await execGit(['clone', '--depth', '1', '--sparse', '--branch', ref, cloneUrl, dir]);
+
+    // Set sparse checkout paths
+    await execGit(['-C', dir, 'sparse-checkout', 'set', ...paths]);
+  }
+
+  private async updateRepo(dir: string, ref: string, paths: string[]): Promise<void> {
+    // Update sparse checkout paths (in case config changed)
+    await execGit(['-C', dir, 'sparse-checkout', 'set', ...paths]);
+
+    // Fetch and checkout the ref
+    await execGit(['-C', dir, 'fetch', '--depth', '1', 'origin', ref]);
+    await execGit(['-C', dir, 'checkout', 'FETCH_HEAD']);
+  }
+
+  // Scan for .md files matching paths patterns
+  async scanDocs(repoDir: string, paths: string[]): Promise<Map<string, string>> {
+    const docs = new Map<string, string>();  // relativePath → absolutePath
+
+    for (const pathPattern of paths) {
+      const dir = join(repoDir, pathPattern.replace(/\/$/, ''));
+      // Recursively find all .md files
+      const files = await glob('**/*.md', { cwd: dir });
+      for (const file of files) {
+        const relativePath = join(pathPattern.replace(/\/$/, ''), file);
+        docs.set(relativePath, join(dir, file));
+      }
+    }
+
+    return docs;
+  }
+}
+```
+
+**Git execution:** Use `child_process.execFile` (not `exec`) for security. Shell injection
+is not possible with `execFile` since arguments are passed as an array.
+
+**Fallback when git fails:** If `git` is not available, try `gh repo clone` as fallback
+(since gh CLI is typically available in agent environments).
+
+#### Step 1.6: Update `src/file/doc-sync.ts`
+
+Major changes needed:
+
+1. **`syncDocsWithDefaults()` rewrite:** Currently this function:
+   - Reads config
+   - Generates defaults from bundled docs
+   - Merges and prunes
+   - Syncs files
+   - Writes config
+
+   New behavior:
+   - Read config (now has `sources` array)
+   - For each source, resolve docs (internal → scan bundled, repo → checkout + scan)
+   - Copy files to `.tbd/docs/{prefix}/{type}/{name}.md`
+   - Apply `files:` overrides last
+   - Write sources hash for change detection
+
+2. **`DocSync` class:** The constructor currently takes `config: Record<string, string>`.
+   This needs to accept the new source-based config. Consider either:
+   - (a) Expanding `DocSync` to handle sources directly, OR
+   - (b) Resolving sources to a flat file map first, then passing to existing `DocSync`
+
+   **Recommendation:** Option (b) for minimal disruption. Create a `resolveSourcesToDocs()`
+   function that returns the same `Record<string, string>` format (dest → source), where
+   source is either `internal:path` or a local file path from the repo cache.
+
+3. **`generateDefaultDocCacheConfig()`:** This function becomes less important since
+   defaults are now expressed as `sources`. It may still be needed for migration
+   (`getExpectedDefaultFiles()`).
+
+#### Step 1.7: Update `src/file/doc-cache.ts`
+
+**Current behavior:** `DocCache` loads flat directories via `paths: string[]`.
+Each path is a directory like `.tbd/docs/shortcuts/standard/`.
+
+**New behavior:** `DocCache` needs to:
+1. Accept prefix-based paths (scan `.tbd/docs/{prefix}/{type}/`)
+2. Support `prefix:name` qualified lookups
+3. Detect ambiguous unqualified lookups
+4. Support `hidden` sources for excluding from `--list`
+
+**Recommended approach:**
+
+```typescript
+// New constructor signature
+constructor(
+  private readonly docsDir: string,  // .tbd/docs/
+  private readonly sources: DocsSource[],  // From config
+  private readonly docType: DocTypeName,  // Which type to load
+) {}
+
+// Updated load: scan {prefix}/{type}/ for each source
+async load(): Promise<void> {
+  for (const source of this.sources) {
+    const dir = join(this.docsDir, source.prefix, DOC_TYPES[this.docType].directory);
+    await this.loadDirectory(dir, source.prefix, source.hidden);
+  }
+}
+
+// Updated get: support prefix:name syntax
+get(name: string): DocMatch | null {
+  const { prefix, baseName } = parseQualifiedName(name);
+  if (prefix) {
+    // Direct lookup in specific prefix
+    return this.docs.find(d => d.prefix === prefix && d.name === baseName) ?? null;
+  }
+  // Unqualified: search all, error if ambiguous
+  const matches = this.docs.filter(d => d.name === baseName);
+  if (matches.length > 1) {
+    throw new AmbiguousLookupError(baseName, matches.map(m => m.prefix));
+  }
+  return matches[0] ?? null;
+}
+```
+
+**Breaking change:** The `CachedDoc` interface needs a `prefix` field.
+
+### Phase 2: Prefix System and Lookup — Detailed Steps
+
+#### Step 2.1: Prefix parsing utility
+
+```typescript
+// In doc-cache.ts or a new utility
+export function parseQualifiedName(name: string): { prefix?: string; baseName: string } {
+  const colonIndex = name.indexOf(':');
+  if (colonIndex > 0) {
+    return {
+      prefix: name.slice(0, colonIndex),
+      baseName: name.slice(colonIndex + 1),
+    };
+  }
+  return { baseName: name };
+}
+```
+
+#### Step 2.2: Update `tbd setup --auto`
+
+Current setup in `setup.ts` calls `syncDocsWithDefaults()` which generates the verbose
+`files:` config. New setup should:
+
+1. If config is f03 or has no `sources`: run migration (f03 → f04)
+2. Write default `sources` array to config
+3. Add `repo-cache/` to `.tbd/.gitignore`
+4. Run `syncDocsWithDefaults()` with new source-based logic
+
+**Default sources (written to config.yml):**
+
+```yaml
+docs_cache:
+  sources:
+    - type: internal
+      prefix: sys
+      hidden: true
+      paths:
+        - shortcuts/
+    - type: internal
+      prefix: tbd
+      paths:
+        - shortcuts/
+    - type: repo
+      prefix: spec
+      url: github.com/jlevy/speculate
+      ref: main
+      paths:
+        - shortcuts/
+        - guidelines/
+        - templates/
+        - references/
+```
+
+**Important consideration:** For `type: internal` sources, the `paths` field indicates which
+doc types to include. The `prefix` determines where they're stored on disk. The internal
+doc bundling needs to know which bundled docs belong to `sys` vs `tbd`.
+
+**Classification of bundled shortcuts (from codebase analysis):**
+
+| Prefix | Bundled Files |
+| --- | --- |
+| `sys` (hidden) | `skill.md`, `skill-brief.md`, `shortcut-explanation.md` |
+| `tbd` | All 29 standard shortcuts (code-review-and-commit, implement-beads, etc.) |
+
+The classification is simple: `shortcuts/system/` → `sys`, `shortcuts/standard/` → `tbd`.
+
+**After migration to Speculate (Phase 5):**
+
+Some shortcuts currently in `tbd` will move to `spec` (the ~5 general-purpose ones). But
+during Phase 1-3, all standard shortcuts remain in `tbd` prefix.
+
+#### Step 2.3: Update `.tbd/.gitignore`
+
+Add `repo-cache/` entry:
+
+```
+# Git checkouts for external doc repos
+repo-cache/
+```
+
+#### Step 2.4: Update `--list` output format
+
+Current `--list` shows: `name (size)` + description.
+
+New format when prefixes are relevant:
+
+```
+typescript-rules (spec) 12.3 KB / ~3.5K tokens
+   TypeScript coding rules and best practices
+code-review-and-commit (tbd) 8.1 KB / ~2.3K tokens
+   Run pre-commit checks, review changes, and commit code
+```
+
+Show prefix in parentheses after name when:
+- The name exists in multiple sources, OR
+- A non-default source provides the doc (for clarity)
+
+#### Step 2.5: Error messages for ambiguous lookups
+
+```
+Error: "typescript-rules" matches docs in multiple sources:
+  spec:typescript-rules (spec/guidelines/typescript-rules.md)
+  myorg:typescript-rules (myorg/guidelines/typescript-rules.md)
+
+Use a qualified name: tbd guidelines spec:typescript-rules
+```
+
+### Phase 3: New Reference Type and CLI — Detailed Steps
+
+#### Step 3.1: Create `src/cli/commands/reference.ts`
+
+Follow the same pattern as `guidelines.ts` (extends `DocCommandHandler`):
+
+```typescript
+class ReferenceHandler extends DocCommandHandler {
+  constructor(command: Command) {
+    super(command, {
+      typeName: 'reference',
+      typeNamePlural: 'references',
+      paths: DEFAULT_REFERENCE_PATHS,  // Derive from doc-types registry
+      docType: 'reference',
+    });
+  }
+  // ... same pattern as guidelines
+}
+
+export const referenceCommand = new Command('reference')
+  .description('Find and output reference documentation')
+  .argument('[query]', 'Reference name or description to search for')
+  .option('--list', 'List all available references')
+  // ... same options
+```
+
+Register in `cli.ts`:
+
+```typescript
+import { referenceCommand } from './commands/reference.js';
+program.addCommand(referenceCommand);
+```
+
+#### Step 3.2: Simplify commands to use doc-types registry
+
+Currently each command hardcodes its paths:
+
+- `shortcut.ts`: `config.docs_cache?.lookup_path ?? DEFAULT_SHORTCUT_PATHS`
+- `guidelines.ts`: `DEFAULT_GUIDELINES_PATHS`
+- `template.ts`: `DEFAULT_TEMPLATE_PATHS`
+
+With the doc-types registry, all commands derive paths from the registry and config sources:
+
+```typescript
+function getDocPaths(sources: DocsSource[], docType: DocTypeName, docsDir: string): string[] {
+  const typeDir = DOC_TYPES[docType].directory;
+  return sources
+    .filter(s => s.paths.some(p => p.replace(/\/$/, '') === typeDir))
+    .map(s => join(docsDir, s.prefix, typeDir));
+}
+```
+
+#### Step 3.3: Unify `shortcut.ts` with `DocCommandHandler`
+
+**Current issue:** The `shortcut.ts` command has its own `ShortcutHandler extends BaseCommand`
+with duplicated logic for listing, querying, wrapping text, etc. The `guidelines.ts` and
+`template.ts` commands use `DocCommandHandler` properly.
+
+**This refactoring is a prerequisite** for the prefix system because the prefix-aware
+loading logic should be in `DocCommandHandler`, not duplicated in each command.
+
+Steps:
+1. Migrate `ShortcutHandler` to extend `DocCommandHandler`
+2. Move category filtering to the base class (or keep as override)
+3. Shortcut-specific behavior (agent header, shortcut-explanation fallback) via overrides
+
+#### Step 3.4: Update `doc-add.ts`
+
+Currently `doc-add.ts` adds to `shortcuts/custom/`. In the new system:
+- `--add` still writes to `docs_cache.files` (per-file overrides)
+- The destination path should be `{type}/{name}.md` (flat, no `custom/` subdir)
+- OR the destination goes into a dedicated prefix directory
+
+**Recommendation:** Keep `--add` writing to `files:` as overrides, but change the
+destination from `shortcuts/custom/foo.md` to just `guidelines/foo.md` or
+`shortcuts/foo.md` (flat). The `files:` section is the highest precedence, so the doc
+will be found before any source-provided doc with the same name.
+
+#### Step 3.5: Doctor checks
+
+Add to `tbd doctor`:
+
+```typescript
+// Check repo-cache health
+async function checkRepoCacheHealth(tbdRoot: string, sources: DocsSource[]): Promise<void> {
+  for (const source of sources.filter(s => s.type === 'repo')) {
+    const slug = repoUrlToSlug(source.url!);
+    const cacheDir = join(tbdRoot, '.tbd', 'repo-cache', slug);
+
+    // Check if cache exists
+    if (!await exists(cacheDir)) {
+      warn(`Repo cache missing for ${source.url} - run 'tbd sync --docs' to populate`);
+      continue;
+    }
+
+    // Check if git repo is valid
+    try {
+      await execGit(['-C', cacheDir, 'status']);
+    } catch {
+      error(`Repo cache corrupted for ${source.url} - delete and re-sync`);
+    }
+  }
+}
+```
+
+### Phase 3b: Documentation Update — Detailed Steps
+
+Files to update:
+
+1. **`docs/development.md`**: Add section on test repo setup, external doc sources,
+   and development workflow for testing with local repos.
+
+2. **`docs/docs-overview.md`**: Replace the current doc layout description with prefix-based
+   structure. Update `tbd reference` command. Update the `--add` documentation.
+
+3. **Skill files** (`packages/tbd/docs/shortcuts/system/skill.md`, `skill-brief.md`):
+   Add `tbd reference` to the command directory tables. Update any doc path references.
+
+4. **`generateShortcutDirectory()` in `doc-cache.ts`**: Update to include references in
+   the directory table. This function generates the shortcut/guideline directory that
+   appears in skill files.
+
+5. **Shortcuts that reference doc paths**: Several shortcuts reference paths like
+   `.tbd/docs/shortcuts/standard/`. Audit and update:
+   - `new-shortcut.md`
+   - `new-guideline.md`
+   - `welcome-user.md`
+
+### Phase 4: Validation — Detailed Steps
+
+**Validation script approach:**
+
+```bash
+#!/bin/bash
+# validate-docs.sh - Compare output between released and dev builds
+set -e
+
+BASELINE_CMD="npx --yes get-tbd@latest"
+TEST_CMD="node packages/tbd/dist/bin.mjs"
+
+# Compare all shortcuts
+echo "=== Comparing Shortcuts ==="
+for name in $($TEST_CMD shortcut --list --json | jq -r '.[].name'); do
+  baseline=$($BASELINE_CMD shortcut "$name" 2>/dev/null || echo "NOT_FOUND")
+  test=$($TEST_CMD shortcut "$name" 2>/dev/null || echo "NOT_FOUND")
+  if [ "$baseline" != "$test" ]; then
+    echo "DIFF: shortcut $name"
+    diff <(echo "$baseline") <(echo "$test") || true
+  fi
+done
+
+# Similar for guidelines, templates, references
+```
+
+**Expected intentional differences:**
+- References section is new (no baseline)
+- Content improvements from tbd → Speculate copy
+- Prefix information in `--list` output
+
+### Phase 4b: Fresh Install E2E — Detailed Steps
+
+```bash
+# Create temp directory
+TEST_DIR=$(mktemp -d)
+cd "$TEST_DIR"
+git init
+
+# Install and setup
+npm install -g /path/to/local/get-tbd/tarball
+tbd setup --auto --prefix=test
+
+# Verify directory structure
+ls .tbd/docs/sys/shortcuts/   # skill.md, skill-brief.md
+ls .tbd/docs/tbd/shortcuts/   # code-review-and-commit.md, etc.
+ls .tbd/docs/spec/guidelines/  # typescript-rules.md, etc.
+
+# Test lookups
+tbd guidelines typescript-rules   # Should work (unqualified)
+tbd guidelines spec:typescript-rules  # Should work (qualified)
+tbd shortcut code-review-and-commit  # Should work
+tbd reference --list  # Should show reference docs
+
+# Cleanup
+cd /
+rm -rf "$TEST_DIR"
+npm uninstall -g get-tbd
+```
+
+## Issues, Ambiguities, and Recommendations
+
+The following issues were identified during the code-level review of the spec against the
+current codebase. They are ordered by severity/impact.
+
+### Issue 1: `shortcut.ts` Doesn't Use `DocCommandHandler` (Medium)
+
+**Problem:** The shortcut command (`shortcut.ts`) has its own `ShortcutHandler extends
+BaseCommand` with ~280 lines of duplicated logic for listing, querying, text wrapping, etc.
+Meanwhile `guidelines.ts` and `template.ts` properly extend `DocCommandHandler`.
+
+**Impact:** The prefix-aware loading logic needs to be in one place. Without unifying the
+commands first, the shortcut command will need separate prefix support.
+
+**Recommendation:** Add a prerequisite step to Phase 2 or Phase 3 to refactor `shortcut.ts`
+to use `DocCommandHandler`. The shortcut-specific behavior (agent header, category filtering,
+refresh mode, `shortcut-explanation` no-query fallback) can be handled via method overrides.
+
+### Issue 2: `lookup_path` Is Shortcut-Only, Not Per-Doc-Type (Low)
+
+**Problem:** The current `docs_cache.lookup_path` in config only applies to shortcuts
+(the shortcut command reads it). Guidelines and templates use hardcoded
+`DEFAULT_GUIDELINES_PATHS` and `DEFAULT_TEMPLATE_PATHS`. The spec says "Removed
+docs_cache.lookup_path: replaced by prefix system" but doesn't detail how per-doc-type
+path resolution works with the prefix system.
+
+**Impact:** Low — the prefix system naturally replaces this by having each source declare
+which doc types it provides (via `paths`), and each command scanning
+`.tbd/docs/{prefix}/{type-dir}/` for all relevant prefixes.
+
+**Recommendation:** Already addressed by the design. The `paths` array in each source
+declaration replaces `lookup_path`. No action needed beyond what's already in the spec,
+but the implementation should be clear that each doc command derives its search paths
+from the sources array.
+
+### Issue 3: `MigrationResult` Missing `warnings` Field (Low)
+
+**Problem:** The spec's test code expects `result.warnings` but the current
+`MigrationResult` type only has `changes: string[]`. There is no `warnings` field.
+
+**Impact:** Test code won't compile.
+
+**Recommendation:** Add `warnings: string[]` to `MigrationResult`. This is already shown
+in the migration function code but not called out as a schema change.
+
+### Issue 4: `@github/slugify` Dependency Is Overkill (Low)
+
+**Problem:** The spec mentions using `@github/slugify` npm package for URL slugification.
+This package is designed for title → URL slug conversion, not URL → filesystem path. The
+actual transformation needed is simple: `github.com/jlevy/speculate` → `github.com-jlevy-speculate`
+(just replace `/` with `-`).
+
+**Impact:** Unnecessary dependency.
+
+**Recommendation:** Implement the slug function directly in `repo-url.ts` (~5 lines of
+code). No external dependency needed.
+
+### Issue 5: `shortcuts/custom/` Path Not Addressed in Migration (Low)
+
+**Problem:** Users who added shortcuts via `--add` have entries like
+`shortcuts/custom/my-shortcut.md: https://example.com/...` in their config. The migration
+logic identifies "default" entries as those where `source === 'internal:' + dest`. Custom
+URL entries will correctly be preserved in `files:` overrides.
+
+**Impact:** None if the heuristic is `source.startsWith('internal:')` → default,
+anything else → custom. But `shortcuts/custom/` as a destination path doesn't map to any
+prefix in the new system.
+
+**Recommendation:** During migration, preserve custom `files:` entries as-is. They'll be
+written to `.tbd/docs/{dest}` outside the prefix directories. The `files:` lookup should
+check these paths with highest precedence. This is already described in the spec but should
+be tested explicitly.
+
+### Issue 6: `DocCache` Flat Directory Scanning (Medium)
+
+**Problem:** `DocCache.loadDirectory()` currently scans a single flat directory for `.md`
+files. The new prefix-based storage is nested: `.tbd/docs/{prefix}/{type}/{name}.md`.
+The `DocCache` needs to either:
+- (a) Accept multiple directory paths computed from sources, OR
+- (b) Scan recursively from the docs root
+
+**Impact:** Core data access pattern changes.
+
+**Recommendation:** Option (a). For each doc command (e.g., `tbd guidelines`), compute
+the list of directories to scan:
+
+```
+sources.map(s => `.tbd/docs/${s.prefix}/guidelines/`)
+```
+
+This preserves the ordered-paths semantics (earlier sources = higher precedence) and the
+existing `DocCache` flat-scan behavior, just with different directory inputs.
+
+### Issue 7: Shallow Clone + Sparse Checkout Git Commands (Low)
+
+**Problem:** The spec shows `git clone --depth 1 --filter=blob:none --sparse`. Using both
+`--depth 1` and `--filter=blob:none` is redundant. `--depth 1` already limits the clone to
+the latest commit with all blobs for that commit. `--filter=blob:none` creates a partial
+clone that fetches blobs on demand, which is useful for full-history clones but not for
+depth-1 clones.
+
+**Impact:** Minor — the clone will work either way.
+
+**Recommendation:** Use `git clone --depth 1 --sparse --branch <ref> <url>` (without
+`--filter=blob:none`). For updates, use `git fetch --depth 1 origin <ref>` followed by
+`git checkout FETCH_HEAD`, since a shallow clone may not be able to do `git pull` for
+arbitrary refs.
+
+### Issue 8: `tbd sync --docs` vs `tbd setup --auto` for First-Time Checkout (Low)
+
+**Problem:** The spec doesn't explicitly clarify whether `tbd sync --docs` handles first-time
+repo checkout or if that's only done during `tbd setup --auto`.
+
+**Impact:** User experience — if someone adds a new source to config.yml manually and runs
+`tbd sync --docs`, it should clone the repo.
+
+**Recommendation:** `tbd sync --docs` should handle first-time checkout. `tbd setup --auto`
+should also run doc sync. Both paths should use the same underlying `RepoCache.ensureRepo()`.
+
+### Issue 9: Config YAML Field Ordering (Low)
+
+**Problem:** YAML output field ordering matters for readability. The spec doesn't specify
+the order of fields when writing the new `sources` array to config.yml.
+
+**Impact:** Readability of config.yml.
+
+**Recommendation:** Use a YAML serializer that preserves insertion order. Write fields in
+this order: `type`, `prefix`, `hidden` (if true), `url` (if repo), `ref` (if repo),
+`paths`. This matches the spec examples and reads naturally.
+
+### Issue 10: Internal Source Bundled Doc Paths (Medium)
+
+**Problem:** For `type: internal` sources, the spec shows:
+
+```yaml
+- type: internal
+  prefix: sys
+  hidden: true
+  paths:
+    - shortcuts/
+```
+
+But in the current codebase, bundled system shortcuts are at `packages/tbd/docs/shortcuts/system/`
+while standard shortcuts are at `packages/tbd/docs/shortcuts/standard/`. The internal source
+needs to know which bundled subdirectory maps to which prefix.
+
+**Impact:** The `paths` field alone isn't sufficient for internal sources — we also need to
+know which bundled subdirectory to read from.
+
+**Recommendation:** For internal sources, add implicit mapping:
+- `sys` prefix reads from `shortcuts/system/` in bundled docs
+- `tbd` prefix reads from `shortcuts/standard/` in bundled docs
+
+This can be handled by a convention: internal sources with `prefix: sys` map to
+`shortcuts/system/`, and `prefix: tbd` maps to `shortcuts/standard/`. Or better, add a
+`bundled_path` field for internal sources:
+
+```yaml
+- type: internal
+  prefix: sys
+  hidden: true
+  paths:
+    - shortcuts/
+  bundled_subdir: shortcuts/system  # Where to find these in the bundled package
+```
+
+Alternatively, keep the mapping in code (since internal sources are well-known):
+
+```typescript
+const INTERNAL_SOURCE_MAPPING: Record<string, string> = {
+  sys: 'shortcuts/system',
+  tbd: 'shortcuts/standard',
+};
+```
+
+This is simpler and avoids exposing internal implementation details in user-facing config.
+
+### Issue 11: Most Shortcuts Are tbd-Specific (Informational)
+
+**Finding:** From analyzing the bundled shortcuts, 24 out of 29 standard shortcuts reference
+`tbd` commands and are tbd-specific. Only 5 are general-purpose:
+
+- `checkout-third-party-repo.md`
+- `code-cleanup-docstrings.md`
+- `merge-upstream.md`
+- `new-validation-plan.md`
+- `revise-architecture-doc.md`
+
+**Impact:** The `spec` prefix source will primarily provide **guidelines** (26 files) and
+**templates** (3 files), not shortcuts. Most shortcuts stay in `tbd`.
+
+**Recommendation:** This is fine for the design — the prefix system handles it correctly.
+But Phase 5 (Speculate Migration) should note that only ~5 shortcuts move to Speculate,
+while the bulk of what moves is guidelines. The doc classification table in the spec
+(prefix → doc types → examples) should be updated to reflect this.
+
+### Issue 12: `generateShortcutDirectory()` Needs Update (Low)
+
+**Problem:** The `generateShortcutDirectory()` function in `doc-cache.ts` generates the
+markdown table of shortcuts/guidelines that appears in skill files. It currently hardcodes
+skip names (`skill`, `skill-brief`, `shortcut-explanation`). With the `hidden` source
+concept, hidden sources should be automatically excluded instead.
+
+**Impact:** The function needs to be aware of which docs come from hidden sources.
+
+**Recommendation:** Pass `hidden` information through `CachedDoc` (add `hidden: boolean`
+field) and filter hidden docs in `generateShortcutDirectory()` instead of hardcoding names.
+
+### Issue 13: Test Strategy Gaps (Medium)
+
+**Problem:** The spec describes unit and integration tests but doesn't address:
+- How to test `RepoCache` without network access (unit tests)
+- How to mock git operations in tests
+- Whether existing tests in `doc-sync.test.ts` and `doc-cache.test.ts` need updating
+
+**Recommendation:**
+
+For `RepoCache` unit tests, use `git init --bare` to create local test repositories:
+
+```typescript
+// In test setup
+const testRepo = await createTestRepo({
+  'guidelines/test-guide.md': '---\ntitle: Test\n---\n# Test',
+  'shortcuts/test-shortcut.md': '---\ntitle: Shortcut\n---\n# SC',
+});
+
+// Test sparse checkout against local repo
+const cache = new RepoCache(tmpDir);
+await cache.ensureRepo(`file://${testRepo}`, 'main', ['guidelines/']);
+```
+
+Existing tests (`doc-sync.test.ts`, `doc-cache.test.ts`, `tbd-format.test.ts`) need updates
+for the new format, schemas, and prefix-based paths.
 
 ## References
 
