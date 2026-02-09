@@ -200,12 +200,41 @@ export const GitRemoteName = z
 export const DocCacheConfigSchema = z.record(z.string(), z.string());
 
 /**
+ * A documentation source: internal (bundled) or external (git repo).
+ *
+ * Sources are listed in precedence order in docs_cache.sources[].
+ * See: docs/project/specs/active/plan-2026-02-02-external-docs-repos.md
+ */
+export const DocsSourceSchema = z.object({
+  type: z.enum(['internal', 'repo']),
+  /** Namespace prefix for this source (1-16 lowercase alphanumeric + dash). */
+  prefix: z
+    .string()
+    .min(1)
+    .max(16)
+    .regex(/^[a-z0-9-]+$/),
+  /** Repository URL (required for type: repo). */
+  url: z.string().optional(),
+  /** Git ref to checkout (defaults to 'main' for repos). */
+  ref: z.string().optional(),
+  /** Doc type directories to include from this source. */
+  paths: z.array(z.string()),
+  /** Exclude from --list output. */
+  hidden: z.boolean().optional(),
+});
+
+/**
  * Documentation cache configuration (consolidated structure).
  *
  * Combines file sync mappings and lookup paths into a single config block.
  * See: docs/project/specs/active/plan-2026-01-26-docs-cache-config-restructure.md
  */
 export const DocsCacheSchema = z.object({
+  /**
+   * Ordered list of doc sources (internal bundles and external repos).
+   * Earlier sources take precedence on name collisions for unqualified lookups.
+   */
+  sources: z.array(DocsSourceSchema).optional(),
   /**
    * Files to sync: maps destination paths to source locations.
    * Keys are destination paths relative to .tbd/docs/
