@@ -4,9 +4,11 @@ description: Pull shortcuts, guidelines, templates, and references from external
 ---
 # Feature: External Docs Repos
 
-**Date:** 2026-02-02 (last updated 2026-02-08, implementation details added)
+**Date:** 2026-02-02 (last updated 2026-02-09, beads created for all phases)
 
 **Status:** Draft
+
+**Epic:** `tbd-mdwh` — 8 phase epics, 60+ leaf beads with full dependency chains
 
 ## Overview
 
@@ -1064,6 +1066,18 @@ Ensure `gh auth login` has been run in the environment.
 This branch becomes the test target for all integration testing in subsequent phases.
 The agent can iterate on the `tbd` branch as needed.
 
+**Beads** (epic: `tbd-eikw`, parent: `tbd-mdwh`):
+
+| Bead | Description |
+| --- | --- |
+| `tbd-eikw` | Parent: Phase 0 Speculate Prep |
+| `tbd-ezsv` | Clone jlevy/speculate and create tbd branch |
+| `tbd-xxj2` | Restructure Speculate to flat doc type directories (blocked by ezsv) |
+| `tbd-fq7w` | Update Speculate front matter and shortcut references (blocked by xxj2) |
+| `tbd-d6qq` | Copy improved docs from tbd to Speculate tbd branch (blocked by fq7w) |
+| `tbd-yuz9` | Push Speculate tbd branch and verify (blocked by d6qq) |
+| `tbd-1y1m` | Create sync-repos.sh script and add repos/ to .gitignore |
+
 ### Phase 1: Core Infrastructure
 
 - [ ] Create `doc-types.ts` registry (single source of truth for doc types)
@@ -1078,6 +1092,21 @@ The agent can iterate on the `tbd` branch as needed.
 - [ ] Update `DocSync` for prefix-based storage (`{prefix}/{type}/{name}.md`)
 - [ ] Clear `.tbd/docs/` during migration (fresh sync after format or source changes)
 - [ ] **Integration checkpoint**: Test sync against Speculate `tbd` branch
+
+**Beads** (epic: `tbd-5ybv`, parent: `tbd-mdwh`, blocked by Phase 0a):
+
+| Bead | Description |
+| --- | --- |
+| `tbd-5ybv` | Parent: Phase 1 Core Infrastructure |
+| `tbd-lvpg` | RED+GREEN: Create doc-types.ts registry with unit tests |
+| `tbd-9cmd` | RED+GREEN: Create repo-url.ts utility with unit tests |
+| `tbd-bfcu` | RED+GREEN: Bump format f03→f04 with migration (blocked by tbd-di9c) |
+| `tbd-4nz6` | Add DocsSourceSchema and update DocsCacheSchema in schemas.ts |
+| `tbd-dzo5` | RED+GREEN: Implement RepoCache class for sparse git checkouts (blocked by 9cmd) |
+| `tbd-apb9` | Restructure bundled docs to prefix-based layout (blocked by lvpg) |
+| `tbd-sfmk` | Rewrite DocSync for prefix-based storage and source-based sync (blocked by dzo5, apb9, 4nz6, bfcu) |
+| `tbd-pswl` | Implement doc cache clearing on migration or source config change (blocked by sfmk, bfcu) |
+| `tbd-wau7` | Integration checkpoint: test sync against Speculate tbd branch (blocked by sfmk, pswl) |
 
 ### Phase 2: Prefix System and Lookup
 
@@ -1094,6 +1123,19 @@ The agent can iterate on the `tbd` branch as needed.
 - [ ] **Integration checkpoint**: Full setup + sync cycle against Speculate `tbd` branch
 - [ ] **Multi-source test**: Add `rust-porting-playbook` as secondary source
 
+**Beads** (epic: `tbd-n3zb`, parent: `tbd-mdwh`, blocked by Phase 1):
+
+| Bead | Description |
+| --- | --- |
+| `tbd-n3zb` | Parent: Phase 2 Prefix System and Lookup |
+| `tbd-gr34` | RED+GREEN: Implement parseQualifiedName() utility with tests |
+| `tbd-2hip` | Implement AmbiguousLookupError with clear messaging |
+| `tbd-b1j3` | RED+GREEN: Update DocCache for prefix-based loading and lookup (blocked by gr34, 2hip) |
+| `tbd-pj5q` | Update tbd setup --auto to configure default sources with prefixes (blocked by b1j3) |
+| `tbd-u182` | Update --list output to show prefix when relevant (blocked by b1j3) |
+| `tbd-4onm` | Add progress indicators and error handling for repo checkout (blocked by b1j3) |
+| `tbd-0c4o` | Integration checkpoint: full setup + sync + multi-source test (blocked by pj5q, u182, 4onm) |
+
 ### Phase 3: New Reference Type and CLI
 
 - [ ] Add `reference` to DOC_TYPES registry
@@ -1102,6 +1144,17 @@ The agent can iterate on the `tbd` branch as needed.
 - [ ] Simplify existing commands (shortcut, guidelines, template) to use registry
 - [ ] Remove hardcoded path constants from `paths.ts`
 - [ ] Add `tbd doctor` checks for repo cache health
+
+**Beads** (epic: `tbd-qhmo`, parent: `tbd-mdwh`, blocked by Phase 2):
+
+| Bead | Description |
+| --- | --- |
+| `tbd-qhmo` | Parent: Phase 3 New Reference Type and CLI |
+| `tbd-d8eo` | Simplify doc commands to derive paths from doc-types registry |
+| `tbd-wylj` | Create tbd reference command (extends DocCommandHandler) (blocked by d8eo) |
+| `tbd-c1cd` | Update doc-add.ts for prefix-based storage (blocked by d8eo) |
+| `tbd-f5qd` | Remove hardcoded path constants, unify with doc-types registry (blocked by d8eo) |
+| `tbd-fzf1` | Add tbd doctor checks for repo cache health |
 
 ### Phase 3b: Documentation Update
 
@@ -1114,6 +1167,17 @@ Update all tbd documentation to reflect the new architecture:
 - [ ] Review and update all shortcuts that reference doc paths
 - [ ] Update README if it references doc structure
 - [ ] Add migration guide for users with custom doc configs
+
+**Beads** (epic: `tbd-rq6q`, parent: `tbd-mdwh`, blocked by Phase 3):
+
+| Bead | Description |
+| --- | --- |
+| `tbd-rq6q` | Parent: Phase 3b Documentation Update |
+| `tbd-ax39` | Update docs/development.md with external doc sources and test setup |
+| `tbd-iarz` | Update docs/docs-overview.md with prefix system |
+| `tbd-s72z` | Update skill.md and skill-brief.md with tbd reference command (blocked by iarz) |
+| `tbd-l4ov` | Audit and update shortcuts that reference doc paths |
+| `tbd-5m15` | Add migration guide for users with custom doc configs (blocked by iarz) |
 
 ### Phase 4: Validation
 
@@ -1129,6 +1193,16 @@ Verify that the refactored system produces identical output to the current relea
 - [ ] Test new `tbd reference` command
 - [ ] Document any intentional differences (e.g., improved content from tbd)
 - [ ] Fix any unintentional differences
+
+**Beads** (epic: `tbd-pxis`, parent: `tbd-mdwh`, blocked by Phases 3 and 3b):
+
+| Bead | Description |
+| --- | --- |
+| `tbd-pxis` | Parent: Phase 4 Validation |
+| `tbd-t7yt` | Create validate-docs.sh comparison script |
+| `tbd-ycnl` | Run validation for all shortcuts and guidelines (blocked by t7yt) |
+| `tbd-sek7` | Run validation for templates and test reference command (blocked by t7yt) |
+| `tbd-8txy` | Fix unintentional differences and document intentional ones (blocked by ycnl, sek7) |
 
 ### Phase 4b: Fresh Install End-to-End Test
 
@@ -1165,6 +1239,15 @@ Final validation with a clean environment to ensure the full user experience wor
 - [ ] Test ambiguity detection (if applicable)
 - [ ] Verify `--list` shows prefixes appropriately
 - [ ] Clean up test directory
+
+**Beads** (epic: `tbd-4xj8`, parent: `tbd-mdwh`, blocked by Phase 4):
+
+| Bead | Description |
+| --- | --- |
+| `tbd-4xj8` | Parent: Phase 4b Fresh Install End-to-End Test |
+| `tbd-9bwo` | Fresh install: setup --auto with default sources |
+| `tbd-7lus` | Fresh install: add secondary source and test multi-source (blocked by 9bwo) |
+| `tbd-c7xq` | Fresh install: test qualified and unqualified lookups (blocked by 7lus) |
 
 ### Phase 5: Speculate Migration (Finalize)
 
@@ -1285,6 +1368,18 @@ are primarily consumed via tbd.
 - [ ] Update Speculate README with flat `{type}/{name}.md` structure
 - [ ] Release new tbd version with prefix-based sources
 
+**Beads** (epic: `tbd-97fe`, parent: `tbd-mdwh`, blocked by Phase 4b):
+
+| Bead | Description |
+| --- | --- |
+| `tbd-97fe` | Parent: Phase 5 Speculate Migration (Finalize) |
+| `tbd-hcx4` | Audit all tbd docs and classify by prefix |
+| `tbd-mxvr` | Merge Speculate tbd branch → main (blocked by hcx4) |
+| `tbd-4r02` | Update tbd default config to use Speculate main (ref: main) (blocked by mxvr) |
+| `tbd-d74a` | Remove general docs from tbd bundled set (now in Speculate) (blocked by 4r02) |
+| `tbd-qrga` | Update Speculate README with flat doc structure (blocked by mxvr) |
+| `tbd-mvi6` | Release new tbd version with prefix-based sources (blocked by d74a, qrga) |
+
 #### Speculate CLI Future
 
 Once tbd can pull docs from Speculate, the Speculate CLI’s main value is diminished.
@@ -1336,56 +1431,58 @@ tool (`speculate init`), while tbd handles all doc/shortcut/guideline management
 
 ## Rollout Plan
 
-**Phase 0a: Prerequisite Fixes**
+**Top-level epic:** `tbd-mdwh` — Spec: External Docs Repos
 
-1. Refactor shortcut.ts to use DocCommandHandler (TDD, beads tbd-m87y chain)
-2. Add `warnings` field to `MigrationResult`
-3. Update `generateShortcutDirectory()` for `hidden` support
-4. Establish shared test fixtures and helpers for doc infrastructure
+**Phase 0a: Prerequisite Fixes** (`tbd-kzeh`)
 
-**Phase 0: Speculate Prep**
+1. Refactor shortcut.ts to use DocCommandHandler (TDD, beads tbd-she8 chain)
+2. Add `warnings` field to `MigrationResult` (tbd-di9c)
+3. Update `generateShortcutDirectory()` for `hidden` support (tbd-hrbz)
+4. Establish shared test fixtures and helpers for doc infrastructure (tbd-0bed)
+
+**Phase 0: Speculate Prep** (`tbd-eikw`, blocked by 0a)
 
 5. Create Speculate `tbd` branch with flat `{type}/{name}.md` structure
 6. This becomes the integration test target for all subsequent phases
 
-**Phase 1: Core Infrastructure**
+**Phase 1: Core Infrastructure** (`tbd-5ybv`, blocked by 0a)
 
 7. Implement doc-types registry, repo-url utility, format bump
 8. Implement prefix-based storage and sync
 
-**Phase 2: Prefix System and Lookup**
+**Phase 2: Prefix System and Lookup** (`tbd-n3zb`, blocked by Phase 1)
 
-5. Implement qualified (`prefix:name`) and unqualified lookup
-6. Add hidden source support
-7. Test against Speculate `tbd` branch
+9. Implement qualified (`prefix:name`) and unqualified lookup
+10. Add hidden source support
+11. Test against Speculate `tbd` branch
 
-**Phase 3: New Reference Type and CLI**
+**Phase 3: New Reference Type and CLI** (`tbd-qhmo`, blocked by Phase 2)
 
-8. Add `tbd reference` command
-9. Simplify existing commands to use doc-types registry
+12. Add `tbd reference` command
+13. Simplify existing commands to use doc-types registry
 
-**Phase 3b: Documentation Update**
+**Phase 3b: Documentation Update** (`tbd-rq6q`, blocked by Phase 3)
 
-10. Update all tbd docs to reflect new architecture
-11. Add migration guide for users
+14. Update all tbd docs to reflect new architecture
+15. Add migration guide for users
 
-**Phase 4: Validation**
+**Phase 4: Validation** (`tbd-pxis`, blocked by Phases 3 and 3b)
 
-12. Run validation script comparing all output with `get-tbd@latest`
-13. Document intentional differences, fix unintentional ones
+16. Run validation script comparing all output with `get-tbd@latest`
+17. Document intentional differences, fix unintentional ones
 
-**Phase 4b: Fresh Install E2E**
+**Phase 4b: Fresh Install E2E** (`tbd-4xj8`, blocked by Phase 4)
 
-14. Fresh install test with prefix-based sources
-15. Test qualified and unqualified lookups
-16. All tests must pass before proceeding
+18. Fresh install test with prefix-based sources
+19. Test qualified and unqualified lookups
+20. All tests must pass before proceeding
 
-**Phase 5: Speculate Migration (Finalize)**
+**Phase 5: Speculate Migration (Finalize)** (`tbd-97fe`, blocked by Phase 4b)
 
-17. Merge Speculate `tbd` → `main`
-18. Update tbd default config to use Speculate `main`
-19. Remove duplicated general docs from tbd bundled set
-20. Release new tbd version
+21. Merge Speculate `tbd` → `main`
+22. Update tbd default config to use Speculate `main`
+23. Remove duplicated general docs from tbd bundled set
+24. Release new tbd version
 
 ## Open Questions
 
