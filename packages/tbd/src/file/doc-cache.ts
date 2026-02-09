@@ -70,12 +70,46 @@ export interface CachedDoc {
   content: string;
   /** Which directory in the path this doc came from */
   sourceDir: string;
+  /** Source prefix (e.g., 'tbd', 'sys', 'spec') inferred from path */
+  prefix?: string;
   /** File size in bytes */
   sizeBytes: number;
   /** Estimated token count (based on ~3.5 chars/token) */
   approxTokens: number;
   /** If true, excluded from --list and directory tables */
   hidden?: boolean;
+}
+
+/**
+ * Parsed qualified name result.
+ */
+export interface QualifiedName {
+  /** Source prefix (e.g., 'spec' from 'spec:typescript-rules') */
+  prefix?: string;
+  /** Base document name (without prefix or .md extension) */
+  baseName: string;
+}
+
+/**
+ * Parse a potentially qualified document name.
+ *
+ * Supports formats:
+ * - 'typescript-rules' → { baseName: 'typescript-rules' }
+ * - 'spec:typescript-rules' → { prefix: 'spec', baseName: 'typescript-rules' }
+ * - 'typescript-rules.md' → { baseName: 'typescript-rules' }
+ */
+export function parseQualifiedName(name: string): QualifiedName {
+  const cleanName = name.endsWith('.md') ? name.slice(0, -3) : name;
+
+  const colonIndex = cleanName.indexOf(':');
+  if (colonIndex > 0) {
+    return {
+      prefix: cleanName.slice(0, colonIndex),
+      baseName: cleanName.slice(colonIndex + 1),
+    };
+  }
+
+  return { baseName: cleanName };
 }
 
 /**
@@ -220,6 +254,7 @@ export class DocCache {
           frontmatter,
           content,
           sourceDir,
+          prefix: inferPrefix(sourceDir),
           sizeBytes,
           approxTokens,
         };
@@ -267,14 +302,24 @@ export class DocCache {
   /**
    * Get a document by exact name match.
    *
-   * @param name - Filename to match (with or without .md extension)
+   * Supports qualified names (e.g., 'spec:typescript-rules') for prefix-specific lookup.
+   * Unqualified names return the first match in path order.
+   *
+   * @param name - Filename to match (may include prefix and/or .md extension)
    * @returns Match with score SCORE_EXACT_MATCH, or null if not found
    */
   get(name: string): DocMatch | null {
-    // Strip .md extension if present
-    const lookupName = name.endsWith('.md') ? name.slice(0, -3) : name;
+    const { prefix, baseName } = parseQualifiedName(name);
 
-    const doc = this.docs.find((d) => d.name === lookupName);
+    if (prefix) {
+      // Qualified lookup: search all docs (including shadowed) for specific prefix
+      const doc = this.allDocs.find((d) => d.name === baseName && d.prefix === prefix);
+      if (!doc) return null;
+      return { doc, score: SCORE_EXACT_MATCH };
+    }
+
+    // Unqualified: return first match in path order
+    const doc = this.docs.find((d) => d.name === baseName);
     if (!doc) return null;
 
     return { doc, score: SCORE_EXACT_MATCH };
@@ -487,4 +532,23 @@ export function generateShortcutDirectory(
   lines.push(SHORTCUT_DIRECTORY_END);
 
   return lines.join('\n');
+}
+
+/**
+ * Infer the source prefix from a directory path.
+ *
+ * Extracts the prefix from paths like:
+ * - '.tbd/docs/tbd/shortcuts' → 'tbd'
+ * - '.tbd/docs/sys/shortcuts' → 'sys'
+ * - '.tbd/docs/spec/guidelines' → 'spec'
+ *
+ * The prefix is the segment after 'docs/' in the path.
+ */
+function inferPrefix(sourceDir: string): string | undefined {
+  const parts = sourceDir.replace(/\\/g, '/').split('/');
+  const docsIndex = parts.indexOf('docs');
+  if (docsIndex >= 0 && docsIndex + 1 < parts.length) {
+    return parts[docsIndex + 1];
+  }
+  return undefined;
 }

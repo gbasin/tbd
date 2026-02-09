@@ -50,17 +50,25 @@ export class RepoCache {
    * @param url - Repository URL (any format: short, HTTPS, SSH)
    * @param ref - Git ref to checkout (branch/tag, defaults to 'main')
    * @param paths - Directory paths to include in sparse checkout
+   * @param onProgress - Optional callback for progress messages
    * @returns Path to the local checkout directory
    */
-  async ensureRepo(url: string, ref: string, paths: string[]): Promise<string> {
+  async ensureRepo(
+    url: string,
+    ref: string,
+    paths: string[],
+    onProgress?: (message: string) => void,
+  ): Promise<string> {
     const repoDir = this.getRepoDir(url);
     await mkdir(this.cacheDir, { recursive: true });
 
     const exists = await this.isCloned(repoDir);
 
     if (!exists) {
+      onProgress?.(`Cloning ${url}...`);
       await this.cloneRepo(url, ref, repoDir, paths);
     } else {
+      onProgress?.(`Updating ${url}...`);
       await this.updateRepo(repoDir, ref, paths);
     }
 

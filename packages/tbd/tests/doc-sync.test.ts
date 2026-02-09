@@ -666,5 +666,72 @@ describe('doc-sync', () => {
       await writeSourcesHash(tempDir, getSourcesHash(sources2));
       expect(await shouldClearDocsCache(tempDir, sources2)).toBe(false);
     });
+
+    it('end-to-end: default f04 sources produce correct prefix directories', async () => {
+      // Simulate the default sources from f04 migration
+      const defaultSources = [
+        { type: 'internal' as const, prefix: 'sys', hidden: true, paths: ['shortcuts/'] },
+        {
+          type: 'internal' as const,
+          prefix: 'tbd',
+          paths: ['shortcuts/', 'guidelines/', 'templates/'],
+        },
+      ];
+
+      // Step 1: Resolve sources to file map
+      const fileMap = await resolveSourcesToDocs(defaultSources);
+
+      // Step 2: Verify all expected prefix/type combos are present
+      const prefixTypes = new Set<string>();
+      for (const key of Object.keys(fileMap)) {
+        const parts = key.split('/');
+        if (parts.length >= 2) {
+          prefixTypes.add(`${parts[0]}/${parts[1]}`);
+        }
+      }
+      expect(prefixTypes.has('sys/shortcuts')).toBe(true);
+      expect(prefixTypes.has('tbd/shortcuts')).toBe(true);
+      expect(prefixTypes.has('tbd/guidelines')).toBe(true);
+      expect(prefixTypes.has('tbd/templates')).toBe(true);
+
+      // Step 3: Sync to disk
+      const sync = new DocSync(tempDir, fileMap);
+      const result = await sync.sync();
+
+      expect(result.success).toBe(true);
+      expect(result.errors).toEqual([]);
+      expect(result.added.length).toBeGreaterThan(50); // Should sync 50+ docs
+
+      // Step 4: Verify directory structure
+      const { readdir: rd } = await import('node:fs/promises');
+
+      const sysShortcuts = await rd(join(tempDir, '.tbd', 'docs', 'sys', 'shortcuts'));
+      expect(sysShortcuts.length).toBeGreaterThan(0);
+      expect(sysShortcuts).toContain('skill.md');
+
+      const tbdShortcuts = await rd(join(tempDir, '.tbd', 'docs', 'tbd', 'shortcuts'));
+      expect(tbdShortcuts.length).toBeGreaterThan(0);
+      expect(tbdShortcuts).toContain('code-review-and-commit.md');
+
+      const tbdGuidelines = await rd(join(tempDir, '.tbd', 'docs', 'tbd', 'guidelines'));
+      expect(tbdGuidelines.length).toBeGreaterThan(0);
+      expect(tbdGuidelines).toContain('typescript-rules.md');
+
+      const tbdTemplates = await rd(join(tempDir, '.tbd', 'docs', 'tbd', 'templates'));
+      expect(tbdTemplates.length).toBeGreaterThan(0);
+      expect(tbdTemplates).toContain('plan-spec.md');
+
+      // Step 5: Write and verify sources hash
+      const hash = getSourcesHash(defaultSources);
+      await writeSourcesHash(tempDir, hash);
+      expect(await shouldClearDocsCache(tempDir, defaultSources)).toBe(false);
+
+      // Step 6: Resync should report no changes
+      const resync = new DocSync(tempDir, fileMap);
+      const result2 = await resync.sync();
+      expect(result2.added).toEqual([]);
+      expect(result2.updated).toEqual([]);
+      expect(result2.removed).toEqual([]);
+    });
   });
 });

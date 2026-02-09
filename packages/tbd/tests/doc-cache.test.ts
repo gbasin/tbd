@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import {
   DocCache,
   generateShortcutDirectory,
+  parseQualifiedName,
   type CachedDoc,
   SCORE_EXACT_MATCH,
   SCORE_PREFIX_MATCH,
@@ -492,5 +493,120 @@ describe('generateShortcutDirectory', () => {
     const result = generateShortcutDirectory(shortcuts);
 
     expect(result).toContain('No shortcuts available');
+  });
+});
+
+describe('parseQualifiedName', () => {
+  it('parses unqualified name', () => {
+    const result = parseQualifiedName('typescript-rules');
+    expect(result).toEqual({ baseName: 'typescript-rules' });
+  });
+
+  it('parses qualified name with prefix', () => {
+    const result = parseQualifiedName('spec:typescript-rules');
+    expect(result).toEqual({ prefix: 'spec', baseName: 'typescript-rules' });
+  });
+
+  it('handles names with multiple colons (first colon is separator)', () => {
+    const result = parseQualifiedName('spec:some:doc-name');
+    expect(result).toEqual({ prefix: 'spec', baseName: 'some:doc-name' });
+  });
+
+  it('handles empty prefix (colon at start)', () => {
+    const result = parseQualifiedName(':typescript-rules');
+    expect(result).toEqual({ baseName: ':typescript-rules' });
+  });
+
+  it('strips .md extension', () => {
+    const result = parseQualifiedName('typescript-rules.md');
+    expect(result).toEqual({ baseName: 'typescript-rules' });
+  });
+
+  it('strips .md extension from qualified name', () => {
+    const result = parseQualifiedName('spec:typescript-rules.md');
+    expect(result).toEqual({ prefix: 'spec', baseName: 'typescript-rules' });
+  });
+});
+
+describe('DocCache prefix-aware lookup', () => {
+  let testDir: string;
+
+  beforeEach(async () => {
+    testDir = join(tmpdir(), `doc-cache-prefix-test-${Date.now()}`);
+    // Create prefix-based directories
+    await mkdir(join(testDir, '.tbd', 'docs', 'sys', 'shortcuts'), { recursive: true });
+    await mkdir(join(testDir, '.tbd', 'docs', 'tbd', 'shortcuts'), { recursive: true });
+    await mkdir(join(testDir, '.tbd', 'docs', 'spec', 'shortcuts'), { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(testDir, { recursive: true, force: true });
+  });
+
+  it('loads docs with prefix from directory structure', async () => {
+    await writeFile(
+      join(testDir, '.tbd', 'docs', 'tbd', 'shortcuts', 'commit.md'),
+      '---\ntitle: Commit\n---\n# Commit',
+    );
+
+    const cache = new DocCache(['.tbd/docs/tbd/shortcuts'], testDir);
+    await cache.load();
+
+    const match = cache.get('commit');
+    expect(match).not.toBeNull();
+    expect(match!.doc.prefix).toBe('tbd');
+  });
+
+  it('resolves qualified name to specific prefix', async () => {
+    // Same name in two prefixes
+    await writeFile(join(testDir, '.tbd', 'docs', 'tbd', 'shortcuts', 'review.md'), '# TBD Review');
+    await writeFile(
+      join(testDir, '.tbd', 'docs', 'spec', 'shortcuts', 'review.md'),
+      '# Spec Review',
+    );
+
+    const cache = new DocCache(['.tbd/docs/tbd/shortcuts', '.tbd/docs/spec/shortcuts'], testDir);
+    await cache.load();
+
+    // Qualified lookup should return specific prefix
+    const match = cache.get('spec:review');
+    expect(match).not.toBeNull();
+    expect(match!.doc.content).toContain('Spec Review');
+    expect(match!.doc.prefix).toBe('spec');
+  });
+
+  it('unqualified name returns first match in path order', async () => {
+    await writeFile(join(testDir, '.tbd', 'docs', 'tbd', 'shortcuts', 'review.md'), '# TBD Review');
+    await writeFile(
+      join(testDir, '.tbd', 'docs', 'spec', 'shortcuts', 'review.md'),
+      '# Spec Review',
+    );
+
+    const cache = new DocCache(['.tbd/docs/tbd/shortcuts', '.tbd/docs/spec/shortcuts'], testDir);
+    await cache.load();
+
+    // Unqualified should return first (tbd)
+    const match = cache.get('review');
+    expect(match).not.toBeNull();
+    expect(match!.doc.content).toContain('TBD Review');
+    expect(match!.doc.prefix).toBe('tbd');
+  });
+
+  it('list() filters out hidden docs by default', async () => {
+    await writeFile(
+      join(testDir, '.tbd', 'docs', 'sys', 'shortcuts', 'skill.md'),
+      '---\ntitle: Skill\n---\n# Skill',
+    );
+    await writeFile(
+      join(testDir, '.tbd', 'docs', 'tbd', 'shortcuts', 'commit.md'),
+      '---\ntitle: Commit\n---\n# Commit',
+    );
+
+    const cache = new DocCache(['.tbd/docs/sys/shortcuts', '.tbd/docs/tbd/shortcuts'], testDir);
+    await cache.load();
+
+    // sys docs are not hidden by default (hidden is set at source level, not directory level)
+    const docs = cache.list();
+    expect(docs.length).toBe(2);
   });
 });
