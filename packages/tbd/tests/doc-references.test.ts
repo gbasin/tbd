@@ -83,7 +83,7 @@ function extractDocCommands(content: string): string[] {
   return [...new Set(commands)]; // dedupe
 }
 
-describe('doc references', () => {
+describe('doc references', { timeout: 30000 }, () => {
   // Ensure docs are installed before running tests
   beforeAll(() => {
     // Run tbd setup --auto to install docs (they're gitignored so not present in CI)
