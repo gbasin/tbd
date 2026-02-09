@@ -254,9 +254,15 @@ class ImportHandler extends BaseCommand {
 
     // Create logger that feeds progress to spinner and verbose/debug output
     const logger: WorkspaceLogger = {
-      progress: (msg) => { spinner.message(msg); },
-      info: (msg) => { this.output.info(msg); },
-      debug: (msg) => { this.output.debug(msg); },
+      progress: (msg) => {
+        spinner.message(msg);
+      },
+      info: (msg) => {
+        this.output.info(msg);
+      },
+      debug: (msg) => {
+        this.output.debug(msg);
+      },
     };
     wsOptions.logger = logger;
 
