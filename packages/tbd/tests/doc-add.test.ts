@@ -181,7 +181,7 @@ describe('addDoc', () => {
       docType: 'guideline',
     });
 
-    expect(result.destPath).toBe('guidelines/modern-bun-monorepo-patterns.md');
+    expect(result.destPath).toBe('tbd/guidelines/modern-bun-monorepo-patterns.md');
     expect(result.rawUrl).toContain('raw.githubusercontent.com');
 
     // Verify fetchWithGhFallback was called with the URL
@@ -189,9 +189,9 @@ describe('addDoc', () => {
       'https://raw.githubusercontent.com/org/repo/main/docs/file.md',
     );
 
-    // Verify file was written
+    // Verify file was written to prefix-based path
     const content = await readFile(
-      join(tempDir, '.tbd', 'docs', 'guidelines', 'modern-bun-monorepo-patterns.md'),
+      join(tempDir, '.tbd', 'docs', 'tbd', 'guidelines', 'modern-bun-monorepo-patterns.md'),
       'utf-8',
     );
     expect(content).toBe('# Mocked Document\n\nThis is mocked content for testing.\n');
@@ -222,7 +222,7 @@ describe('addDoc', () => {
     });
 
     // Should not double the .md
-    expect(result.destPath).toBe('guidelines/modern-bun-monorepo-patterns.md');
+    expect(result.destPath).toBe('tbd/guidelines/modern-bun-monorepo-patterns.md');
   });
 
   it('uses shortcuts subdir for shortcut type', async () => {
@@ -232,11 +232,11 @@ describe('addDoc', () => {
       docType: 'shortcut',
     });
 
-    expect(result.destPath).toBe('shortcuts/test-shortcut.md');
+    expect(result.destPath).toBe('tbd/shortcuts/test-shortcut.md');
 
     // Verify file went to the right place
     const content = await readFile(
-      join(tempDir, '.tbd', 'docs', 'shortcuts', 'test-shortcut.md'),
+      join(tempDir, '.tbd', 'docs', 'tbd', 'shortcuts', 'test-shortcut.md'),
       'utf-8',
     );
     expect(content).toBe('# Mocked Document\n\nThis is mocked content for testing.\n');
@@ -249,7 +249,7 @@ describe('addDoc', () => {
       docType: 'template',
     });
 
-    expect(result.destPath).toBe('templates/test-template.md');
+    expect(result.destPath).toBe('tbd/templates/test-template.md');
   });
 
   it('adds lookup_path entry if not already present', async () => {
@@ -260,7 +260,7 @@ describe('addDoc', () => {
     });
 
     const configContent = await readFile(join(tempDir, '.tbd', 'config.yml'), 'utf-8');
-    expect(configContent).toContain('.tbd/docs/shortcuts');
+    expect(configContent).toContain('.tbd/docs/tbd/shortcuts');
   });
 
   it('does not duplicate lookup_path entry on second add', async () => {
@@ -277,8 +277,8 @@ describe('addDoc', () => {
     });
 
     const configContent = await readFile(join(tempDir, '.tbd', 'config.yml'), 'utf-8');
-    // Count occurrences of .tbd/docs/guidelines
-    const matches = configContent.match(/\.tbd\/docs\/guidelines/g);
+    // Count occurrences of .tbd/docs/tbd/guidelines
+    const matches = configContent.match(/\.tbd\/docs\/tbd\/guidelines/g);
     expect(matches?.length).toBe(1);
   });
 

@@ -78,13 +78,14 @@ describe('doc --add end-to-end', () => {
       }
 
       expect(addResult.status).toBe(0);
-      expect(addResult.stdout).toContain('Added to guidelines/modern-bun-monorepo-patterns.md');
+      expect(addResult.stdout).toContain('Added to tbd/guidelines/modern-bun-monorepo-patterns.md');
 
-      // Verify file exists
+      // Verify file exists in prefix-based path
       const docPath = join(
         tempDir,
         '.tbd',
         'docs',
+        'tbd',
         'guidelines',
         'modern-bun-monorepo-patterns.md',
       );
@@ -142,10 +143,10 @@ describe('doc --add end-to-end', () => {
       }
 
       expect(addResult.status).toBe(0);
-      expect(addResult.stdout).toContain('Added to shortcuts/my-custom-shortcut.md');
+      expect(addResult.stdout).toContain('Added to tbd/shortcuts/my-custom-shortcut.md');
 
-      // Verify the file went to shortcuts/
-      const docPath = join(tempDir, '.tbd', 'docs', 'shortcuts', 'my-custom-shortcut.md');
+      // Verify the file went to tbd/shortcuts/
+      const docPath = join(tempDir, '.tbd', 'docs', 'tbd', 'shortcuts', 'my-custom-shortcut.md');
       await access(docPath);
     });
   });
@@ -166,7 +167,7 @@ describe('doc --add end-to-end', () => {
       }
 
       expect(addResult.status).toBe(0);
-      expect(addResult.stdout).toContain('Added to templates/my-custom-template.md');
+      expect(addResult.stdout).toContain('Added to tbd/templates/my-custom-template.md');
     });
   });
 });

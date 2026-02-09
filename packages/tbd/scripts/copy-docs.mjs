@@ -33,9 +33,6 @@ const repoRoot = join(root, '..', '..');
 const DOCS_DIR = join(root, 'docs');
 const INSTALL_DIR = join(DOCS_DIR, 'install');
 const SYS_SHORTCUTS_DIR = join(DOCS_DIR, 'sys', 'shortcuts');
-const TBD_SHORTCUTS_DIR = join(DOCS_DIR, 'tbd', 'shortcuts');
-const TBD_GUIDELINES_DIR = join(DOCS_DIR, 'tbd', 'guidelines');
-const TBD_TEMPLATES_DIR = join(DOCS_DIR, 'tbd', 'templates');
 
 /**
  * Packaged documentation files (in packages/tbd/docs/).
