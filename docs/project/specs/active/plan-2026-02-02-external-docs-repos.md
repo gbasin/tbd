@@ -965,12 +965,12 @@ will be added.
 
 | Bead | Description |
 | --- | --- |
-| `tbd-m87y` | Parent: Refactor shortcut.ts to use DocCommandHandler |
-| `tbd-ejrz` | Write characterization tests for shortcut command current behavior |
-| `tbd-bs6f` | Migrate ShortcutHandler to extend DocCommandHandler (blocked by ejrz) |
-| `tbd-plld` | Move shortcut-specific behavior to DocCommandHandler overrides (blocked by bs6f) |
-| `tbd-xce7` | Remove duplicate code from shortcut.ts after migration (blocked by plld) |
-| `tbd-my23` | Verify all characterization tests still pass after refactor (blocked by xce7) |
+| `tbd-she8` | Parent: 0a.1 Refactor shortcut.ts to use DocCommandHandler |
+| `tbd-0pwa` | RED: Write characterization tests for shortcut command current behavior |
+| `tbd-fmxo` | GREEN: Migrate ShortcutHandler to extend DocCommandHandler (blocked by 0pwa) |
+| `tbd-0fpx` | GREEN: Move shortcut-specific behavior to DocCommandHandler overrides (blocked by fmxo) |
+| `tbd-4npn` | REFACTOR: Remove duplicate code from shortcut.ts (blocked by 0fpx) |
+| `tbd-msj1` | VERIFY: Run full test suite, confirm no regressions (blocked by 4npn) |
 
 **TDD approach:**
 
@@ -991,29 +991,41 @@ will be added.
 The `MigrationResult` type in `tbd-format.ts` only has `changes: string[]`. The f03→f04
 migration needs `warnings: string[]` for reporting preserved custom file overrides.
 
-- [ ] Add `warnings: string[]` to `MigrationResult` interface
-- [ ] Initialize `warnings: []` in existing migration functions
-- [ ] Add test for `warnings` field in `tbd-format.test.ts`
+**Beads** (TDD order):
+
+| Bead | Description |
+| --- | --- |
+| `tbd-di9c` | Parent: 0a.2 Add warnings field to MigrationResult |
+| `tbd-aga3` | RED: Write test for MigrationResult warnings field |
+| `tbd-lifm` | GREEN: Add warnings: string[] to interface and existing functions (blocked by aga3) |
 
 #### 0a.3: Update `generateShortcutDirectory()` for `hidden` support (Issue 12)
 
 Currently hardcodes skip names (`skill`, `skill-brief`, `shortcut-explanation`). The
 prefix system introduces `hidden` sources that should be excluded generically.
 
-- [ ] Add `hidden?: boolean` field to `CachedDoc` interface in `doc-cache.ts`
-- [ ] Populate `hidden` from source config when loading docs
-- [ ] Update `generateShortcutDirectory()` to filter by `doc.hidden` instead of
-  hardcoded names
-- [ ] Keep hardcoded names as fallback for backward compatibility during transition
+**Beads** (TDD order):
+
+| Bead | Description |
+| --- | --- |
+| `tbd-hrbz` | Parent: 0a.3 Update generateShortcutDirectory() for hidden support |
+| `tbd-xfru` | RED: Write tests for hidden doc filtering in generateShortcutDirectory() |
+| `tbd-kqic` | GREEN: Add hidden field to CachedDoc and filter (blocked by xfru) |
+| `tbd-bal5` | REFACTOR: Remove hardcoded skip names, use hidden field (blocked by kqic) |
 
 #### 0a.4: Establish test patterns for doc infrastructure (Issue 13)
 
 Set up reusable test fixtures and helpers for doc tests before the main implementation.
 
-- [ ] Create `tests/fixtures/test-docs/` with sample docs for each type
-- [ ] Create `tests/helpers/doc-test-utils.ts` with helpers for creating temp doc dirs
-- [ ] Add helper for creating local bare git repos (for RepoCache tests without network)
-- [ ] Update existing `doc-sync.test.ts` and `doc-cache.test.ts` to use shared fixtures
+**Beads** (dependency chain):
+
+| Bead | Description |
+| --- | --- |
+| `tbd-0bed` | Parent: 0a.4 Establish shared test fixtures and helpers |
+| `tbd-v0sk` | Create tests/fixtures/test-docs/ with sample docs for each type |
+| `tbd-r34n` | Create tests/helpers/doc-test-utils.ts with temp doc dir helpers (blocked by v0sk) |
+| `tbd-nszx` | Add helper for creating local bare git repos (blocked by r34n) |
+| `tbd-3grz` | Refactor existing doc-sync/doc-cache tests to use shared fixtures (blocked by r34n) |
 
 ### Phase 0: Speculate Prep
 
