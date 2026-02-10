@@ -53,6 +53,8 @@ import {
   importFromWorkspace,
   deleteWorkspace,
 } from '../../file/workspace.js';
+import { externalPull, externalPush } from '../../file/external-sync.js';
+import { noopLogger } from '../../lib/types.js';
 
 interface SyncOptions {
   push?: boolean;
@@ -114,8 +116,29 @@ class SyncHandler extends BaseCommand {
 
     // PHASE 1: External-pull (before git commit, so changes are captured)
     if (syncExternal && useGhCli) {
-      // External pull: fetch GitHub issue states into local beads
-      // Implementation in Phase 3b - placeholder for sync ordering
+      const dataSyncDir = await resolveDataSyncDir(tbdRoot);
+      const issues = await listIssues(dataSyncDir);
+      const linkedCount = issues.filter((i) => i.external_issue_url).length;
+
+      if (linkedCount > 0) {
+        const spinner = this.output.spinner('Pulling external issue states...');
+        const { now } = await import('../../utils/time-utils.js');
+        const timestamp = now();
+        const result = await externalPull(
+          issues,
+          (issue) => writeIssue(dataSyncDir, issue),
+          timestamp,
+          noopLogger,
+        );
+        spinner.stop();
+
+        if (result.pulled > 0) {
+          this.output.success(`Pulled ${result.pulled} status update(s) from GitHub`);
+        }
+        for (const error of result.errors) {
+          this.output.warn(`External pull: ${error}`);
+        }
+      }
     } else if (options.external && !useGhCli) {
       this.output.warn('External sync skipped: GitHub CLI is disabled (use_gh_cli: false)');
     }
@@ -204,8 +227,22 @@ class SyncHandler extends BaseCommand {
 
     // PHASE 4: External-push (after git sync, so bead statuses are finalized)
     if (syncExternal && useGhCli) {
-      // External push: push local bead status/label changes to GitHub Issues
-      // Implementation in Phase 3b - placeholder for sync ordering
+      const dataSyncDir = await resolveDataSyncDir(tbdRoot);
+      const issues = await listIssues(dataSyncDir);
+      const linkedCount = issues.filter((i) => i.external_issue_url).length;
+
+      if (linkedCount > 0) {
+        const spinner = this.output.spinner('Pushing status to external issues...');
+        const result = await externalPush(issues, noopLogger);
+        spinner.stop();
+
+        if (result.pushed > 0) {
+          this.output.success(`Pushed ${result.pushed} status update(s) to GitHub`);
+        }
+        for (const error of result.errors) {
+          this.output.warn(`External push: ${error}`);
+        }
+      }
     }
   }
 
