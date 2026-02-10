@@ -14,6 +14,6 @@ spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
 status: closed
 title: "Phase 1d: Refactor create.ts to use inheritable fields — replace inline spec_path logic (lines 113-119) with inheritFromParent(), add --external-issue flag with use_gh_cli gating"
 type: is
-updated_at: 2026-02-10T23:13:30.991Z
-version: 5
+updated_at: 2026-02-10T23:49:48.703Z
+version: 6
 ---

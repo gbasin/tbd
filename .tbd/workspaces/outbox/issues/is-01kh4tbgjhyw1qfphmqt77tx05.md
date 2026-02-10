@@ -14,6 +14,6 @@ spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
 status: closed
 title: "Phase 3a: Sync scope changes — add --external flag to sync.ts SyncOptions (line 58-65), extend scope selection logic (lines 89-103), reorder to 4-phase sync with use_gh_cli gating"
 type: is
-updated_at: 2026-02-10T23:13:31.020Z
-version: 5
+updated_at: 2026-02-10T23:49:48.735Z
+version: 6
 ---
