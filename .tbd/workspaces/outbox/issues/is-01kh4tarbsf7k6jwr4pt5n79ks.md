@@ -1,4 +1,6 @@
 ---
+close_reason: E2e tests passing, list filter bug fixed
+closed_at: 2026-02-10T23:11:05.841Z
 created_at: 2026-02-10T22:21:41.113Z
 dependencies:
   - target: is-01kh4tb83jp2d4fdt3dhy89t3d
@@ -11,9 +13,9 @@ labels: []
 parent_id: is-01kh4t9cdp8esjk70khqvn2rmf
 priority: 1
 spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
-status: open
+status: closed
 title: "Phase 1h-i: Golden tests and verification — cli-external-issue-linking.tryscript.md, cli-inheritable-fields.tryscript.md (5 inheritance scenarios), verify existing spec_path tests pass"
 type: is
-updated_at: 2026-02-10T22:23:23.458Z
-version: 3
+updated_at: 2026-02-10T23:13:31.009Z
+version: 6
 ---

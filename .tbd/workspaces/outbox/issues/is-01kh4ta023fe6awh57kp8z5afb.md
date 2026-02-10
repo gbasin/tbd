@@ -1,4 +1,6 @@
 ---
+close_reason: GitHub issue URL parser with 44 tests
+closed_at: 2026-02-10T22:38:01.694Z
 created_at: 2026-02-10T22:21:16.227Z
 dependencies:
   - target: is-01kh4tab2habe6r6cspptrkavp
@@ -13,9 +15,9 @@ labels: []
 parent_id: is-01kh4t9cdp8esjk70khqvn2rmf
 priority: 1
 spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
-status: open
+status: closed
 title: "Phase 1b: GitHub issue URL parser — new github-issues.ts alongside github-fetch.ts with parseGitHubIssueUrl, isGitHubIssueUrl, isGitHubPrUrl, validateGitHubIssue, gh api operations"
 type: is
-updated_at: 2026-02-10T22:23:22.628Z
-version: 4
+updated_at: 2026-02-10T23:13:30.979Z
+version: 6
 ---

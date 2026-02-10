@@ -1,4 +1,6 @@
 ---
+close_reason: show.ts highlighting and list.ts filter for external_issue_url
+closed_at: 2026-02-10T22:44:38.205Z
 created_at: 2026-02-10T22:21:33.289Z
 dependencies:
   - target: is-01kh4tarbsf7k6jwr4pt5n79ks
@@ -9,9 +11,9 @@ labels: []
 parent_id: is-01kh4t9cdp8esjk70khqvn2rmf
 priority: 1
 spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
-status: open
+status: closed
 title: "Phase 1f-g: Update show.ts display (add external_issue_url highlighting after line 70) and list.ts filter (add --external-issue filter after spec filter lines 247-251)"
 type: is
-updated_at: 2026-02-10T22:23:09.058Z
-version: 2
+updated_at: 2026-02-10T23:13:31.003Z
+version: 4
 ---

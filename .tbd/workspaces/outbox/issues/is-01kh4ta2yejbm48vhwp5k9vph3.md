@@ -1,4 +1,6 @@
 ---
+close_reason: Generic inheritable field system with 20 tests
+closed_at: 2026-02-10T22:38:02.110Z
 created_at: 2026-02-10T22:21:19.181Z
 dependencies:
   - target: is-01kh4tab2habe6r6cspptrkavp
@@ -11,9 +13,9 @@ labels: []
 parent_id: is-01kh4t9cdp8esjk70khqvn2rmf
 priority: 1
 spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
-status: open
+status: closed
 title: "Phase 1c: Generic inheritable field system — new inheritable-fields.ts with INHERITABLE_FIELDS registry, inheritFromParent(), propagateToChildren()"
 type: is
-updated_at: 2026-02-10T22:22:59.872Z
-version: 3
+updated_at: 2026-02-10T23:13:30.985Z
+version: 5
 ---

@@ -1,4 +1,6 @@
 ---
+close_reason: Schema, merge rules, and types complete. Build and 974 tests pass.
+closed_at: 2026-02-10T22:31:57.022Z
 created_at: 2026-02-10T22:21:13.090Z
 dependencies:
   - target: is-01kh4ta023fe6awh57kp8z5afb
@@ -19,9 +21,9 @@ labels: []
 parent_id: is-01kh4t9cdp8esjk70khqvn2rmf
 priority: 1
 spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
-status: open
+status: closed
 title: "Phase 1a: Schema and merge rules — add external_issue_url field to IssueSchema (schemas.ts:149), merge rule in git.ts:300, type updates in types.ts"
 type: is
-updated_at: 2026-02-10T22:23:21.791Z
-version: 7
+updated_at: 2026-02-10T23:13:30.972Z
+version: 10
 ---
