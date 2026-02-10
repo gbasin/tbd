@@ -579,28 +579,89 @@ is optional and can be deferred.
 - [ ] Write tests for label diff computation
 - [ ] Create golden tryscript tests for bidirectional label sync
 
-### Design Doc Updates
+### Documentation Updates
 
-- [x] Update `tbd-design.md` §2.6.3 (IssueSchema) to add `external_issue_url`
-- [x] Update `tbd-design.md` merge rules (§5.5) to add `external_issue_url: 'lww'`
-- [x] Update `tbd-design.md` §8.7 to reflect the implemented design
-- [x] Add status mapping table to design doc
-- [x] Add label sync design to design doc
-- [x] Document the scoped sync architecture (`--external` as third sync scope)
-- [x] Document the staging model (local operations don't touch external systems)
-- [x] Document the inheritance and propagation rules alongside `spec_path`
-- [ ] Add `use_gh_cli` to design doc ConfigSchema (§2.7.4 settings)
-- [ ] Document `use_gh_cli` gating behavior in design doc §8.7
+All documentation must be updated to reflect the new `--external-issue` flag,
+`--external` sync scope, and `use_gh_cli` gating. This section lists every
+document that needs changes.
 
-### User-Facing Doc Updates
+#### Design Doc (`packages/tbd/docs/tbd-design.md`)
 
-- [ ] Update README GitHub authentication section to mention external issue
-  features depend on `use_gh_cli: true`
-- [ ] Update `setup-github-cli` shortcut to mention external issue linking
-  as a feature that requires `gh` CLI
-- [ ] Ensure all `--external-issue` `--help` text includes format example
-  and mentions `use_gh_cli` requirement
-- [ ] Ensure error messages include the expected URL format example
+- [x] §2.6.3 IssueSchema: add `external_issue_url` field
+- [x] §5.5 merge rules: add `external_issue_url: 'lww'`
+- [x] §8.7: rewrite with implemented design (status/label mapping, sync arch)
+- [x] §8.7: document `use_gh_cli` prerequisite
+- [x] §2.7.4 ConfigSchema: add `use_gh_cli` to documented settings
+- [ ] §4.4 Create command: add `--external-issue <url>` to options list and
+  examples. Note: `--spec` also needs adding (currently undocumented in §4.4)
+- [ ] §4.4 Update command: add `--external-issue <url>` to options list and
+  examples
+- [ ] §4.4 Show command: mention `external_issue_url` in output description
+- [ ] §4.4 List command: add `--external-issue` filter option
+- [ ] §4.7 Sync command: add `--external` scope flag, `--issues`, `--docs`
+  scope flags, and document the 4-phase sync ordering
+
+#### CLI Reference (`packages/tbd/docs/tbd-docs.md`)
+
+- [ ] `create` section (line ~193): add `--external-issue <url>` option with
+  description and example. Include URL format example in help text.
+- [ ] `update` section (line ~294): add `--external-issue <url>` option
+- [ ] `list` section (line ~236): add `--external-issue [url]` filter option
+  with example
+- [ ] `show` section (line ~282): mention `external_issue_url` in output fields
+- [ ] `sync` section (line ~449): add `--external`, `--issues`, `--docs` scope
+  flags. Document that default (no flags) syncs all scopes.
+
+#### Workflow Context (`packages/tbd/docs/tbd-prime.md`)
+
+- [ ] "Creating & Updating" section: add `--external-issue` to create example
+- [ ] "Sync & Collaboration" section: mention `--external` scope flag
+- [ ] Consider adding a brief external issue linking note to "Common Workflows"
+
+#### Top-Level README (`README.md`)
+
+- [x] GitHub authentication section: note that `use_gh_cli: false` disables
+  external issue features
+- [ ] Commands section: add `--external-issue` to create/update examples
+- [ ] Commands section: add `--external` to sync examples
+
+#### Shortcuts
+
+These shortcuts reference beads workflows and should mention that beads may
+have linked external issues:
+
+- [ ] `plan-implementation-with-beads.md`: In the "Create a top-level epic"
+  step, show `--external-issue` as an optional flag alongside `--spec`
+  (epics are the natural place to link to GitHub issues)
+- [ ] `implement-beads.md`: Note that beads may be linked to external GitHub
+  issues — agents should check `tbd show` output for `external_issue_url`
+  and be aware that `tbd sync` pushes status changes externally
+- [ ] `agent-handoff.md`: Add "External issues" to the "What to Include"
+  checklist (whether beads have linked GitHub issues, sync status)
+- [ ] `setup-github-cli.md`: Mention external issue linking as a feature that
+  requires `gh` CLI. List it alongside PR creation and code review.
+- [ ] `code-review-and-commit.md`: No changes needed (doesn't deal with beads)
+- [ ] `create-or-update-pr-simple.md`: No changes needed (doesn't deal with beads)
+
+#### CLI `--help` Text (in source code)
+
+- [ ] `create` command: `--external-issue` help must include format example:
+  `--external-issue <url>  Link to GitHub issue (e.g., https://github.com/owner/repo/issues/123)`
+- [ ] `update` command: same format
+- [ ] `list` command: `--external-issue [url]` filter help
+- [ ] `sync` command: `--external` scope help text
+- [ ] All `--external-issue` help should note: "Requires use_gh_cli: true"
+
+#### Error Messages (in source code)
+
+Every error path must include the expected URL format example so agents
+are never confused:
+
+- [ ] Invalid URL format → include `https://github.com/owner/repo/issues/123`
+- [ ] PR URL → "This is a pull request URL, not an issue URL"
+- [ ] Non-GitHub URL → "Only GitHub issue URLs are supported"
+- [ ] 404 → "Issue not found or not accessible"
+- [ ] `use_gh_cli: false` → "Set use_gh_cli: true or run tbd setup --auto"
 
 ## Testing Strategy
 
