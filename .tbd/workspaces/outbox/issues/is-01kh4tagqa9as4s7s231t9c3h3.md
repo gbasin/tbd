@@ -14,6 +14,6 @@ spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
 status: closed
 title: "Phase 1f-g: Update show.ts display (add external_issue_url highlighting after line 70) and list.ts filter (add --external-issue filter after spec filter lines 247-251)"
 type: is
-updated_at: 2026-02-10T23:49:48.716Z
-version: 5
+updated_at: 2026-02-11T00:23:43.592Z
+version: 6
 ---

@@ -10,6 +10,6 @@ spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
 status: open
 title: "Phase 4: Bidirectional label sync — addGitHubLabel (two-step POST), removeGitHubLabel, computeLabelDiff in github-issues.ts; extend syncExternalPull/Push with label sync; union semantics"
 type: is
-updated_at: 2026-02-10T23:49:48.752Z
-version: 3
+updated_at: 2026-02-11T00:23:43.634Z
+version: 4
 ---

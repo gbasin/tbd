@@ -16,6 +16,6 @@ spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
 status: closed
 title: "Phase 1c: Generic inheritable field system — new inheritable-fields.ts with INHERITABLE_FIELDS registry, inheritFromParent(), propagateToChildren()"
 type: is
-updated_at: 2026-02-10T23:49:48.696Z
-version: 6
+updated_at: 2026-02-11T00:23:43.571Z
+version: 7
 ---
