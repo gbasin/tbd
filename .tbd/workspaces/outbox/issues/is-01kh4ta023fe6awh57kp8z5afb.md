@@ -18,6 +18,6 @@ spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
 status: closed
 title: "Phase 1b: GitHub issue URL parser — new github-issues.ts alongside github-fetch.ts with parseGitHubIssueUrl, isGitHubIssueUrl, isGitHubPrUrl, validateGitHubIssue, gh api operations"
 type: is
-updated_at: 2026-02-11T00:23:43.564Z
-version: 8
+updated_at: 2026-02-11T01:18:44.062Z
+version: 9
 ---

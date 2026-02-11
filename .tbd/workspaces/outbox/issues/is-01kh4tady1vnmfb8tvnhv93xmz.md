@@ -14,6 +14,6 @@ spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
 status: closed
 title: "Phase 1e: Refactor update.ts to use inheritable fields — replace inline spec_path logic (lines 94-104, 151-164) with inheritFromParent/propagateToChildren, add --external-issue flag"
 type: is
-updated_at: 2026-02-11T00:23:43.586Z
-version: 6
+updated_at: 2026-02-11T01:18:44.080Z
+version: 7
 ---

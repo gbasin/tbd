@@ -24,6 +24,6 @@ spec_path: docs/project/specs/active/plan-2026-02-10-external-issue-linking.md
 status: closed
 title: "Phase 1a: Schema and merge rules — add external_issue_url field to IssueSchema (schemas.ts:149), merge rule in git.ts:300, type updates in types.ts"
 type: is
-updated_at: 2026-02-11T00:23:43.555Z
-version: 12
+updated_at: 2026-02-11T01:18:44.055Z
+version: 13
 ---
