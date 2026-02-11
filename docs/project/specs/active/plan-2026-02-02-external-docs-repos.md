@@ -24,6 +24,8 @@ This allows:
 ## Goals
 
 - Allow configuring external git repos as doc sources
+- Allow configuring local directories within the repo as doc sources (always-fresh via
+  stub pointers)
 - Support selective sync (only certain folders/types from a repo)
 - Maintain backward compatibility with existing `internal:` and URL sources
 - Make sync work seamlessly with repo sources (checkout on first sync, pull on
@@ -140,6 +142,14 @@ docs_cache:
     #   paths:
     #     - guidelines/
     #     - references/
+
+    # Optional: local docs from within this repo (always-fresh via stub pointers)
+    # - type: local
+    #   prefix: local
+    #   path: docs/tbd           # relative to repo root
+    #   paths:
+    #     - shortcuts/
+    #     - guidelines/
 
   # Per-file overrides (highest precedence, applied after sources)
   # These bypass the prefix system - written directly to .tbd/docs/{path}
@@ -812,10 +822,11 @@ function inferDocType(relativePath: string): DocTypeName | undefined {
 ```typescript
 // In schemas.ts
 export const DocsSourceSchema = z.object({
-  type: z.enum(['internal', 'repo']),
+  type: z.enum(['internal', 'repo', 'local']),
   prefix: z.string().min(1).max(16).regex(/^[a-z0-9-]+$/),
   url: z.string().optional(),           // Required for type: repo
   ref: z.string().optional(),            // Defaults to 'main' for repos
+  path: z.string().optional(),           // Required for type: local (repo-root-relative dir)
   paths: z.array(z.string()),
   hidden: z.boolean().optional(),        // Exclude from --list
 });
@@ -1552,8 +1563,214 @@ These commands:
 - Default `ref` to `main` but always write it explicitly to config.yml
 - Default `paths` to all doc type directories (shortcuts, guidelines, templates,
   references)
-- Prevent removal of internal sources (only repo sources can be removed)
+- Prevent removal of internal sources (only repo and local sources can be removed)
 - 12 unit tests in `source.test.ts`
+
+**Local source support** (designed, pending implementation — see “Design: Local Repo Doc
+Sources” section above):
+- `tbd source add docs/tbd --prefix local` — auto-detects local directories
+- Uses stub pointer files for always-fresh content
+- No re-sync needed after editing local docs
+
+## Design: Local Repo Doc Sources (`type: local`)
+
+### Motivation
+
+A common use case: a project has its own shortcuts, guidelines, or templates checked
+into its Git repo (e.g., at `docs/tbd/shortcuts/`). These should be managed just like
+external repo sources — discoverable via `tbd shortcut --list`, accessible via
+`tbd shortcut name` — but without any cloning or fetching.
+The source is the current repo itself.
+
+### Config Format
+
+```yaml
+docs_cache:
+  sources:
+    - type: local
+      prefix: local            # user-chosen, 'local' as convention/default
+      path: docs/tbd           # REQUIRED, relative to repo root
+      paths: [shortcuts, guidelines, templates]
+```
+
+Key differences from `type: repo`:
+- `path` (singular, required): the directory in the repo, always repo-root-relative
+- No `url` or `ref` — those are repo-only
+- `paths` (plural): which doc-type subdirs to scan (same as `repo` and `internal`)
+
+### Stub Pointer Files (Always-Fresh Mechanism)
+
+Instead of copying file content into `.tbd/docs/` (which would go stale), sync creates
+**stub files** containing only YAML frontmatter that points back to the source:
+
+```markdown
+---
+_source: local
+_path: docs/tbd/shortcuts/my-shortcut.md
+---
+```
+
+The stub lives at `.tbd/docs/local/shortcuts/my-shortcut.md` just like any other cached
+doc. But instead of containing the actual content, it’s a pointer.
+DocCache follows the pointer and reads the real file on every load.
+
+**Why stubs (not symlinks, not copies):**
+
+| Approach | Pros | Cons |
+| --- | --- | --- |
+| Copy on sync | Consistent with repo sources | Stale until next sync |
+| Symlink | Always fresh, no duplication | Windows issues, git tracking weirdness |
+| **Stub pointer** | **Always fresh, cross-platform, explicit** | Requires DocCache change |
+
+Stubs are the best of both worlds: the `.tbd/docs/` directory structure is maintained
+(consistent with repo/internal sources), but content is always read fresh from the
+source file. No re-sync needed after editing local docs.
+
+### DocCache Change
+
+In `loadDirectory()`, after reading a file, check for the pointer:
+
+```typescript
+// In loadDirectory(), after reading raw content:
+const frontmatter = this.parseFrontmatterData(content);
+
+if (frontmatter?._source === 'local' && frontmatter._path) {
+  // Follow the pointer — read the real file
+  const tbdRoot = await findTbdRoot(this.baseDir);
+  const realPath = join(tbdRoot, frontmatter._path);
+  try {
+    content = await readFile(realPath, 'utf-8');
+  } catch {
+    // Source file deleted — skip this doc with warning
+    console.warn(`Local source missing: ${frontmatter._path}`);
+    continue;
+  }
+}
+```
+
+This is the only DocCache change needed.
+All other behavior (shadowing, qualified lookups, fuzzy search, `--list`) works
+unchanged because the loaded `CachedDoc` has real content, real frontmatter from the
+source file, and proper prefix/name fields.
+
+### DocFrontmatter Extension
+
+```typescript
+export interface DocFrontmatter {
+  title?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  // Internal pointer fields (stripped before exposing to users)
+  _source?: string;   // 'local' for local source stubs
+  _path?: string;     // repo-root-relative path to actual file
+}
+```
+
+The `_` prefix convention signals internal/hidden metadata.
+These fields are parsed but not displayed in `--list` output or shortcut directory
+tables.
+
+### Sync Behavior
+
+In `resolveSourcesToDocs()`, for `type: local` sources:
+
+```typescript
+if (source.type === 'local') {
+  // Scan {repoRoot}/{source.path}/{docTypeDir}/ for .md files
+  for (const pathPattern of source.paths) {
+    const scanDir = join(repoRoot, source.path, pathPattern);
+    const files = await scanMdFiles(scanDir);
+    for (const file of files) {
+      const destPath = `${source.prefix}/${pathPattern}/${file}`;
+      // Store as 'local:' source — DocSync writes a stub, not a copy
+      result[destPath] = `local:${source.path}/${pathPattern}/${file}`;
+    }
+  }
+}
+```
+
+`DocSync.parseSource()` gains a third source type:
+
+```typescript
+if (source.startsWith('local:')) {
+  return { type: 'local', location: source.slice(6) };
+}
+```
+
+For `type: 'local'`, `fetchContent()` returns the stub YAML frontmatter (not the actual
+file content), because the real content is read at DocCache load time:
+
+```typescript
+if (source.type === 'local') {
+  return `---\n_source: local\n_path: ${source.location}\n---\n`;
+}
+```
+
+### CLI: `tbd source add` for Local Sources
+
+```bash
+# Auto-detected as local (resolves to existing directory):
+tbd source add docs/tbd --prefix local
+
+# With explicit paths filter:
+tbd source add docs/tbd --prefix local --paths shortcuts,guidelines
+
+# Still works for repos (existing behavior):
+tbd source add github.com/acme/docs --prefix acme
+```
+
+**Auto-detection heuristic** in `source.ts`:
+- Resolve the argument relative to repo root
+- If it’s an existing directory → `type: local`
+- Otherwise → `type: repo` (existing behavior)
+
+**Validation when adding a local source:**
+1. Resolve path relative to repo root (not cwd)
+2. Verify directory exists
+3. Verify it’s inside the repo (no `../../escape` — reject paths that resolve outside)
+4. Normalize: strip leading `./`, ensure no trailing `/`
+5. Store as repo-root-relative (e.g., `docs/tbd`, not `./docs/tbd`)
+
+### Source List Display
+
+```bash
+$ tbd source list
+sys [internal] (hidden)
+  paths: shortcuts
+tbd [internal]
+  paths: shortcuts
+local [local]
+  path: docs/tbd
+  paths: shortcuts, guidelines
+```
+
+The `[local]` label distinguishes from `[repo]` and `[internal]`.
+
+### Removal Behavior
+
+```bash
+tbd source remove local
+# → Removes source from config
+# → Next sync removes stub files from .tbd/docs/local/
+# → Source files in docs/tbd/ are untouched (they're part of the repo)
+```
+
+Only `repo` and `local` sources can be removed (same guard as existing: internal sources
+are protected).
+
+### Implementation Changes Summary
+
+| File | Change |
+| --- | --- |
+| `schemas.ts` | Add `'local'` to type enum, add optional `path` field |
+| `source.ts` | Auto-detect local vs repo, validate local path, display `[local]` |
+| `doc-sync.ts` | Handle `local:` prefix in `parseSource()`, write stubs in `resolveSourcesToDocs()` |
+| `doc-cache.ts` | Follow `_source`/`_path` pointers in `loadDirectory()` |
+| `doc-types.ts` | No changes needed |
+| `source.test.ts` | Tests for local source add/list/remove, path validation |
+| `doc-sync.test.ts` | Tests for stub generation, local source resolution |
+| `doc-cache.test.ts` | Tests for pointer following, missing source graceful degradation |
 
 ## Future Work
 
@@ -1811,10 +2028,11 @@ Add to existing schemas:
 
 ```typescript
 export const DocsSourceSchema = z.object({
-  type: z.enum(['internal', 'repo']),
+  type: z.enum(['internal', 'repo', 'local']),
   prefix: z.string().min(1).max(16).regex(/^[a-z0-9-]+$/),
-  url: z.string().optional(),
-  ref: z.string().optional(),
+  url: z.string().optional(),           // Required for type: repo
+  ref: z.string().optional(),            // Defaults to 'main' for repos
+  path: z.string().optional(),           // Required for type: local (repo-root-relative dir)
   paths: z.array(z.string()),
   hidden: z.boolean().optional(),
 });
