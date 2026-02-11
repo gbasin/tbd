@@ -888,28 +888,29 @@ This phase is optional and can be deferred.
 
 **`packages/tbd/src/file/github-issues.ts`**:
 
-- [ ] Add `addGitHubLabel()`:
+- [x] Add `addGitHubLabel()`:
   - Step 1: `POST /repos/{owner}/{repo}/labels` (create if needed, ignore 422)
   - Step 2: `POST /repos/{owner}/{repo}/issues/{number}/labels`
-- [ ] Add `removeGitHubLabel()`:
+- [x] Add `removeGitHubLabel()`:
   - `DELETE /repos/{owner}/{repo}/issues/{number}/labels/{label}`
-- [ ] Add `computeLabelDiff()` helper:
+- [x] Add `computeLabelDiff()` helper:
   ```typescript
   function computeLabelDiff(
     localLabels: string[], remoteLabels: string[]
   ): { toAdd: string[]; toRemove: string[] };
   ```
 
-**`packages/tbd/src/cli/commands/sync.ts`**:
+**`packages/tbd/src/file/external-sync.ts`**:
 
-- [ ] Extend `syncExternalPull()` to also pull label changes
-- [ ] Extend `syncExternalPush()` to also push label diffs
-- [ ] Union semantics: if both sides added different labels, both get union
+- [x] Extend `externalPull()` to also pull label changes (union semantics)
+- [x] Extend `externalPush()` to also push label diffs
+- [x] Union semantics: if both sides added different labels, both get union
 
 **Tests:**
-- [ ] Label diff computation tests in `github-issues.test.ts`
-- [ ] Label sync mock tests
-- [ ] Golden tryscript tests for bidirectional label sync
+- [x] Label diff computation tests in `github-issues.test.ts`
+- [x] Label sync mock tests in `external-sync.test.ts`
+- [ ] Golden tryscript tests for bidirectional label sync (deferred — requires live
+  GitHub API)
 
 ### Documentation Updates
 
@@ -924,75 +925,75 @@ This section lists every document that needs changes.
 - [x] §8.7: rewrite with implemented design (status/label mapping, sync arch)
 - [x] §8.7: document `use_gh_cli` prerequisite
 - [x] §2.7.4 ConfigSchema: add `use_gh_cli` to documented settings
-- [ ] §4.4 Create command: add `--external-issue <url>` to options list and examples.
+- [x] §4.4 Create command: add `--external-issue <url>` to options list and examples.
   Note: `--spec` also needs adding (currently undocumented in §4.4)
-- [ ] §4.4 Update command: add `--external-issue <url>` to options list and examples
-- [ ] §4.4 Show command: mention `external_issue_url` in output description
-- [ ] §4.4 List command: add `--external-issue` filter option
-- [ ] §4.7 Sync command: add `--external` scope flag, `--issues`, `--docs` scope flags,
+- [x] §4.4 Update command: add `--external-issue <url>` to options list and examples
+- [x] §4.4 Show command: mention `external_issue_url` in output description
+- [x] §4.4 List command: add `--external-issue` filter option
+- [x] §4.7 Sync command: add `--external` scope flag, `--issues`, `--docs` scope flags,
   and document the 4-phase sync ordering
 
 #### CLI Reference (`packages/tbd/docs/tbd-docs.md`)
 
-- [ ] `create` section (line ~193): add `--external-issue <url>` option with description
+- [x] `create` section (line ~193): add `--external-issue <url>` option with description
   and example. Include URL format example in help text.
-- [ ] `update` section (line ~294): add `--external-issue <url>` option
-- [ ] `list` section (line ~236): add `--external-issue [url]` filter option with
+- [x] `update` section (line ~294): add `--external-issue <url>` option
+- [x] `list` section (line ~236): add `--external-issue [url]` filter option with
   example
-- [ ] `show` section (line ~282): mention `external_issue_url` in output fields
-- [ ] `sync` section (line ~449): add `--external`, `--issues`, `--docs` scope flags.
+- [x] `show` section (line ~282): mention `external_issue_url` in output fields
+- [x] `sync` section (line ~449): add `--external`, `--issues`, `--docs` scope flags.
   Document that default (no flags) syncs all scopes.
 
 #### Workflow Context (`packages/tbd/docs/tbd-prime.md`)
 
-- [ ] “Creating & Updating” section: add `--external-issue` to create example
-- [ ] “Sync & Collaboration” section: mention `--external` scope flag
-- [ ] Consider adding a brief external issue linking note to “Common Workflows”
+- [x] “Creating & Updating” section: add `--external-issue` to create example
+- [x] “Sync & Collaboration” section: mention `--external` scope flag
+- [x] Consider adding a brief external issue linking note to “Common Workflows”
 
 #### Top-Level README (`README.md`)
 
 - [x] GitHub authentication section: note that `use_gh_cli: false` disables external
   issue features
-- [ ] Commands section: add `--external-issue` to create/update examples
-- [ ] Commands section: add `--external` to sync examples
+- [x] Commands section: add `--external-issue` to create/update examples
+- [x] Commands section: add `--external` to sync examples
 
 #### Shortcuts
 
 These shortcuts reference beads workflows and should mention that beads may have linked
 external issues:
 
-- [ ] `plan-implementation-with-beads.md`: In the “Create a top-level epic” step, show
+- [x] `plan-implementation-with-beads.md`: In the “Create a top-level epic” step, show
   `--external-issue` as an optional flag alongside `--spec` (epics are the natural place
   to link to GitHub issues)
-- [ ] `implement-beads.md`: Note that beads may be linked to external GitHub issues —
+- [x] `implement-beads.md`: Note that beads may be linked to external GitHub issues —
   agents should check `tbd show` output for `external_issue_url` and be aware that
   `tbd sync` pushes status changes externally
-- [ ] `agent-handoff.md`: Add “External issues” to the “What to Include” checklist
+- [x] `agent-handoff.md`: Add “External issues” to the “What to Include” checklist
   (whether beads have linked GitHub issues, sync status)
-- [ ] `setup-github-cli.md`: Mention external issue linking as a feature that requires
+- [x] `setup-github-cli.md`: Mention external issue linking as a feature that requires
   `gh` CLI. List it alongside PR creation and code review.
-- [ ] `code-review-and-commit.md`: No changes needed (doesn’t deal with beads)
-- [ ] `create-or-update-pr-simple.md`: No changes needed (doesn’t deal with beads)
+- [x] `code-review-and-commit.md`: No changes needed (doesn’t deal with beads)
+- [x] `create-or-update-pr-simple.md`: No changes needed (doesn’t deal with beads)
 
 #### CLI `--help` Text (in source code)
 
-- [ ] `create` command: `--external-issue` help must include format example:
+- [x] `create` command: `--external-issue` help must include format example:
   `--external-issue <url> Link to GitHub issue (e.g., https://github.com/owner/repo/issues/123)`
-- [ ] `update` command: same format
-- [ ] `list` command: `--external-issue [url]` filter help
-- [ ] `sync` command: `--external` scope help text
-- [ ] All `--external-issue` help should note: “Requires use_gh_cli: true”
+- [x] `update` command: same format
+- [x] `list` command: `--external-issue [url]` filter help
+- [x] `sync` command: `--external` scope help text
+- [x] All `--external-issue` help should note: “Requires use_gh_cli: true”
 
 #### Error Messages (in source code)
 
 Every error path must include the expected URL format example so agents are never
 confused:
 
-- [ ] Invalid URL format → include `https://github.com/owner/repo/issues/123`
-- [ ] PR URL → “This is a pull request URL, not an issue URL”
-- [ ] Non-GitHub URL → “Only GitHub issue URLs are supported”
-- [ ] 404 → “Issue not found or not accessible”
-- [ ] `use_gh_cli: false` → “Set use_gh_cli: true or run tbd setup --auto”
+- [x] Invalid URL format → include `https://github.com/owner/repo/issues/123`
+- [x] PR URL → “This is a pull request URL, not an issue URL”
+- [x] Non-GitHub URL → “Only GitHub issue URLs are supported”
+- [x] 404 → “Issue not found or not accessible”
+- [x] `use_gh_cli: false` → “Set use_gh_cli: true or run tbd setup --auto”
 
 ## Testing Strategy
 
