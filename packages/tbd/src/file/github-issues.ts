@@ -179,8 +179,8 @@ export async function addGitHubLabel(ref: GitHubIssueRef, label: string): Promis
     '--method',
     'POST',
     `/repos/${ref.owner}/${ref.repo}/issues/${ref.number}/labels`,
-    '--input',
-    '-',
+    '-f',
+    `labels[]=${label}`,
   ]);
 }
 

@@ -121,7 +121,7 @@ class SyncHandler extends BaseCommand {
       const linkedCount = issues.filter((i) => i.external_issue_url).length;
 
       if (linkedCount > 0) {
-        const spinner = this.output.spinner('Pulling external issue states...');
+        const spinner = this.output.spinner('Pulling external issue states and labels...');
         const { now } = await import('../../utils/time-utils.js');
         const timestamp = now();
         const result = await externalPull(
@@ -132,8 +132,11 @@ class SyncHandler extends BaseCommand {
         );
         spinner.stop();
 
-        if (result.pulled > 0) {
-          this.output.success(`Pulled ${result.pulled} status update(s) from GitHub`);
+        if (result.pulled > 0 || result.labelsPulled > 0) {
+          const parts: string[] = [];
+          if (result.pulled > 0) parts.push(`${result.pulled} status update(s)`);
+          if (result.labelsPulled > 0) parts.push(`${result.labelsPulled} label(s)`);
+          this.output.success(`Pulled ${parts.join(' and ')} from GitHub`);
         }
         for (const error of result.errors) {
           this.output.warn(`External pull: ${error}`);
@@ -232,12 +235,15 @@ class SyncHandler extends BaseCommand {
       const linkedCount = issues.filter((i) => i.external_issue_url).length;
 
       if (linkedCount > 0) {
-        const spinner = this.output.spinner('Pushing status to external issues...');
+        const spinner = this.output.spinner('Pushing status and labels to external issues...');
         const result = await externalPush(issues, noopLogger);
         spinner.stop();
 
-        if (result.pushed > 0) {
-          this.output.success(`Pushed ${result.pushed} status update(s) to GitHub`);
+        if (result.pushed > 0 || result.labelsPushed > 0) {
+          const parts: string[] = [];
+          if (result.pushed > 0) parts.push(`${result.pushed} status update(s)`);
+          if (result.labelsPushed > 0) parts.push(`${result.labelsPushed} label change(s)`);
+          this.output.success(`Pushed ${parts.join(' and ')} to GitHub`);
         }
         for (const error of result.errors) {
           this.output.warn(`External push: ${error}`);

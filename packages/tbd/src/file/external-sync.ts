@@ -18,6 +18,9 @@ import {
   getGitHubIssueState,
   closeGitHubIssue,
   reopenGitHubIssue,
+  addGitHubLabel,
+  removeGitHubLabel,
+  computeLabelDiff,
   githubToTbdStatus,
   TBD_TO_GITHUB_STATUS,
   type GitHubIssueRef,
@@ -30,6 +33,8 @@ import {
 export interface ExternalSyncResult {
   pulled: number;
   pushed: number;
+  labelsPulled: number;
+  labelsPushed: number;
   errors: string[];
 }
 
@@ -38,13 +43,13 @@ export interface ExternalSyncResult {
 // =============================================================================
 
 /**
- * Pull: fetch GitHub issue states and update local bead statuses.
+ * Pull: fetch GitHub issue states and labels, update local beads.
  *
  * For each bead with an external_issue_url:
  * 1. Parse the GitHub issue URL
- * 2. Fetch the current GitHub issue state
- * 3. Map GitHub state to tbd status
- * 4. Update the bead if status changed
+ * 2. Fetch the current GitHub issue state and labels
+ * 3. Map GitHub state to tbd status and merge labels (union semantics)
+ * 4. Update the bead if status or labels changed
  *
  * @returns Number of beads updated and any errors
  */
@@ -53,14 +58,15 @@ export async function externalPull(
   writeIssueFn: (issue: Issue) => Promise<void>,
   timestamp: string,
   logger: OperationLogger,
-): Promise<{ pulled: number; errors: string[] }> {
+): Promise<{ pulled: number; labelsPulled: number; errors: string[] }> {
   const linked = issues.filter((i) => i.external_issue_url);
   if (linked.length === 0) {
-    return { pulled: 0, errors: [] };
+    return { pulled: 0, labelsPulled: 0, errors: [] };
   }
 
   logger.progress(`Checking ${linked.length} linked issue(s)...`);
   let pulled = 0;
+  let labelsPulled = 0;
   const errors: string[] = [];
 
   for (const issue of linked) {
@@ -72,18 +78,36 @@ export async function externalPull(
 
     try {
       const ghState = await getGitHubIssueState(ref);
-      const newStatus = githubToTbdStatus(ghState.state, ghState.state_reason, issue.status);
+      let changed = false;
 
+      // Status sync
+      const newStatus = githubToTbdStatus(ghState.state, ghState.state_reason, issue.status);
       if (newStatus) {
         logger.info(`${issue.id}: ${issue.status} → ${newStatus} (from GitHub)`);
         issue.status = newStatus as Issue['status'];
         if (newStatus === 'closed') {
           issue.closed_at = timestamp;
         }
+        changed = true;
+        pulled++;
+      }
+
+      // Label sync: pull new labels from GitHub (union semantics)
+      const localSet = new Set(issue.labels);
+      const newLabels = ghState.labels.filter((l) => !localSet.has(l));
+      if (newLabels.length > 0) {
+        logger.info(
+          `${issue.id}: pulling ${newLabels.length} label(s) from GitHub: ${newLabels.join(', ')}`,
+        );
+        issue.labels = [...issue.labels, ...newLabels];
+        changed = true;
+        labelsPulled += newLabels.length;
+      }
+
+      if (changed) {
         issue.version += 1;
         issue.updated_at = timestamp;
         await writeIssueFn(issue);
-        pulled++;
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -92,7 +116,7 @@ export async function externalPull(
     }
   }
 
-  return { pulled, errors };
+  return { pulled, labelsPulled, errors };
 }
 
 // =============================================================================
@@ -100,26 +124,27 @@ export async function externalPull(
 // =============================================================================
 
 /**
- * Push: push local bead statuses to linked GitHub Issues.
+ * Push: push local bead statuses and labels to linked GitHub Issues.
  *
  * For each bead with an external_issue_url:
  * 1. Parse the GitHub issue URL
- * 2. Map tbd status to GitHub state
- * 3. Update GitHub issue if state differs
+ * 2. Map tbd status to GitHub state and compute label diff
+ * 3. Update GitHub issue if state or labels differ
  *
  * @returns Number of GitHub issues updated and any errors
  */
 export async function externalPush(
   issues: Issue[],
   logger: OperationLogger,
-): Promise<{ pushed: number; errors: string[] }> {
+): Promise<{ pushed: number; labelsPushed: number; errors: string[] }> {
   const linked = issues.filter((i) => i.external_issue_url);
   if (linked.length === 0) {
-    return { pushed: 0, errors: [] };
+    return { pushed: 0, labelsPushed: 0, errors: [] };
   }
 
-  logger.progress(`Pushing status to ${linked.length} linked issue(s)...`);
+  logger.progress(`Pushing status and labels to ${linked.length} linked issue(s)...`);
   let pushed = 0;
+  let labelsPushed = 0;
   const errors: string[] = [];
 
   for (const issue of linked) {
@@ -129,23 +154,28 @@ export async function externalPush(
       continue;
     }
 
-    const mapping = TBD_TO_GITHUB_STATUS[issue.status];
-    if (mapping === null || mapping === undefined) {
-      // blocked → no change on GitHub
-      logger.debug(`${issue.id}: status ${issue.status} has no GitHub mapping, skipping`);
-      continue;
-    }
-
     try {
       const ghState = await getGitHubIssueState(ref);
 
-      // Only push if the state actually differs
-      if (ghState.state === mapping.state) {
-        continue; // Already in sync
+      // Status sync
+      const mapping = TBD_TO_GITHUB_STATUS[issue.status];
+      if (mapping !== null && mapping !== undefined && ghState.state !== mapping.state) {
+        await pushStatusToGitHub(ref, mapping, logger, issue.id);
+        pushed++;
       }
 
-      await pushStatusToGitHub(ref, mapping, logger, issue.id);
-      pushed++;
+      // Label sync: push local labels that GitHub doesn't have
+      const { toAdd, toRemove } = computeLabelDiff(issue.labels, ghState.labels);
+      for (const label of toAdd) {
+        logger.info(`${issue.id}: adding label "${label}" to GitHub`);
+        await addGitHubLabel(ref, label);
+        labelsPushed++;
+      }
+      for (const label of toRemove) {
+        logger.info(`${issue.id}: removing label "${label}" from GitHub`);
+        await removeGitHubLabel(ref, label);
+        labelsPushed++;
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${issue.id}: failed to push to GitHub: ${msg}`);
@@ -153,7 +183,7 @@ export async function externalPush(
     }
   }
 
-  return { pushed, errors };
+  return { pushed, labelsPushed, errors };
 }
 
 async function pushStatusToGitHub(
