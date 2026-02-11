@@ -21,7 +21,7 @@ credentials.
 5. Verify propagation: updating parent’s `external_issue_url` propagates to children
 6. Verify `tbd doctor` checks `gh` CLI health
 7. Verify `use_gh_cli: false` gates all external issue features
-8. Verify error handling for bad URLs, PR URLs, non-existent issues
+8. Verify error handling for bad URLs, non-existent issues
 
 * * *
 
@@ -144,14 +144,15 @@ tbd show <bead-id-from-2.1> --json
 
 - [ ] JSON output includes `"external_issue_url": "<ISSUE_1_URL>"`
 
-**Test 2.3: Reject PR URLs**
+**Test 2.3: Accept PR URLs**
 
 ```bash
-tbd create "Bad link" --external-issue "https://github.com/<you>/my-tbd-qa-test/pull/1"
+# First, create a PR in the test repo (or use an existing one)
+tbd create "PR link" --external-issue "https://github.com/<you>/my-tbd-qa-test/pull/1"
 ```
 
-- [ ] Command fails with an error about PR URLs not being supported
-- [ ] No bead is created
+- [ ] Command succeeds — PR URLs are valid external issue links
+- [ ] A bead is created with the PR URL as `external_issue_url`
 
 **Test 2.4: Reject non-existent issues**
 
@@ -588,13 +589,15 @@ BEAD_1=$(tbd create "Linked task 1" --external-issue "$ISSUE_1_URL" --json | jq 
 URL_OUT=$(tbd show "$BEAD_1" --json | jq -r '.external_issue_url // empty')
 [[ "$URL_OUT" == "$ISSUE_1_URL" ]] && pass "Show displays correct URL" || fail "Show URL mismatch: $URL_OUT"
 
-# ---- Test: Reject PR URL ----
+# ---- Test: Accept PR URL ----
 echo ""
-echo "=== Test: Reject PR URL ==="
-if tbd create "Bad" --external-issue "${REPO_URL}/pull/1" 2>&1; then
-  fail "Should reject PR URL"
+echo "=== Test: Accept PR URL ==="
+# Create a PR in the repo first for this test (or use an existing one)
+PR_BEAD=$(tbd create "PR link" --external-issue "${REPO_URL}/pull/1" --json 2>&1 | jq -r '.id // empty')
+if [[ -n "$PR_BEAD" ]]; then
+  pass "Accepted PR URL (both issues and PRs are valid)"
 else
-  pass "Rejected PR URL"
+  fail "Should accept PR URL"
 fi
 
 # ---- Test: Create linked bead for sync ----

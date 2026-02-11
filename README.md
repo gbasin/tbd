@@ -332,9 +332,9 @@ for details.
 
 To disable automatic `gh` installation, pass `--no-gh-cli` during setup or set
 `use_gh_cli: false` in `.tbd/config.yml` under `settings:`. Note: disabling `gh` also
-disables all external issue features — linking beads to GitHub issues
+disables all external issue features — linking beads to GitHub issues/PRs
 (`--external-issue`), bidirectional status/label sync (`tbd sync --external`), and
-GitHub issue validation.
+GitHub issue/PR validation.
 The `external_issue_url` field can still exist on beads from collaborators, but no sync
 or validation occurs locally.
 

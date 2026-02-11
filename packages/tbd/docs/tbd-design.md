@@ -1433,7 +1433,7 @@ const IssueSchema = BaseEntity.extend({
   // Spec linking - path to related spec/doc (relative to repo root)
   spec_path: z.string().optional(),
 
-  // External issue linking - URL to linked external issue (e.g., GitHub Issues)
+  // External issue linking - URL to linked GitHub issue or PR
   external_issue_url: z.string().url().optional(),
 
   // Beads compatibility
@@ -1485,10 +1485,12 @@ type Issue = z.infer<typeof IssueSchema>;
   Re-parenting a child (via `tbd update --parent`) also inherits the new parent’s
   `spec_path` if the child has no existing `spec_path`.
 
-- `external_issue_url`: Optional URL to a linked external issue tracker issue.
-  For v1, only GitHub issue URLs are supported (e.g.,
-  `https://github.com/owner/repo/issues/123`). The URL is validated at link time to
-  ensure the issue exists and is accessible via `gh` CLI.
+- `external_issue_url`: Optional URL to a linked external issue tracker entry.
+  For v1, GitHub issue and pull request URLs are supported (e.g.,
+  `https://github.com/owner/repo/issues/123` or `.../pull/123`). Despite the field name
+  saying “issue,” it accepts both issues and PRs since GitHub’s API treats them
+  uniformly. The URL is validated at link time to ensure the target exists and is
+  accessible via `gh` CLI.
 
   **Inheritance from Parent:** Follows the same inheritance rules as `spec_path`: both
   fields are registered in the generic inheritable field system.
@@ -2442,7 +2444,7 @@ Options:
   --parent=<id>             Parent issue ID
   --label <label>           Add label (repeatable)
   --spec <path>             Link to spec document
-  --external-issue <url>    Link to GitHub issue (requires use_gh_cli: true)
+  --external-issue <url>    Link to GitHub issue or PR (requires use_gh_cli: true)
   --no-sync                 Don't sync after create
 ```
 
@@ -5797,11 +5799,13 @@ single-source-of-truth model while adding convenience.
 
 ### 8.7 External Issue Linking
 
-**Linking tbd issues to external issue trackers (v1: GitHub Issues)**
+**Linking tbd issues to external issue trackers (v1: GitHub Issues and PRs)**
 
 tbd issues can be optionally linked to an external issue tracker via the
 `external_issue_url` field.
-For v1, only GitHub issue URLs are supported.
+For v1, GitHub issue and pull request URLs are supported.
+Despite the field name saying “issue,” it accepts both issues and PRs — GitHub’s API
+treats them uniformly via the `/issues/` endpoint.
 
 See: `docs/project/specs/active/plan-2026-02-10-external-issue-linking.md`
 
@@ -5825,10 +5829,11 @@ ConfigSchema (see §2.7.4) serves as the master gate:
 external_issue_url: z.string().url().optional(),
 ```
 
-The field stores the full GitHub issue URL (e.g.,
-`https://github.com/owner/repo/issues/123`). Only full URLs are accepted — no shorthand
-like `#123`. The URL is parsed to extract `{owner, repo, number}` for API operations via
-`gh` CLI.
+The field stores the full GitHub issue or PR URL (e.g.,
+`https://github.com/owner/repo/issues/123` or `.../pull/456`). Only full URLs are
+accepted — no shorthand like `#123`. The URL is parsed to extract
+`{owner, repo, number}` for API operations via `gh` CLI. Both `/issues/` and `/pull/`
+URL forms are accepted because GitHub’s `/issues/` API endpoint handles both uniformly.
 
 **Inheritance:** `external_issue_url` uses the same generic inheritable field system as
 `spec_path`. When creating a child with `--parent`, the child inherits the URL from the

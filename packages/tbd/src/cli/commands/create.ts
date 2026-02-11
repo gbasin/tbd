@@ -26,11 +26,7 @@ import { now } from '../../utils/time-utils.js';
 import { readConfig } from '../../file/config.js';
 import { resolveAndValidatePath, getPathErrorMessage } from '../../lib/project-paths.js';
 import { inheritFromParent } from '../../lib/inheritable-fields.js';
-import {
-  parseGitHubIssueUrl,
-  isGitHubPrUrl,
-  validateGitHubIssue,
-} from '../../file/github-issues.js';
+import { parseGitHubIssueUrl, validateGitHubIssue } from '../../file/github-issues.js';
 
 interface CreateOptions {
   fromFile?: string;
@@ -91,21 +87,16 @@ class CreateHandler extends BaseCommand {
           'External issue linking requires GitHub CLI. Set use_gh_cli: true in config or run `tbd setup --auto`.',
         );
       }
-      if (isGitHubPrUrl(options.externalIssue)) {
-        throw new ValidationError(
-          'This is a pull request URL, not an issue URL. Expected: https://github.com/owner/repo/issues/123',
-        );
-      }
       const ref = parseGitHubIssueUrl(options.externalIssue);
       if (!ref) {
         throw new ValidationError(
-          'Invalid URL. Expected a full GitHub issue URL like https://github.com/owner/repo/issues/123',
+          'Invalid URL. Expected a GitHub issue or pull request URL like https://github.com/owner/repo/issues/123',
         );
       }
       const exists = await validateGitHubIssue(ref);
       if (!exists) {
         throw new ValidationError(
-          'Issue not found or not accessible. Check the URL and your GitHub authentication (`gh auth status`).',
+          'Issue or pull request not found or not accessible. Check the URL and your GitHub authentication (`gh auth status`).',
         );
       }
       externalIssueUrl = options.externalIssue;
@@ -240,7 +231,7 @@ export const createCommand = new Command('create')
   .option('--spec <path>', 'Link to spec document (relative path)')
   .option(
     '--external-issue <url>',
-    'Link to GitHub issue (e.g., https://github.com/owner/repo/issues/123). Requires use_gh_cli: true',
+    'Link to GitHub issue or PR (e.g., https://github.com/owner/repo/issues/123). Requires use_gh_cli: true',
   )
   .option('-l, --label <label>', 'Add label (repeatable)', (val, prev: string[] = []) => [
     ...prev,

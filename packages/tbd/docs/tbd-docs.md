@@ -210,7 +210,7 @@ tbd create "Add rate limiting" --description="Prevent API abuse with 100 req/min
 # With labels
 tbd create "Fix mobile layout" --label=frontend --label=urgent
 
-# Link to a GitHub issue (requires use_gh_cli: true)
+# Link to a GitHub issue or PR (requires use_gh_cli: true)
 tbd create "Fix crash on login" --type=bug \
   --external-issue=https://github.com/owner/repo/issues/123
 
@@ -235,7 +235,8 @@ Options:
   parent’s `spec_path`.
 - `--spec <path>` - Link to spec document (validated, normalized to project root)
 - `--label <label>` - Add label (can repeat)
-- `--external-issue <url>` - Link to a GitHub issue URL (requires `use_gh_cli: true`)
+- `--external-issue <url>` - Link to a GitHub issue or PR URL (requires
+  `use_gh_cli: true`). Despite the name, accepts both `/issues/` and `/pull/` URLs.
 - `--from-file <path>` - Create from YAML+Markdown file
 
 ### list
@@ -345,7 +346,8 @@ Options:
 - `--spec <path>` - Set or clear spec path (empty string clears; validated and
   normalized). When updating a parent issue’s spec, the new value propagates to children
   whose `spec_path` was null or matched the old value.
-- `--external-issue <url>` - Link to a GitHub issue URL (requires `use_gh_cli: true`)
+- `--external-issue <url>` - Link to a GitHub issue or PR URL (requires
+  `use_gh_cli: true`). Despite the name, accepts both `/issues/` and `/pull/` URLs.
 
 ### close
 

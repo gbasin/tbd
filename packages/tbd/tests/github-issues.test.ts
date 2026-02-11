@@ -1,5 +1,5 @@
 /**
- * Tests for github-issues.ts - GitHub issue URL parsing, validation, and status mapping.
+ * Tests for github-issues.ts - GitHub issue/PR URL parsing, validation, and status mapping.
  *
  * URL parsing tests run without network access.
  * API operation tests mock child_process.
@@ -11,6 +11,7 @@ import {
   parseGitHubIssueUrl,
   isGitHubIssueUrl,
   isGitHubPrUrl,
+  isGitHubIssueOrPrUrl,
   formatGitHubIssueRef,
   githubToTbdStatus,
   computeLabelDiff,
@@ -60,8 +61,14 @@ describe('parseGitHubIssueUrl', () => {
     expect(parseGitHubIssueUrl('https://github.com/owner/repo/issues/123?foo=bar')).toBeNull();
   });
 
-  it('rejects GitHub PR URL', () => {
-    expect(parseGitHubIssueUrl('https://github.com/owner/repo/pull/123')).toBeNull();
+  it('parses GitHub PR URL', () => {
+    const result = parseGitHubIssueUrl('https://github.com/owner/repo/pull/123');
+    expect(result).toEqual({
+      owner: 'owner',
+      repo: 'repo',
+      number: 123,
+      url: 'https://github.com/owner/repo/pull/123',
+    });
   });
 
   it('rejects GitHub repo URL (no issue number)', () => {
@@ -126,6 +133,28 @@ describe('isGitHubPrUrl', () => {
 
   it('returns false for non-GitHub URL', () => {
     expect(isGitHubPrUrl('https://example.com/pull/123')).toBe(false);
+  });
+});
+
+// =============================================================================
+// isGitHubIssueOrPrUrl
+// =============================================================================
+
+describe('isGitHubIssueOrPrUrl', () => {
+  it('returns true for issue URL', () => {
+    expect(isGitHubIssueOrPrUrl('https://github.com/owner/repo/issues/123')).toBe(true);
+  });
+
+  it('returns true for PR URL', () => {
+    expect(isGitHubIssueOrPrUrl('https://github.com/owner/repo/pull/123')).toBe(true);
+  });
+
+  it('returns false for repo URL', () => {
+    expect(isGitHubIssueOrPrUrl('https://github.com/owner/repo')).toBe(false);
+  });
+
+  it('returns false for non-GitHub URL', () => {
+    expect(isGitHubIssueOrPrUrl('https://example.com/issues/123')).toBe(false);
   });
 });
 

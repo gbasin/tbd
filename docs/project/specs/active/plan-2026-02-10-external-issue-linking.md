@@ -20,15 +20,16 @@ updates.
 ## Goals
 
 - **Full backward compatibility**: The feature must be completely inert unless
-  explicitly activated by linking a bead to a GitHub issue via `--external-issue`. No
-  behavioral changes to existing commands, no external API calls, no output changes
+  explicitly activated by linking a bead to a GitHub issue or PR via `--external-issue`.
+  No behavioral changes to existing commands, no external API calls, no output changes
   (except `tbd doctor` integration checks and `tbd sync --help` text) when the feature
   is not in use. Users who never use `--external-issue` should see zero difference in
   behavior.
 - Add an optional `external_issue_url` field to the bead schema for linking to external
-  issue tracker URLs (GitHub Issues for v1)
-- Parse and validate GitHub issue URLs to extract owner, repo, and issue number
-- Verify at link time that the issue exists and is accessible via `gh` CLI
+  issue tracker URLs (GitHub Issues and PRs for v1). Despite the field name saying
+  “issue,” it accepts both issues and PRs since GitHub’s API treats them uniformly.
+- Parse and validate GitHub issue and PR URLs to extract owner, repo, and number
+- Verify at link time that the issue/PR exists and is accessible via `gh` CLI
 - Inherit external issue links from parent beads to children (same pattern as
   `spec_path`)
 - Propagate external issue link changes from parent to children
@@ -162,8 +163,10 @@ This two-step approach is idempotent and handles both new and existing labels.
    on `IssueSchema`, following the `spec_path` pattern.
 
 2. **GitHub URL parser**: Create a `github-issues.ts` module with functions to parse
-   GitHub issue URLs, extract `{owner, repo, number}`, validate via `gh` CLI, and
+   GitHub issue and PR URLs, extract `{owner, repo, number}`, validate via `gh` CLI, and
    perform status/label operations.
+   Both `/issues/` and `/pull/` URL forms are accepted since GitHub’s `/issues/` API
+   handles both.
 
 3. **Generic inheritable field system**: Extract the existing `spec_path`
    parent-to-child inheritance logic into a reusable module that any field can opt into.
@@ -459,15 +462,14 @@ This gating behavior must be clearly documented in:
 - At link time (`--external-issue` on `create`/`update`):
   - If `use_gh_cli` is `false`, reject immediately with a clear error.
   - If `use_gh_cli` is `true`, validate the URL format first (must be a full GitHub
-    issue URL like `https://github.com/owner/repo/issues/123`), then verify the issue
-    exists via `gh api`. Clear error messages for each failure mode:
-    - Not a URL → "Invalid URL. Expected a full GitHub issue URL like
+    issue or PR URL like `https://github.com/owner/repo/issues/123` or `.../pull/456`),
+    then verify the target exists via `gh api`. Clear error messages for each failure
+    mode:
+    - Not a URL → "Invalid URL. Expected a GitHub issue or pull request URL like
       https://github.com/owner/repo/issues/123"
-    - GitHub PR URL → "This is a pull request URL, not an issue URL. Expected:
-      https://github.com/owner/repo/issues/123"
-    - Non-GitHub URL → "Only GitHub issue URLs are supported.
+    - Non-GitHub URL → "Only GitHub issue and pull request URLs are supported.
       Expected: https://github.com/owner/repo/issues/123"
-    - Valid URL but 404 → "Issue not found or not accessible.
+    - Valid URL but 404 → "Issue or pull request not found or not accessible.
       Check the URL and your GitHub authentication (`gh auth status`)."
 - During `tbd sync --external`:
   - If `use_gh_cli` is `false`, skip with warning (see above).
@@ -628,7 +630,7 @@ Changes needed:
 - [ ] **Line 201** (Commander `.option('--spec ...')`): Add:
   ```typescript
   .option('--external-issue <url>',
-    'Link to GitHub issue (e.g., https://github.com/owner/repo/issues/123). Requires use_gh_cli: true')
+    'Link to GitHub issue or PR (e.g., https://github.com/owner/repo/issues/123). Requires use_gh_cli: true')
   ```
 
 #### 1e. Refactor `update.ts` to Use Inheritable Fields
@@ -990,9 +992,9 @@ Every error path must include the expected URL format example so agents are neve
 confused:
 
 - [x] Invalid URL format → include `https://github.com/owner/repo/issues/123`
-- [x] PR URL → “This is a pull request URL, not an issue URL”
-- [x] Non-GitHub URL → “Only GitHub issue URLs are supported”
-- [x] 404 → “Issue not found or not accessible”
+- [x] PR URLs accepted (no longer rejected — both issues and PRs are valid)
+- [x] Non-GitHub URL → rejected with clear error
+- [x] 404 → “Issue or pull request not found or not accessible”
 - [x] `use_gh_cli: false` → “Set use_gh_cli: true or run tbd setup --auto”
 
 ## Testing Strategy
@@ -1004,7 +1006,7 @@ confused:
    - Valid with http: `http://github.com/owner/repo/issues/456` → parses
    - Trailing slash rejected: `https://github.com/owner/repo/issues/123/` → null
    - Query params rejected: `https://github.com/owner/repo/issues/123?foo=bar` → null
-   - PR URL rejected: `https://github.com/owner/repo/pull/123` → null
+   - PR URL accepted: `https://github.com/owner/repo/pull/123` → parses
    - Repo URL rejected: `https://github.com/owner/repo` → null
    - Blob URL rejected: `https://github.com/owner/repo/blob/main/file.ts` → null
    - Non-GitHub URL rejected: `https://jira.example.com/PROJ-123` → null
@@ -1059,15 +1061,14 @@ Basic external issue linking operations:
 
 **URL parsing and validation error scenarios** (must be golden-tested):
 - Valid GitHub issue URL → succeeds (`https://github.com/owner/repo/issues/123`)
-- GitHub PR URL → error: “not a GitHub issue URL” (must reject PRs)
-  (`https://github.com/owner/repo/pull/123`)
+- Valid GitHub PR URL → succeeds (`https://github.com/owner/repo/pull/123`)
 - GitHub repo URL (no issue number) → error (`https://github.com/owner/repo`)
 - GitHub blob URL → error (`https://github.com/owner/repo/blob/main/file.ts`)
-- Non-GitHub URL → error: “only GitHub issue URLs are supported”
+- Non-GitHub URL → error: “only GitHub issue and PR URLs are supported”
   (`https://jira.example.com/browse/PROJ-123`)
 - Malformed URL → error (`not-a-url`, `github.com/owner/repo/issues/123` without scheme)
-- Inaccessible issue (valid URL format but 404) → error: “issue not found or not
-  accessible”
+- Inaccessible issue/PR (valid URL format but 404) → error: “issue or pull request not
+  found or not accessible”
 
 #### `tests/cli-inheritable-fields.tryscript.md`
 

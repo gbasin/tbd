@@ -1,9 +1,9 @@
 /**
  * External issue synchronization: pull/push status and labels between
- * local beads and linked GitHub Issues.
+ * local beads and linked GitHub Issues/PRs.
  *
- * Pull: read GitHub issue state → update local bead status
- * Push: read local bead status → update GitHub issue state
+ * Pull: read GitHub issue/PR state → update local bead status
+ * Push: read local bead status → update GitHub issue/PR state
  *
  * Uses the staging-area model: local create/update/close have no external
  * side effects. External sync only happens during `tbd sync`.

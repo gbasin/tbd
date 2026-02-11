@@ -1,8 +1,9 @@
 /**
- * GitHub Issues URL parsing, validation, and API operations.
+ * GitHub Issues/PR URL parsing, validation, and API operations.
  *
- * Provides functions to parse GitHub issue URLs, validate them against the
- * GitHub API via `gh` CLI, and perform status/label operations.
+ * Provides functions to parse GitHub issue and pull request URLs, validate
+ * them against the GitHub API via `gh` CLI, and perform status/label operations.
+ * Both issues and PRs use the same /issues/ API endpoint under the hood.
  *
  * All GitHub API operations use `gh api` via child process, leveraging the
  * existing `gh` CLI that `ensure-gh-cli.sh` installs.
@@ -26,12 +27,18 @@ const GITHUB_ISSUE_RE = /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+
 
 /**
  * Matches GitHub PR URLs: https://github.com/{owner}/{repo}/pull/{number}
- * Used for better error messages when users provide PR URLs.
  */
 const GITHUB_PR_RE = /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)$/;
 
 /**
- * A parsed GitHub issue reference.
+ * Matches either GitHub issue or PR URLs.
+ * Both are valid external issue links since PRs use the same /issues/ API.
+ */
+const GITHUB_ISSUE_OR_PR_RE = /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/(?:issues|pull)\/(\d+)$/;
+
+/**
+ * A parsed GitHub issue reference. Works for both issues and PRs since
+ * GitHub's /issues/ API handles both.
  */
 export interface GitHubIssueRef {
   owner: string;
@@ -41,12 +48,13 @@ export interface GitHubIssueRef {
 }
 
 /**
- * Parse a GitHub issue URL into its components.
+ * Parse a GitHub issue or PR URL into its components.
+ * Accepts both /issues/ and /pull/ URLs.
  *
  * @returns The parsed reference, or null if the URL doesn't match
  */
 export function parseGitHubIssueUrl(url: string): GitHubIssueRef | null {
-  const match = GITHUB_ISSUE_RE.exec(url);
+  const match = GITHUB_ISSUE_OR_PR_RE.exec(url);
   if (!match) return null;
   return {
     owner: match[1]!,
@@ -57,7 +65,7 @@ export function parseGitHubIssueUrl(url: string): GitHubIssueRef | null {
 }
 
 /**
- * Check if a URL is a GitHub issue URL.
+ * Check if a URL is a GitHub issue URL (not PR).
  */
 export function isGitHubIssueUrl(url: string): boolean {
   return GITHUB_ISSUE_RE.test(url);
@@ -68,6 +76,13 @@ export function isGitHubIssueUrl(url: string): boolean {
  */
 export function isGitHubPrUrl(url: string): boolean {
   return GITHUB_PR_RE.test(url);
+}
+
+/**
+ * Check if a URL is a GitHub issue or PR URL.
+ */
+export function isGitHubIssueOrPrUrl(url: string): boolean {
+  return GITHUB_ISSUE_OR_PR_RE.test(url);
 }
 
 /**
@@ -82,9 +97,9 @@ export function formatGitHubIssueRef(ref: GitHubIssueRef): string {
 // =============================================================================
 
 /**
- * Validate that a GitHub issue exists and is accessible.
+ * Validate that a GitHub issue or PR exists and is accessible.
  *
- * @returns true if the issue exists, false otherwise
+ * @returns true if the issue/PR exists, false otherwise
  */
 export async function validateGitHubIssue(ref: GitHubIssueRef): Promise<boolean> {
   try {

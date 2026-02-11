@@ -25,11 +25,7 @@ import {
   propagateToChildren,
   captureInheritableValues,
 } from '../../lib/inheritable-fields.js';
-import {
-  parseGitHubIssueUrl,
-  isGitHubPrUrl,
-  validateGitHubIssue,
-} from '../../file/github-issues.js';
+import { parseGitHubIssueUrl, validateGitHubIssue } from '../../file/github-issues.js';
 
 interface UpdateOptions {
   fromFile?: string;
@@ -417,21 +413,16 @@ class UpdateHandler extends BaseCommand {
             'External issue linking requires GitHub CLI. Set use_gh_cli: true in config or run `tbd setup --auto`.',
           );
         }
-        if (isGitHubPrUrl(options.externalIssue)) {
-          throw new ValidationError(
-            'This is a pull request URL, not an issue URL. Expected: https://github.com/owner/repo/issues/123',
-          );
-        }
         const ref = parseGitHubIssueUrl(options.externalIssue);
         if (!ref) {
           throw new ValidationError(
-            'Invalid URL. Expected a full GitHub issue URL like https://github.com/owner/repo/issues/123',
+            'Invalid URL. Expected a GitHub issue or pull request URL like https://github.com/owner/repo/issues/123',
           );
         }
         const exists = await validateGitHubIssue(ref);
         if (!exists) {
           throw new ValidationError(
-            'Issue not found or not accessible. Check the URL and your GitHub authentication (`gh auth status`).',
+            'Issue or pull request not found or not accessible. Check the URL and your GitHub authentication (`gh auth status`).',
           );
         }
         updates.external_issue_url = options.externalIssue;
