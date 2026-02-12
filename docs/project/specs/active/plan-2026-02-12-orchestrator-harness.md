@@ -149,11 +149,17 @@ The harness implements a fixed pipeline with a feedback loop:
 
 **Steps**:
 1. Load the spec file
-2. (Optional) Run AI review — spawn an agent via `AgentBackend.spawn()` that
+2. Generate run ID (`run-<date>-<short-hash>`)
+3. Create integration branch `tbd-run/<run-id>` from base branch (if using
+   integration branch mode). Push to origin.
+4. Create harness state directory `.tbd/harness/<run-id>/`
+5. (Optional) Run AI review — spawn an agent via `AgentBackend.spawn()` that
    critiques the spec for completeness, ambiguity, and missing edge cases
-3. Freeze: copy the spec to `.tbd/harness/frozen-spec.md` (immutable reference)
-4. Generate acceptance criteria by spawning an agent via `AgentBackend.spawn()` —
+6. Freeze: copy the spec to `.tbd/harness/<run-id>/frozen-spec.md` (immutable
+   reference)
+7. Generate acceptance criteria by spawning an agent via `AgentBackend.spawn()` —
    store **outside the repo** (see §Acceptance Criteria below)
+8. Write initial checkpoint
 
 **All LLM calls use `AgentBackend.spawn()`**: The spec review and acceptance
 criteria generation are not direct API calls — they spawn headless agents using the
@@ -200,6 +206,18 @@ Why: tbd has no atomic claim operation. Without a serialized claim point, two ag
 could both read the same bead as "ready" and race to claim it. The harness eliminates
 this race condition by being the single process that reads, claims, and assigns beads.
 
+**Harness-side ready filtering**: The harness does NOT call `tbd ready` (which lacks
+`--label` support). Instead, it:
+1. Calls `tbd list --label=harness-run:<run-id> --status=open --json`
+2. Applies ready-filtering logic (no unresolved blockers) using the shared
+   `buildDependencyGraph()` library function from `lib/graph.ts`
+3. Ranks the filtered set using critical-path scheduling (see below)
+4. Claims the top bead via `tbd update <id> --status=in_progress`
+
+The harness **serializes all its own tbd operations** (create, update, sync) to
+avoid collisions with concurrent agent tbd calls. Agents' own tbd calls (close,
+create observation beads, sync) remain concurrent and rely on tbd's LWW merge.
+
 #### Critical-Path Scheduling
 
 The harness does not pick beads in FIFO order. It uses critical-path scheduling
@@ -212,6 +230,61 @@ The harness does not pick beads in FIFO order. It uses critical-path scheduling
 
 This maximizes parallelism over time — foundation beads (types, schemas, shared
 utilities) naturally execute first because they have the highest fan-out.
+
+#### Dependency Graph Construction
+
+**Important**: tbd stores dependencies **inversely**. `tbd dep add A B` ("A depends
+on B") stores `{type: blocks, target: A}` on issue **B**, not on A. The scheduler
+must account for this inversion when building the dependency graph.
+
+This logic should be extracted as a **shared library function** in `lib/graph.ts`
+that both the scheduler and `tbd ready` can use:
+
+```typescript
+// lib/graph.ts — shared dependency graph construction
+interface DependencyGraph {
+  forward: Map<string, string[]>;  // issueId → [issues it blocks]
+  reverse: Map<string, string[]>;  // issueId → [issues that block it]
+  roots: string[];                 // Issues with no blockers (ready to start)
+}
+
+function buildDependencyGraph(issues: Issue[]): DependencyGraph {
+  const forward = new Map<string, string[]>();
+  const reverse = new Map<string, string[]>();
+
+  for (const issue of issues) {
+    for (const dep of issue.dependencies) {
+      if (dep.type === 'blocks') {
+        // issue blocks dep.target → forward edge from issue to target
+        const fwd = forward.get(issue.id) ?? [];
+        fwd.push(dep.target);
+        forward.set(issue.id, fwd);
+
+        // dep.target is blocked by issue → reverse edge
+        const rev = reverse.get(dep.target) ?? [];
+        rev.push(issue.id);
+        reverse.set(dep.target, rev);
+      }
+    }
+  }
+
+  const roots = issues
+    .filter((i) => !(reverse.get(i.id)?.some(
+      (blockerId) => issues.find((b) => b.id === blockerId)?.status !== 'closed'
+    )))
+    .map((i) => i.id);
+
+  return { forward, reverse, roots };
+}
+
+function computeImpactDepth(graph: DependencyGraph, issueId: string): number {
+  // DFS: count all transitive downstream issues
+}
+```
+
+The `tbd ready` command currently implements its own reverse-lookup inline
+(`ready.ts:50-59`). After this refactor, both `tbd ready` and the harness import
+`buildDependencyGraph()` from the shared library.
 
 #### Per-Bead Flow
 
@@ -231,20 +304,24 @@ Harness                              Agent (in worktree/branch)
                                      7. Do the work: write code + tests
                                      8. Run OWN tests (not all tests)
                                      9. Ensure: build + typecheck + lint
-                                     10. git pull --rebase origin/<target>
-                                         (integration branch or main)
-                                     11. Resolve merge conflicts
-                                     12. git push
-                                     13. tbd close <id> --reason="..."
-                                     14. (Optional) tbd create for
+                                     10. git fetch origin <target-branch>
+                                     11. git rebase origin/<target-branch>
+                                     12. Resolve merge conflicts
+                                     13. git push origin HEAD:<target-branch>
+                                         (push directly to integration branch)
+                                     14. If push fails (non-fast-forward):
+                                         → re-fetch, re-rebase, retry push
+                                     15. tbd close <id> --reason="..."
+                                     16. (Optional) tbd create for
                                          observation beads
-                                     15. tbd sync
-                                     16. Exit
-17. Detect agent exited
-18. Verify bead is closed
-19. Log result (pass/fail/timeout)
-20. Emit event to JSONL log
-21. Scheduler picks next bead → repeat
+                                     17. tbd sync
+                                     18. Exit
+19. Detect agent exited
+20. Verify bead is closed
+21. Log result (pass/fail/timeout)
+22. Emit event to JSONL log
+23. Delete agent worktree (fresh per bead)
+24. Scheduler picks next bead → repeat
 ```
 
 #### Agents Rebase-Merge (Not the Harness)
@@ -264,6 +341,27 @@ configs, barrel exports) will experience increasing conflict frequency. The retr
 budget must account for this — at 50+ beads, conflict-related retries will be common.
 The maintenance phase acts as a safety net for breakage introduced by conflict
 resolution.
+
+#### Push Target and Concurrent Push Races
+
+Agents push directly to the target branch (integration or main):
+```bash
+git push origin HEAD:<target-branch>
+```
+
+When two agents finish simultaneously, one will get a non-fast-forward rejection.
+The agent must handle this with a retry loop:
+```
+1. git fetch origin <target-branch>
+2. git rebase origin/<target-branch>
+3. Resolve any conflicts
+4. git push origin HEAD:<target-branch>
+5. If non-fast-forward → go to 1 (up to 3 retries)
+```
+
+This is communicated to agents via the completion checklist in their prompt. The
+agent's retry loop is separate from the harness's retry budget — push retries are
+expected, not counted as bead failures.
 
 #### Observation Beads
 
@@ -328,15 +426,15 @@ keeps the harness simple (it orchestrates, it doesn't execute) and handles both
 obvious failures (test regressions) and subtle ones (integration issues the harness
 can't detect via exit codes).
 
-**Maintenance agent runs in a dedicated maintenance worktree**, separate from the
-per-bead agent worktrees:
+**Maintenance gets a fresh worktree each time**, consistent with the per-bead model
+(all worktrees are ephemeral):
 
 ```
 repo/
 ├── .tbd/worktrees/
-│   ├── agent-1/          # Coding agent worktrees
+│   ├── agent-1/          # Per-bead coding agent worktrees (ephemeral)
 │   ├── agent-2/
-│   └── maintenance/      # Dedicated maintenance worktree (persists across runs)
+│   └── maint-<n>/        # Per-maintenance-run worktree (ephemeral)
 ```
 
 **Maintenance runs in parallel** with coding agents — it does not pause the
@@ -347,7 +445,8 @@ when they rebase.
 **Per-maintenance-run flow**:
 1. Harness auto-creates a maintenance bead of type `chore` (tracked like any work),
    labeled `harness-run:<run-id>`
-2. Spawn maintenance agent via `AgentBackend.spawn()` in maintenance worktree
+2. Create fresh worktree on the target branch
+3. Spawn maintenance agent via `AgentBackend.spawn()` in the fresh worktree
 3. Maintenance agent prompt:
    - Pull latest from target branch
    - Run full test suite, build, typecheck, lint
@@ -359,12 +458,34 @@ when they rebase.
 
 ### Phase 5: Judge (Firewalled Agent)
 
+**Trigger**: The judge runs after **all implementation beads for this iteration are
+complete AND the last maintenance run (if any) has finished**. The harness waits for
+both conditions before spawning the judge. This ensures maintenance fixes are
+included in the judge's evaluation — otherwise the judge might flag issues that
+maintenance would have fixed.
+
 The judge is a **separate headless agent** with its own interface (`JudgeBackend`),
 distinct from the coding `AgentBackend`. The judge runs with tool access to the repo
 (grep, read files, git diff, etc.) but under stricter constraints: **read-only, no
-code changes, structured output only**.
+code changes**.
 
-The judge evaluates two concerns:
+#### Two-Pass Evaluation
+
+The judge uses a **two-pass approach** to avoid the constraint of forced JSON output
+limiting reasoning quality:
+
+**Pass 1: Reasoning** — The judge agent runs with full tool access and natural
+language output. It explores the codebase, compares against the spec and acceptance
+criteria, and produces a detailed evaluation in markdown/natural language.
+
+**Pass 2: Structuring** — A second, cheaper agent call parses the judge's reasoning
+into the `JudgeResult` schema. This uses `--json-schema` (Claude Code) or
+`--output-schema` (Codex) for guaranteed structured output.
+
+This separation lets the judge reason freely (better evaluation quality) while still
+producing machine-parseable results for the harness.
+
+The judge evaluates three concerns:
 
 #### Concern 1: Spec Drift Detection
 
@@ -456,9 +577,13 @@ could produce different criteria, making the judge evaluate against a moving tar
 
 **In-repo harness state** (gitignored, never in agent context):
 
+All harness state is **namespaced by run-id** to support historical inspection and
+prevent overwrites from concurrent/subsequent runs:
+
 ```
-.tbd/harness/
+.tbd/harness/<run-id>/
 ├── frozen-spec.md                  # Immutable spec snapshot
+├── checkpoint.yml                  # Run state for --resume
 ├── run-log.yml                     # Execution history (summary)
 ├── events.jsonl                    # Append-only event stream
 └── judge-results/
@@ -466,6 +591,9 @@ could produce different criteria, making the judge evaluate against a moving tar
     ├── iteration-2.yml
     └── ...
 ```
+
+`tbd run --status` reads the most recent run. `tbd run --status <run-id>` reads a
+specific historical run.
 
 **Isolation guarantees**:
 1. Acceptance criteria are stored **outside the repo entirely** — agents have no
@@ -535,11 +663,15 @@ Two supported modes:
 ```
 repo/
 ├── .tbd/worktrees/
-│   ├── agent-1/        # worktree on branch tbd-run/<run-id>/bead-a1b2
-│   ├── agent-2/        # worktree on branch tbd-run/<run-id>/bead-c3d4
-│   ├── agent-3/        # worktree on branch tbd-run/<run-id>/bead-e5f6
-│   └── maintenance/    # dedicated maintenance worktree (persists across runs)
+│   ├── agent-1/        # worktree on branch tbd-run/<run-id>/bead-01hx5zzk
+│   ├── agent-2/        # worktree on branch tbd-run/<run-id>/bead-01hx6aab
+│   ├── agent-3/        # worktree on branch tbd-run/<run-id>/bead-01hx6bbc
+│   └── maint-1/        # fresh maintenance worktree (ephemeral)
 ```
+
+All worktrees are **ephemeral** — created fresh for each bead or maintenance run,
+deleted after completion. Branch names use truncated ULIDs (first 8 chars) for
+readability: `tbd-run/<run-id>/bead-01hx5zzk` instead of the full 26-char ULID.
 
 Each agent works in total isolation. Merging happens per-agent:
 1. Agent finishes work
@@ -594,10 +726,13 @@ interface AgentBackend {
 interface AgentResult {
   status: 'success' | 'failure' | 'timeout';
   exitCode: number;
-  stdout: string;             // Captured for logging
-  stderr: string;
+  lastLines: string;          // Last ~50 lines of output (for error context)
+  logHint?: string;           // Path to agent's own log (e.g., ~/.claude/...)
   duration: number;           // ms
 }
+// Note: Full stdout/stderr capture is unnecessary — Claude Code logs to
+// ~/.claude/ and Codex to .codex/. The harness only captures the tail
+// of output for error context to avoid OOM with verbose agents.
 ```
 
 ### Judge Backend Interface
@@ -652,7 +787,7 @@ interface JudgeResult {
     description: string;
     type: 'bug' | 'task';
   }>;
-  stdout: string;
+  lastLines: string;          // Last ~50 lines of judge output
   duration: number;
 }
 ```
@@ -688,12 +823,20 @@ claude -p "<prompt>" \
   --append-system-prompt "<guidelines + completion checklist>"
 ```
 
-**Judge agent**:
+**Judge agent (pass 1 — reasoning)**:
 ```bash
 claude -p "<prompt>" \
   --output-format json \
   --dangerously-skip-permissions \
   --allowedTools "Read,Glob,Grep,Bash(git diff),Bash(git log)" \
+  --no-session-persistence
+```
+
+**Judge agent (pass 2 — structuring)**:
+```bash
+claude -p "<parse this evaluation into structured format: ...>" \
+  --output-format json \
+  --dangerously-skip-permissions \
   --no-session-persistence \
   --json-schema '{"type":"object","properties":{"specDrift":...}}'
 ```
@@ -725,10 +868,18 @@ codex exec "<prompt>" \
   --ephemeral
 ```
 
-**Judge agent**:
+**Judge agent (pass 1 — reasoning)**:
 ```bash
 codex exec "<prompt>" \
   --cd <workdir> \
+  --sandbox read-only \
+  --ask-for-approval never \
+  --ephemeral
+```
+
+**Judge agent (pass 2 — structuring)**:
+```bash
+codex exec "<parse this evaluation: ...>" \
   --sandbox read-only \
   --ask-for-approval never \
   --output-schema '{"type":"object","properties":{"specDrift":...}}' \
@@ -750,16 +901,23 @@ flag. The harness implements timeout externally (see §Process Lifecycle).
 
 The harness assembles a per-bead prompt that includes:
 
-1. **Bead details**: Output of `tbd show <id>` — title, description, dependencies,
-   labels
+1. **Bead details**: Output of `tbd show <id> --json` — title, description,
+   dependencies, labels (machine-readable, formatted by harness into prompt text)
 2. **Spec section**: The relevant section of the frozen spec (extracted by matching
    bead title/description against spec headings)
 3. **Guidelines**: Auto-selected based on bead labels or configured per-run
    (e.g., beads labeled `typescript` get `typescript-rules` injected)
 4. **Codebase context**: Relevant files (the agent's job to explore further via tools)
-5. **Completion checklist**: What the agent must do before exiting
-6. **Observation bead instructions**: How to create observation beads for out-of-scope
-   discoveries
+5. **Completion checklist**: What the agent must do before exiting (including push
+   retry loop for non-fast-forward)
+6. **Run ID and target branch**: The run ID for observation bead labeling and the
+   target branch for push/rebase operations
+7. **Observation bead instructions**: How to create observation beads for out-of-scope
+   discoveries, including the exact label: `--label=harness-run:<run-id>`
+
+**Environment variables** set for each agent:
+- `TBD_HARNESS_RUN_ID=<run-id>` — for observation bead labeling
+- `TBD_HARNESS_TARGET_BRANCH=<target-branch>` — for rebase/push operations
 
 The agent does NOT receive:
 - Acceptance criteria
@@ -832,8 +990,9 @@ acceptance:
 - Concurrency: 4 coding agents (+ 1 parallel maintenance agent)
 - Timeout: 15 minutes per bead
 - Retries: 2 per bead
-- Worktree strategy: per-agent (+ dedicated maintenance worktree)
-- Maintenance: every 5 beads, always spawns agent, runs in parallel
+- Worktree strategy: per-agent, all ephemeral (fresh per bead/maintenance run)
+- Maintenance: every 5 beads, always spawns agent, fresh worktree (`maint-<n>/`),
+  runs in parallel
 - Judge: enabled, all checks, max 3 iterations, create PR on completion
 - Acceptance criteria: auto-generated, stored in XDG cache
 
@@ -843,7 +1002,7 @@ The harness maintains two log files:
 
 #### 1. Event Log (real-time, append-only)
 
-`.tbd/harness/events.jsonl` — one JSON object per line, appended as events occur:
+`.tbd/harness/<run-id>/events.jsonl` — one JSON object per line, appended as events occur:
 
 ```jsonl
 {"ts":"2026-02-12T10:00:00Z","event":"run_started","run_id":"run-a1b2c3","spec":"plan.md"}
@@ -868,7 +1027,7 @@ The harness maintains two log files:
 
 #### 2. Run Log (structured summary)
 
-`.tbd/harness/run-log.yml` — updated at phase transitions:
+`.tbd/harness/<run-id>/run-log.yml` — updated at phase transitions:
 
 ```yaml
 run_id: run-2026-02-12-a1b2c3
@@ -942,12 +1101,12 @@ tbd run --spec plan.md --dry-run
 The harness serializes state after every phase transition and significant event.
 This enables `--resume` to recover from crashes.
 
-**Checkpoint file**: `.tbd/harness/checkpoint.yml`
+**Checkpoint file**: `.tbd/harness/<run-id>/checkpoint.yml`
 
 ```yaml
 run_id: run-2026-02-12-a1b2c3
 spec_path: docs/specs/plan-2026-02-12-feature-x.md
-frozen_spec_path: .tbd/harness/frozen-spec.md
+frozen_spec_path: .tbd/harness/run-2026-02-12-a1b2c3/frozen-spec.md
 acceptance_path: /home/user/.cache/tbd-harness/run-2026-02-12-a1b2c3/acceptance/
 target_branch: tbd-run/run-2026-02-12-a1b2c3
 base_branch: main
@@ -973,9 +1132,10 @@ agents:
       pid: 12345
 
 maintenance:
-  worktree: .tbd/worktrees/maintenance
   last_run_at: 2026-02-12T11:00:00Z
-  bead_id: scr-m1n2  # Current maintenance bead (if running)
+  worktree: .tbd/worktrees/maint-2  # Current maintenance worktree (if running)
+  bead_id: scr-m1n2                 # Current maintenance bead (if running)
+  run_count: 2                      # For naming: maint-1, maint-2, ...
 
 observations:
   pending: [scr-x9y8, scr-z1w2]
@@ -1032,7 +1192,7 @@ is the last resort for hung processes.
 
 ```
 1. Agent process exits with non-zero exit code
-2. Harness captures stdout/stderr for debugging
+2. Harness captures last ~50 lines of output for error context
 3. Check if bead was closed (tbd show <id>)
 4. If bead not closed: mark as crashed, schedule retry in fresh worktree
 5. If bead was closed: treat as success (agent crashed during cleanup)
@@ -1119,9 +1279,11 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 - [ ] Define `HarnessConfig` schema (Zod) with sensible defaults for all fields
 - [ ] Implement zero-config auto-detection (backend from PATH, all defaults)
 - [ ] Implement run state machine: FREEZE → DECOMPOSE → IMPLEMENT → MAINTAIN → JUDGE
+- [ ] Implement per-run-id state directory (`.tbd/harness/<run-id>/`)
 - [ ] Implement checkpoint save/restore (serialize state after each phase transition)
 - [ ] Implement `tbd run` command entry point
 - [ ] Implement `tbd run --status` (reads JSONL event log) and `tbd run --resume`
+- [ ] Implement integration branch creation during Phase 1 (Spec Freeze)
 
 ### Phase 2: Agent Backend Abstraction
 
@@ -1140,17 +1302,22 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 
 ### Phase 3: Worktree + Branch Management
 
-- [ ] Implement integration branch creation (`tbd-run/<run-id>`)
-- [ ] Implement worktree creation for per-agent mode
-- [ ] Implement worktree cleanup after bead completion
-- [ ] Implement branch naming: `tbd-run/<run-id>/<bead-id>`
+- [ ] Implement per-agent worktree creation (ephemeral, fresh per bead)
+- [ ] Implement worktree cleanup after bead completion (delete worktree)
+- [ ] Implement branch naming: `tbd-run/<run-id>/bead-<truncated-ulid>`
 - [ ] Implement target branch configuration (auto vs. main)
+- [ ] Implement push-retry loop for non-fast-forward (up to 3 retries)
 - [ ] Implement final PR creation from integration branch
 
 ### Phase 4: Bead Scheduling + Fan Out
 
+- [ ] Implement `buildDependencyGraph()` shared library function in `lib/graph.ts`
+  (inverted dependency resolution, used by both `tbd ready` and the harness)
+- [ ] Implement `computeImpactDepth()` for critical-path ranking
+- [ ] Implement harness-side ready filtering (`tbd list --label --json` + graph library)
 - [ ] Implement critical-path scheduler (max fan-out → priority → creation order)
 - [ ] Implement harness-serialized bead claiming (no agent self-assignment)
+- [ ] Implement serialized harness tbd operations (queue own create/update/sync calls)
 - [ ] Implement continuous agent pool (up to `max_concurrency` coding agents)
 - [ ] Implement agent lifecycle: spawn → monitor → collect result
 - [ ] Implement retry logic with failure-mode-specific behavior:
@@ -1162,7 +1329,7 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 
 ### Phase 5: Maintenance Phase
 
-- [ ] Implement dedicated maintenance worktree creation (`.tbd/worktrees/maintenance`)
+- [ ] Implement fresh ephemeral maintenance worktree creation (`maint-<n>/`)
 - [ ] Implement always-spawn maintenance agent model (no harness-side checks)
 - [ ] Implement parallel execution (maintenance does not block coding agents)
 - [ ] Implement maintenance trigger logic (every N beads, after all)
@@ -1179,10 +1346,14 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 
 ### Phase 7: Judge Agent + Feedback Loop
 
-- [ ] Implement JudgeBackend for Claude Code (`--json-schema` for structured output,
-  read-only `--allowedTools`)
-- [ ] Implement JudgeBackend for Codex (`--sandbox read-only`,
-  `--output-schema` for structured output)
+- [ ] Implement two-pass judge evaluation:
+  - Pass 1: reasoning agent with full tool access, natural language output
+  - Pass 2: structuring agent with `--json-schema`/`--output-schema`
+- [ ] Implement JudgeBackend for Claude Code (pass 1: read-only `--allowedTools`;
+  pass 2: `--json-schema` for structured output)
+- [ ] Implement JudgeBackend for Codex (pass 1: `--sandbox read-only`;
+  pass 2: `--output-schema` for structured output)
+- [ ] Implement judge trigger: wait for all beads + last maintenance to complete
 - [ ] Implement judge prompt (spec drift + acceptance eval + observation triage)
 - [ ] Implement structured judge output parsing against `JudgeResult` schema
 - [ ] Implement bead creation from judge failures (labeled `harness-run:<run-id>`)
