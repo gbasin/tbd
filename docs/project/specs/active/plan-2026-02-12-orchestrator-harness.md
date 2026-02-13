@@ -1,4 +1,4 @@
-# Feature: Orchestrator Harness (`tbd run`)
+# Feature: Orchestrator Harness (`tbd compile`)
 
 **Date:** 2026-02-12
 
@@ -24,7 +24,7 @@ is no escape hatch for amending mid-run.
 
 ## Goals
 
-- **G1**: One command (`tbd run --spec plan.md`) drives the full spec → code → judge
+- **G1**: One command (`tbd compile --spec plan.md`) drives the full spec → code → judge
   loop with zero configuration required
 - **G2**: Agents work on single beads in isolation — no inter-agent chat
 - **G3**: The judge is a separate headless agent with its own interface, running with
@@ -156,7 +156,7 @@ wrong, stop the run, fix the spec, and re-run.
 **Steps**:
 1. Load the spec file
 2. Generate run ID (`run-<date>-<short-hash>`)
-3. Create integration branch `tbd-run/<run-id>` from base branch (if using
+3. Create integration branch `tbd-compile/<run-id>` from base branch (if using
    integration branch mode). Push to origin.
 4. Create harness state directory `.tbd/harness/<run-id>/`
 5. Freeze: copy the spec to `.tbd/harness/<run-id>/frozen-spec.md` (immutable
@@ -717,7 +717,7 @@ prevent overwrites from concurrent/subsequent runs:
     └── ...
 ```
 
-`tbd run --status` reads the most recent run. `tbd run --status <run-id>` reads a
+`tbd compile --status` reads the most recent run. `tbd compile --status <run-id>` reads a
 specific historical run.
 
 **Isolation guarantees**:
@@ -757,7 +757,7 @@ The harness supports two modes for where agents merge their work, **configurable
 
 #### Mode 1: Integration branch (default)
 
-The harness auto-creates a branch `tbd-run/<run-id>` from the base branch. All
+The harness auto-creates a branch `tbd-compile/<run-id>` from the base branch. All
 agents rebase-merge onto this integration branch. After the judge passes, the harness
 creates a PR from the integration branch to the base branch.
 
@@ -799,9 +799,9 @@ Two supported modes:
 ```
 repo/
 ├── .tbd/worktrees/
-│   ├── agent-1/        # worktree on branch tbd-run/<run-id>/bead-01hx5zzk
-│   ├── agent-2/        # worktree on branch tbd-run/<run-id>/bead-01hx6aab
-│   ├── agent-3/        # worktree on branch tbd-run/<run-id>/bead-01hx6bbc
+│   ├── agent-1/        # worktree on branch tbd-compile/<run-id>/bead-01hx5zzk
+│   ├── agent-2/        # worktree on branch tbd-compile/<run-id>/bead-01hx6aab
+│   ├── agent-3/        # worktree on branch tbd-compile/<run-id>/bead-01hx6bbc
 │   ├── maint-1/        # fresh maintenance worktree (ephemeral)
 │   └── judge-1/        # fresh judge worktree from origin/<target-branch>
 ```
@@ -812,7 +812,7 @@ exceeded). For **incomplete retries** (agent exits cleanly but bead not closed),
 the worktree is **reused** since the agent likely made progress. For **timeout or
 crash retries**, the worktree is deleted and a fresh one is created (previous
 state is suspect). Branch names use truncated ULIDs (first 8 chars) for
-readability: `tbd-run/<run-id>/bead-01hx5zzk` instead of the full 26-char ULID.
+readability: `tbd-compile/<run-id>/bead-01hx5zzk` instead of the full 26-char ULID.
 
 Each agent works in total isolation. Merging happens per-agent:
 1. Agent finishes work
@@ -1123,7 +1123,7 @@ The agent does NOT receive:
 
 ### Configuration
 
-**Configuration is optional.** `tbd run --spec plan.md` works with zero config by
+**Configuration is optional.** `tbd compile --spec plan.md` works with zero config by
 auto-detecting the backend and using sensible defaults. The config file is for power
 users who want to customize behavior.
 
@@ -1139,7 +1139,7 @@ agent:
   max_retries_per_bead: 2       # Retries before marking blocked
 
 target_branch: auto             # auto (integration branch) | main
-                                # auto creates tbd-run/<run-id> branch
+                                # auto creates tbd-compile/<run-id> branch
 
 worktree:
   strategy: per-agent           # per-agent | shared
@@ -1183,7 +1183,7 @@ acceptance:
 
 **Defaults when no config file exists**:
 - Backend: auto-detected from PATH (claude → codex → error)
-- Target branch: auto (integration branch `tbd-run/<run-id>`)
+- Target branch: auto (integration branch `tbd-compile/<run-id>`)
 - Concurrency: 4 coding agents (+ 1 parallel maintenance agent)
 - Timeout: 15 minutes per bead
 - Retries: 2 per bead
@@ -1225,7 +1225,7 @@ The harness maintains two log files:
 {"ts":"2026-02-12T15:30:00Z","event":"run_completed","status":"completed","total_beads":15}
 ```
 
-`tbd run --status` reads this file and presents a summary.
+`tbd compile --status` reads this file and presents a summary.
 
 **Write safety**: The harness is the sole writer of `events.jsonl`. However, with
 async operations (multiple agents finishing near-simultaneously), event emission
@@ -1245,7 +1245,7 @@ run_id: run-2026-02-12-a1b2c3
 spec: docs/specs/plan-2026-02-12-feature-x.md
 started_at: 2026-02-12T10:00:00Z
 status: in_progress  # pending | in_progress | completed | failed
-target_branch: tbd-run/run-2026-02-12-a1b2c3
+target_branch: tbd-compile/run-2026-02-12-a1b2c3
 
 iterations:
   - iteration: 1
@@ -1289,19 +1289,19 @@ total_agent_spawns: 19
 
 ```bash
 # Full pipeline from spec (zero-config)
-tbd run --spec docs/specs/plan-feature-x.md
+tbd compile --spec docs/specs/plan-feature-x.md
 
 # Resume from checkpoint (after crash or pause)
-tbd run --resume
+tbd compile --resume
 
 # Run with overrides
-tbd run --spec plan.md --concurrency 2 --backend codex
+tbd compile --spec plan.md --concurrency 2 --backend codex
 
 # Status of current/last run (reads JSONL event log)
-tbd run --status
+tbd compile --status
 
 # Dry run — show what would happen without spawning agents
-tbd run --spec plan.md --dry-run
+tbd compile --spec plan.md --dry-run
 ```
 
 **v1 scope**: `--spec`, `--resume`, `--status`, `--dry-run`, `--concurrency`,
@@ -1338,7 +1338,7 @@ Error codes: `E_SPEC_NOT_FOUND`, `E_CONFIG_INVALID`, `E_BACKEND_UNAVAILABLE`,
 
 #### `--dry-run` Behavior
 
-`tbd run --spec plan.md --dry-run` runs Phase 1 (spec freeze) and Phase 2
+`tbd compile --spec plan.md --dry-run` runs Phase 1 (spec freeze) and Phase 2
 (decompose) but stops before Phase 3 (implement). It outputs:
 - The generated run ID
 - The frozen spec path
@@ -1350,7 +1350,7 @@ Error codes: `E_SPEC_NOT_FOUND`, `E_CONFIG_INVALID`, `E_BACKEND_UNAVAILABLE`,
 
 This lets the user validate the decomposition and schedule before committing to a
 full run. Beads created during dry-run are labeled and remain in the queue — the
-user can `tbd run --resume` to continue from Phase 3.
+user can `tbd compile --resume` to continue from Phase 3.
 
 #### Final PR Creation
 
@@ -1362,11 +1362,11 @@ PR from the integration branch to the base branch:
 3. `git push --force-with-lease origin <integration-branch>` (safe force-push
    after rebase — `--force-with-lease` prevents overwriting unexpected upstream
    changes). **Fallback**: If force-push is rejected (branch protection), create
-   a new branch `tbd-run/<run-id>-rebased` and push there instead.
+   a new branch `tbd-compile/<run-id>-rebased` and push there instead.
 4. Create PR via `gh pr create` (from integration branch or rebased branch) with:
-   - Title: `tbd run: <spec title>`
+   - Title: `tbd compile: <spec title>`
    - Body: run summary (beads completed, iterations, judge results)
-   - Labels: `tbd-run`, `automated`
+   - Labels: `tbd-compile`, `automated`
 5. Log PR URL to events.jsonl and run-log.yml
 
 ### Checkpoint Schema
@@ -1383,7 +1383,7 @@ spec_path: docs/specs/plan-2026-02-12-feature-x.md
 frozen_spec_path: .tbd/harness/run-2026-02-12-a1b2c3/frozen-spec.md
 frozen_spec_sha256: a1b2c3d4e5f6...  # Verified before each phase transition
 acceptance_path: /home/user/.cache/tbd-harness/run-2026-02-12-a1b2c3/acceptance/
-target_branch: tbd-run/run-2026-02-12-a1b2c3
+target_branch: tbd-compile/run-2026-02-12-a1b2c3
 base_branch: main
 
 state: implementing  # freezing | decomposing | implementing | maintaining | judging | completed | failed
@@ -1580,7 +1580,7 @@ New code for the harness lives alongside existing tbd CLI code:
 packages/tbd/src/
 ├── cli/
 │   ├── commands/
-│   │   └── run.ts              # CLI entry point: tbd run --spec, --resume, --status
+│   │   └── compile.ts           # CLI entry point: tbd compile --spec, --resume, --status
 │   └── lib/
 │       └── harness/
 │           ├── orchestrator.ts  # Main pipeline state machine
@@ -1621,11 +1621,11 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 - [ ] Implement run state machine: FREEZE → DECOMPOSE → IMPLEMENT → MAINTAIN → JUDGE
 - [ ] Implement per-run-id state directory (`.tbd/harness/<run-id>/`)
 - [ ] Implement checkpoint save/restore (serialize state after each phase transition)
-- [ ] Implement `tbd run` command entry point
-- [ ] Implement `tbd run --status` (reads JSONL event log) and `tbd run --resume`
+- [ ] Implement `tbd compile` command entry point
+- [ ] Implement `tbd compile --status` (reads JSONL event log) and `tbd compile --resume`
 - [ ] Implement resume config merging (checkpoint state + re-read harness.yml for ops)
 - [ ] Implement integration branch creation during Phase 1 (Spec Freeze)
-- [ ] Implement `tbd run --dry-run` (freeze + decompose, show schedule, stop)
+- [ ] Implement `tbd compile --dry-run` (freeze + decompose, show schedule, stop)
 - [ ] Implement run lock with heartbeat (`lock.json`, 5s heartbeat, 30s stale)
 - [ ] Implement frozen spec SHA-256 hash storage and per-phase verification
 - [ ] Implement atomic checkpoint writes (tmp + fsync + rename + parent fsync)
@@ -1655,7 +1655,7 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 
 - [ ] Implement per-agent worktree creation (ephemeral, fresh per bead)
 - [ ] Implement worktree cleanup after bead completion (delete worktree)
-- [ ] Implement branch naming: `tbd-run/<run-id>/bead-<truncated-ulid>`
+- [ ] Implement branch naming: `tbd-compile/<run-id>/bead-<truncated-ulid>`
 - [ ] Implement target branch configuration (auto vs. main)
 - [ ] Implement push-retry loop for non-fast-forward (up to 3 retries)
 - [ ] Implement final PR creation from integration branch
@@ -1727,7 +1727,7 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 
 - [ ] Implement JSONL event log writer (append-only, serialized write queue)
 - [ ] Implement run-log.yml writer (phase-transition updates)
-- [ ] Implement `tbd run --status` reader (parses JSONL for live state)
+- [ ] Implement `tbd compile --status` reader (parses JSONL for live state)
 - [ ] Implement `--dry-run` mode (show planned beads + schedule without executing)
 
 ## Testing Strategy
@@ -1871,9 +1871,9 @@ You MUST complete ALL of these before exiting:
 5. Lint: `pnpm lint`
 6. Push to remote:
    ```
-   git fetch origin tbd-run/run-2026-02-12-a1b2c3
-   git rebase origin/tbd-run/run-2026-02-12-a1b2c3
-   git push origin HEAD:tbd-run/run-2026-02-12-a1b2c3
+   git fetch origin tbd-compile/run-2026-02-12-a1b2c3
+   git rebase origin/tbd-compile/run-2026-02-12-a1b2c3
+   git push origin HEAD:tbd-compile/run-2026-02-12-a1b2c3
    ```
    If push fails with non-fast-forward: re-fetch, re-rebase, retry (up to 3 times).
 7. Close your bead: `tbd close scr-a1b2 --reason="Implemented auth middleware"`
@@ -1899,7 +1899,7 @@ Do NOT fix out-of-scope issues yourself. Just log them and move on.
 **Environment variables** set alongside this prompt:
 ```
 TBD_HARNESS_RUN_ID=run-2026-02-12-a1b2c3
-TBD_HARNESS_TARGET_BRANCH=tbd-run/run-2026-02-12-a1b2c3
+TBD_HARNESS_TARGET_BRANCH=tbd-compile/run-2026-02-12-a1b2c3
 ```
 
 **How this prompt is delivered** (see §Backend CLI Reference for exact flags):
