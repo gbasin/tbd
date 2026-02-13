@@ -91,16 +91,7 @@ export class ClaudeCodeBackend implements AgentBackend {
   name = 'claude-code';
 
   async spawn(opts: SpawnOptions): Promise<AgentResult> {
-    const args = [
-      '-p',
-      opts.prompt,
-      '--dangerously-skip-permissions',
-      '--allowedTools',
-      'Edit,Write,Bash,Read,Glob,Grep',
-      '--no-session-persistence',
-      '--max-turns',
-      '100',
-    ];
+    const args = ['-p', opts.prompt, '--dangerously-skip-permissions'];
 
     // Only use JSON output format when explicitly requested (coding agents)
     if (opts.outputFormat !== 'text') {
@@ -129,14 +120,7 @@ export class ClaudeCodeJudge implements JudgeBackend {
     const reasoningPrompt = buildJudgeReasoningPrompt(opts);
     const pass1 = await spawnProcess(
       'claude',
-      [
-        '-p',
-        reasoningPrompt,
-        '--dangerously-skip-permissions',
-        '--allowedTools',
-        'Read,Glob,Grep,Bash',
-        '--no-session-persistence',
-      ],
+      ['-p', reasoningPrompt, '--dangerously-skip-permissions'],
       {
         cwd: opts.workdir,
         timeout: opts.timeout,
@@ -168,7 +152,6 @@ export class ClaudeCodeJudge implements JudgeBackend {
         '--json-schema',
         JUDGE_RESULT_JSON_SCHEMA,
         '--dangerously-skip-permissions',
-        '--no-session-persistence',
       ],
       {
         cwd: opts.workdir,

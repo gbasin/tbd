@@ -1,7 +1,7 @@
 /**
  * Codex CLI backend implementation.
  *
- * Spawns `codex exec "..." --cd <workdir> --ask-for-approval never`
+ * Spawns `codex exec "..." --cd <workdir> --dangerously-bypass-approvals-and-sandbox`
  */
 
 import type {
@@ -26,8 +26,7 @@ export class CodexBackend implements AgentBackend {
       prompt,
       '--cd',
       opts.workdir,
-      '--ask-for-approval',
-      'never',
+      '--dangerously-bypass-approvals-and-sandbox',
       '--ephemeral',
     ];
 
@@ -70,8 +69,7 @@ export class CodexJudge implements JudgeBackend {
         opts.workdir,
         '--sandbox',
         'read-only',
-        '--ask-for-approval',
-        'never',
+        '--full-auto',
         '--ephemeral',
       ],
       {
@@ -108,8 +106,7 @@ export class CodexJudge implements JudgeBackend {
         opts.workdir,
         '--sandbox',
         'read-only',
-        '--ask-for-approval',
-        'never',
+        '--full-auto',
         '--ephemeral',
       ],
       {
