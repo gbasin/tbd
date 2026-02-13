@@ -39,12 +39,20 @@ export function parseDuration(input: string): number {
 // Config Schema
 // =============================================================================
 
+/** A backend spec: single backend string, or array for random selection per spawn. */
+export const BackendSpec = z.union([
+  z.enum(['auto', 'claude-code', 'codex', 'subprocess']),
+  z.array(z.enum(['claude-code', 'codex', 'subprocess'])).min(1),
+]);
+
+export type BackendSpec = z.infer<typeof BackendSpec>;
+
 export const CompilerConfigSchema = z.object({
   spec: z.string().optional(),
 
   agent: z
     .object({
-      backend: z.enum(['auto', 'claude-code', 'codex', 'subprocess']).default('auto'),
+      backend: BackendSpec.default('auto'),
       command: z.string().nullable().default(null),
       max_concurrency: z.number().int().min(1).default(4),
       timeout_per_bead: z.string().default('15m'),
@@ -69,6 +77,7 @@ export const CompilerConfigSchema = z.object({
           auto: z.boolean().default(true),
           human_review: z.boolean().default(false),
           existing_selector: z.string().optional(),
+          backend: BackendSpec.optional(),
         })
         .default({}),
 
@@ -78,15 +87,17 @@ export const CompilerConfigSchema = z.object({
           completion_checks: z
             .array(z.string())
             .default(['own-tests', 'typecheck', 'build', 'lint']),
+          backend: BackendSpec.optional(),
         })
         .default({}),
 
       maintain: z
         .object({
           trigger: z.enum(['every_n_beads', 'after_all', 'never']).default('every_n_beads'),
-          n: z.number().int().min(1).default(5),
+          n: z.number().int().min(1).default(25),
           parallel: z.boolean().default(true),
           max_concurrency: z.number().int().min(1).default(1),
+          backend: BackendSpec.optional(),
         })
         .default({}),
 
@@ -97,6 +108,7 @@ export const CompilerConfigSchema = z.object({
           acceptance: z.boolean().default(true),
           max_iterations: z.number().int().min(1).default(3),
           on_complete: z.enum(['pr', 'none']).default('pr'),
+          backend: BackendSpec.optional(),
         })
         .default({}),
     })

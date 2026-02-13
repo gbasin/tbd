@@ -26,7 +26,7 @@ import { WorktreeManager } from './worktree.js';
 import { Scheduler } from './scheduler.js';
 import { AgentPool } from './agent-pool.js';
 import { buildCodingAgentPrompt, buildMaintenancePrompt, loadGuidelines } from './prompts.js';
-import { createAgentBackend, createJudgeBackend } from './backends/detect.js';
+import { resolveBackendSpec, resolveJudgeBackendSpec } from './backends/detect.js';
 import { killAllActiveProcesses } from './backends/backend.js';
 import { CompilerError } from '../errors.js';
 import { ConsoleReporter } from './console-reporter.js';
@@ -82,6 +82,19 @@ export class Orchestrator {
     this.config = opts.config;
     this.tbdRoot = opts.tbdRoot;
     this.worktreeMgr = new WorktreeManager(opts.tbdRoot);
+  }
+
+  /** Resolve the backend for a given phase, falling back to global agent.backend. */
+  private resolveBackend(phase: 'decompose' | 'implement' | 'maintain' | 'judge') {
+    const phaseBackend = this.config.phases[phase]?.backend;
+    const spec = phaseBackend ?? this.config.agent.backend;
+    return resolveBackendSpec(spec, this.config.agent.command);
+  }
+
+  /** Resolve the judge backend for the judge phase, falling back to global agent.backend. */
+  private resolveJudgeBackend() {
+    const spec = this.config.phases.judge?.backend ?? this.config.agent.backend;
+    return resolveJudgeBackendSpec(spec);
   }
 
   /** Run the full pipeline. */
@@ -408,7 +421,7 @@ export class Orchestrator {
     // Generate acceptance criteria
     if (this.config.acceptance.generate) {
       const acceptance = new AcceptanceManager(this.runId);
-      const backend = createAgentBackend(this.config.agent.backend, this.config.agent.command);
+      const backend = this.resolveBackend('decompose');
       await acceptance.generate(absFrozenPath, async (prompt) => {
         const result = await backend.spawn({
           workdir: this.tbdRoot,
@@ -465,7 +478,7 @@ export class Orchestrator {
       this.checkpoint.beads.total = beads.length;
     } else if (this.config.phases.decompose.auto) {
       // Spawn decomposition agent
-      const backend = createAgentBackend(this.config.agent.backend, this.config.agent.command);
+      const backend = this.resolveBackend('decompose');
 
       const frozenSpec = await readFile(
         join(this.tbdRoot, this.checkpoint.frozenSpecPath),
@@ -535,7 +548,7 @@ Create beads now.`;
     ConsoleReporter.phaseStarted('implement', this.checkpoint.iteration);
     this.checkpoint.state = 'implementing';
 
-    const backend = createAgentBackend(this.config.agent.backend, this.config.agent.command);
+    const backend = this.resolveBackend('implement');
     const pool = new AgentPool(backend, this.config.agent.max_concurrency);
     const guidelines = await loadGuidelines(this.tbdRoot, this.config.phases.implement.guidelines);
     const timeout = getBeadTimeoutMs(this.config);
@@ -798,7 +811,7 @@ Create beads now.`;
       '--label=maintenance',
     ]);
 
-    const backend = createAgentBackend(this.config.agent.backend, this.config.agent.command);
+    const backend = this.resolveBackend('maintain');
     const worktreePath = await this.worktreeMgr.createMaintenanceWorktree(
       this.runId,
       index,
@@ -869,7 +882,7 @@ Create beads now.`;
       this.checkpoint.iteration,
     );
 
-    const judgeBackend = createJudgeBackend(this.config.agent.backend);
+    const judgeBackend = this.resolveJudgeBackend();
     const result = await judgeBackend.evaluate({
       workdir: judgeWorktree,
       frozenSpecPath: join(this.tbdRoot, this.checkpoint.frozenSpecPath),

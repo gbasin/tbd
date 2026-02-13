@@ -81,3 +81,21 @@ export function createJudgeBackend(preference: string): JudgeBackend {
   // Default to Claude Code judge
   return new ClaudeCodeJudge();
 }
+
+/**
+ * Resolve a BackendSpec (single string or array) into an AgentBackend.
+ * When given an array, picks one at random.
+ */
+export function resolveBackendSpec(spec: string | string[], command?: string | null): AgentBackend {
+  const choice = Array.isArray(spec) ? spec[Math.floor(Math.random() * spec.length)]! : spec;
+  return createAgentBackend(choice, command);
+}
+
+/**
+ * Resolve a BackendSpec (single string or array) into a JudgeBackend.
+ * When given an array, picks one at random.
+ */
+export function resolveJudgeBackendSpec(spec: string | string[]): JudgeBackend {
+  const choice = Array.isArray(spec) ? spec[Math.floor(Math.random() * spec.length)]! : spec;
+  return createJudgeBackend(choice);
+}
