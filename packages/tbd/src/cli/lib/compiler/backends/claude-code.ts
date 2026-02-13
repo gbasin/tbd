@@ -1,7 +1,8 @@
 /**
  * Claude Code backend implementation.
  *
- * Spawns `claude -p "..." --output-format json --dangerously-skip-permissions`
+ * Spawns `claude -p "..." --dangerously-skip-permissions`
+ * Uses --output-format json for coding agents, plain text for acceptance/judge reasoning.
  */
 
 import type {
@@ -15,6 +16,77 @@ import type {
 import { JudgeResultSchema } from '../../../../lib/compiler/types.js';
 import { spawnProcess, toAgentResult } from './backend.js';
 
+/** JSON schema for judge structured output (pass 2). */
+const JUDGE_RESULT_JSON_SCHEMA = JSON.stringify({
+  type: 'object',
+  properties: {
+    specDrift: {
+      type: 'object',
+      properties: {
+        detected: { type: 'boolean' },
+        issues: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              section: { type: 'string' },
+              description: { type: 'string' },
+              severity: { type: 'string', enum: ['critical', 'major', 'minor'] },
+            },
+            required: ['section', 'description', 'severity'],
+          },
+        },
+      },
+      required: ['detected', 'issues'],
+    },
+    acceptance: {
+      type: 'object',
+      properties: {
+        passed: { type: 'boolean' },
+        results: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              criterion: { type: 'string' },
+              passed: { type: 'boolean' },
+              evidence: { type: 'string' },
+            },
+            required: ['criterion', 'passed', 'evidence'],
+          },
+        },
+      },
+      required: ['passed', 'results'],
+    },
+    observations: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          beadId: { type: 'string' },
+          action: { type: 'string', enum: ['promote', 'dismiss', 'merge'] },
+          reason: { type: 'string' },
+          mergeWith: { type: 'string' },
+        },
+        required: ['beadId', 'action', 'reason'],
+      },
+    },
+    newBeads: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          description: { type: 'string' },
+          type: { type: 'string', enum: ['bug', 'task', 'feature'] },
+        },
+        required: ['title', 'description', 'type'],
+      },
+    },
+  },
+  required: ['specDrift', 'acceptance', 'observations', 'newBeads'],
+});
+
 export class ClaudeCodeBackend implements AgentBackend {
   name = 'claude-code';
 
@@ -22,8 +94,6 @@ export class ClaudeCodeBackend implements AgentBackend {
     const args = [
       '-p',
       opts.prompt,
-      '--output-format',
-      'json',
       '--dangerously-skip-permissions',
       '--allowedTools',
       'Edit,Write,Bash,Read,Glob,Grep',
@@ -31,6 +101,11 @@ export class ClaudeCodeBackend implements AgentBackend {
       '--max-turns',
       '100',
     ];
+
+    // Only use JSON output format when explicitly requested (coding agents)
+    if (opts.outputFormat !== 'text') {
+      args.push('--output-format', 'json');
+    }
 
     if (opts.systemPrompt) {
       args.push('--append-system-prompt', opts.systemPrompt);
@@ -50,15 +125,13 @@ export class ClaudeCodeJudge implements JudgeBackend {
   name = 'claude-code';
 
   async evaluate(opts: JudgeEvaluateOptions): Promise<JudgeResult> {
-    // Pass 1: Reasoning (natural language)
+    // Pass 1: Reasoning (natural language — no JSON output format)
     const reasoningPrompt = buildJudgeReasoningPrompt(opts);
     const pass1 = await spawnProcess(
       'claude',
       [
         '-p',
         reasoningPrompt,
-        '--output-format',
-        'json',
         '--dangerously-skip-permissions',
         '--allowedTools',
         'Read,Glob,Grep,Bash',
@@ -83,7 +156,7 @@ export class ClaudeCodeJudge implements JudgeBackend {
       };
     }
 
-    // Pass 2: Structuring (JSON schema)
+    // Pass 2: Structuring (JSON schema enforced)
     const structuringPrompt = buildJudgeStructuringPrompt(pass1.lastLines);
     const pass2 = await spawnProcess(
       'claude',
@@ -92,6 +165,8 @@ export class ClaudeCodeJudge implements JudgeBackend {
         structuringPrompt,
         '--output-format',
         'json',
+        '--json-schema',
+        JUDGE_RESULT_JSON_SCHEMA,
         '--dangerously-skip-permissions',
         '--no-session-persistence',
       ],
@@ -104,7 +179,7 @@ export class ClaudeCodeJudge implements JudgeBackend {
 
     try {
       // Try to parse the structured output
-      const parsed = JSON.parse(extractJsonFromOutput(pass2.lastLines));
+      const parsed = JSON.parse(extractJsonFromOutput(pass2.lastLines)) as Record<string, unknown>;
       const result = JudgeResultSchema.parse({
         ...parsed,
         status: 'success',
@@ -167,7 +242,7 @@ ${reasoning}
     "passed": boolean,
     "results": [{"criterion": string, "passed": boolean, "evidence": string}]
   },
-  "observations": [{"beadId": string, "action": "promote"|"dismiss"|"merge", "reason": string}],
+  "observations": [{"beadId": string, "action": "promote"|"dismiss"|"merge", "reason": string, "mergeWith": string (optional)}],
   "newBeads": [{"title": string, "description": string, "type": "bug"|"task"|"feature"}]
 }
 
@@ -176,7 +251,6 @@ Return ONLY the JSON object, no other text.`;
 
 function extractJsonFromOutput(output: string): string {
   // Find the first complete JSON object in the output, handling multi-line JSON.
-  // Claude Code --output-format json may emit envelopes or multi-line objects.
   const lines = output.split('\n');
   for (let i = 0; i < lines.length; i++) {
     if (!lines[i]!.trim().startsWith('{')) continue;

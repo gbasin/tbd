@@ -58,6 +58,13 @@ export class WorktreeManager {
     // Fetch latest from remote
     await execFileAsync('git', ['-C', this.repoRoot, 'fetch', 'origin', targetBranch]);
 
+    // Remove existing worktree if present (handles crash during previous judge)
+    try {
+      await this.removeWorktree(worktreePath);
+    } catch {
+      // No existing worktree — fine
+    }
+
     // Create worktree from remote branch (detached for read-only)
     await mkdir(this.worktreesDir, { recursive: true });
     await execFileAsync('git', [

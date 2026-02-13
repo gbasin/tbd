@@ -28,9 +28,13 @@ export class CodexBackend implements AgentBackend {
       opts.workdir,
       '--ask-for-approval',
       'never',
-      '--json',
       '--ephemeral',
     ];
+
+    // Only use JSON output format when explicitly requested (coding agents)
+    if (opts.outputFormat !== 'text') {
+      args.push('--json');
+    }
 
     const result = await spawnProcess('codex', args, {
       cwd: opts.workdir,

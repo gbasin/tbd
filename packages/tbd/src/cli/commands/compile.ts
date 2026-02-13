@@ -48,6 +48,11 @@ class CompileHandler extends BaseCommand {
     // Load config from .tbd/compiler.yml (optional)
     const config = await this.loadConfig(tbdRoot, options);
 
+    // --spec fallback: use config.spec if no CLI flag
+    if (!options.spec && !options.resume && config.spec) {
+      options.spec = config.spec;
+    }
+
     // Validate: need either --spec or --resume
     if (!options.spec && !options.resume) {
       throw new CompilerError(
@@ -57,41 +62,53 @@ class CompileHandler extends BaseCommand {
       );
     }
 
-    const orchestrator = new Orchestrator({
-      config,
-      tbdRoot,
-      specPath: options.spec,
-      resume: options.resume,
-      dryRun: options.dryRun,
-      beadLabel: options.beadLabel,
-    });
+    try {
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot,
+        specPath: options.spec,
+        resume: options.resume,
+        dryRun: options.dryRun,
+        beadLabel: options.beadLabel,
+      });
 
-    const result = await orchestrator.run();
+      const result = await orchestrator.run();
 
-    this.output.data(result, () => {
-      const colors = this.output.getColors();
+      this.output.data(result, () => {
+        const colors = this.output.getColors();
 
-      if (result.status === 'dry_run') {
-        console.log(colors.bold('Dry run complete'));
-        console.log(result.message);
-        return;
+        if (result.status === 'dry_run') {
+          console.log(colors.bold('Dry run complete'));
+          console.log(`  Run ID:  ${result.runId}`);
+          console.log(`  Beads:   ${result.totalBeads}`);
+          console.log(result.message);
+          return;
+        }
+
+        if (result.status === 'completed') {
+          console.log(colors.bold(colors.success('Pipeline completed successfully')));
+        } else {
+          console.log(colors.bold(colors.error('Pipeline failed')));
+        }
+        console.log(`  Run ID:      ${result.runId}`);
+        console.log(`  Beads:       ${result.totalBeads}`);
+        console.log(`  Iterations:  ${result.iterations}`);
+        if (result.message) {
+          console.log(`  Message:     ${result.message}`);
+        }
+      });
+    } catch (err: unknown) {
+      if (err instanceof CompilerError) {
+        const code = err.code;
+        const msg = err.message;
+        const exitCode = err.exitCode;
+        this.output.data({ error: { code, message: msg } }, () => {
+          const colors = this.output.getColors();
+          console.error(colors.error(`Error [${code}]: ${msg}`));
+        });
+        process.exit(exitCode);
       }
-
-      if (result.status === 'completed') {
-        console.log(colors.bold(colors.success('Pipeline completed successfully')));
-      } else {
-        console.log(colors.bold(colors.error('Pipeline failed')));
-      }
-      console.log(`  Run ID:      ${result.runId}`);
-      console.log(`  Beads:       ${result.totalBeads}`);
-      console.log(`  Iterations:  ${result.iterations}`);
-      if (result.message) {
-        console.log(`  Message:     ${result.message}`);
-      }
-    });
-
-    if (result.status === 'failed') {
-      process.exit(1);
+      throw err;
     }
   }
 

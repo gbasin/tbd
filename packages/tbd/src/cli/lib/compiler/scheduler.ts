@@ -107,6 +107,16 @@ export class Scheduler {
     return ready;
   }
 
+  /** Get the dependency IDs (blockers) for a bead. */
+  getDependencyIds(beadId: string): string[] {
+    return this.graph.reverse.get(beadId) ?? [];
+  }
+
+  /** Get an issue by ID. */
+  getIssue(id: string): Issue | undefined {
+    return this.issueMap.get(id);
+  }
+
   /**
    * Detect deadlock: no ready beads, no active agents, but open beads remain.
    */
@@ -125,10 +135,10 @@ export class Scheduler {
       return { deadlocked: false, reason: '' };
     }
 
-    // Check if there are any remaining open beads
+    // Check if there are any remaining open beads (exclude in-progress — they may still complete)
     const openBeads: string[] = [];
     for (const id of this.runBeadIds) {
-      if (!completedIds.has(id) && !blockedIds.has(id)) {
+      if (!completedIds.has(id) && !blockedIds.has(id) && !inProgressIds.has(id)) {
         openBeads.push(id);
       }
     }

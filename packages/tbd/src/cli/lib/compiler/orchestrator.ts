@@ -75,6 +75,7 @@ export class Orchestrator {
   private worktreeMgr!: WorktreeManager;
   private checkpoint!: Checkpoint;
   private totalAgentSpawns = 0;
+  private tbdMutex = Promise.resolve();
 
   constructor(private readonly opts: OrchestratorOptions) {
     this.config = opts.config;
@@ -199,6 +200,14 @@ export class Orchestrator {
     this.checkpointMgr = new CheckpointManager(this.runDir);
     this.checkpoint = await this.checkpointMgr.load();
 
+    // Reject resume of already-terminal runs
+    if (this.checkpoint.state === 'completed' || this.checkpoint.state === 'failed') {
+      throw compilerError(
+        'E_CHECKPOINT_CORRUPT',
+        `Most recent run (${this.runId}) is already ${this.checkpoint.state}. Nothing to resume.`,
+      );
+    }
+
     this.eventLogger = new EventLogger(join(this.runDir, 'events.jsonl'));
     await this.eventLogger.open();
     this.runLock = new RunLock(this.runDir, this.runId);
@@ -211,10 +220,29 @@ export class Orchestrator {
     );
     await this.runLog.load();
 
+    // Reconcile in-progress beads: they were interrupted by the previous crash/signal.
+    // Reset them to open so they can be rescheduled.
+    if (this.checkpoint.beads.inProgress.length > 0) {
+      for (const beadId of this.checkpoint.beads.inProgress) {
+        await this.tbdExecSafe(['update', beadId, '--status=open']);
+      }
+      this.checkpoint.beads.inProgress = [];
+      this.checkpoint.agents.active = [];
+      await this.saveCheckpoint();
+    }
+
     // Verify acceptance criteria still exist
     if (this.checkpoint.acceptancePath) {
       const acceptance = new AcceptanceManager(this.runId);
-      await acceptance.verify();
+      try {
+        await acceptance.verify();
+      } catch {
+        throw compilerError(
+          'E_ACCEPTANCE_MISSING',
+          `Acceptance criteria cache was cleared for run ${this.runId}. ` +
+            'Cannot regenerate mid-run. Re-run from scratch with: tbd compile --spec <path>',
+        );
+      }
     }
 
     // Verify frozen spec hash
@@ -273,6 +301,21 @@ export class Orchestrator {
         // Verify spec hash before judge phase
         await this.verifyFrozenSpec();
         const judgeResult = await this.judge();
+
+        // Record judge results in run-log
+        this.runLog.updateIteration({
+          judgeResult: {
+            specDrift: judgeResult.specDrift.detected ? 'detected' : 'none',
+            acceptance: judgeResult.acceptance.passed ? 'passed' : 'failed',
+            observationsPromoted: judgeResult.observations.filter((o) => o.action === 'promote')
+              .length,
+            observationsDismissed: judgeResult.observations.filter((o) => o.action === 'dismiss')
+              .length,
+            newBeadsCreated: judgeResult.newBeads.length,
+            issues: judgeResult.specDrift.issues,
+          },
+        });
+        await this.runLog.flush();
 
         if (judgeResult.acceptance.passed && !judgeResult.specDrift.detected) {
           // PASS — we're done
@@ -365,6 +408,7 @@ export class Orchestrator {
           workdir: this.tbdRoot,
           prompt,
           timeout: 300_000, // 5 min for acceptance generation
+          outputFormat: 'text', // Acceptance criteria are markdown, not JSON
         });
         return result.lastLines;
       });
@@ -536,8 +580,9 @@ Create beads now.`;
         this.checkpoint.beads.claims[nextBead.id] =
           `${this.runId}:${this.checkpoint.iteration}:${claimCount}`;
 
-        // Update bead status
+        // Update bead status and sync so claim is persisted
         await this.tbdExecSafe(['update', nextBead.id, '--status=in_progress']);
+        await this.tbdExecSafe(['sync']);
 
         // Create worktree (handles existing worktrees from retries)
         const worktreePath = await this.worktreeMgr.createAgentWorktree(
@@ -555,6 +600,15 @@ Create beads now.`;
           pid: 0, // PID assigned by backend
         });
 
+        // Resolve bead dependency info for the prompt
+        const depIds = scheduler.getDependencyIds(nextBead.id);
+        const beadDependencies = depIds
+          .map((id) => {
+            const dep = scheduler.getIssue(id);
+            return dep ? `- ${dep.title} (${id})` : `- ${id}`;
+          })
+          .join('\n');
+
         // Build prompt
         const prompt = await buildCodingAgentPrompt({
           beadId: nextBead.id,
@@ -562,7 +616,7 @@ Create beads now.`;
           beadDescription: nextBead.description ?? '',
           beadType: nextBead.kind,
           beadPriority: nextBead.priority,
-          beadDependencies: '',
+          beadDependencies: beadDependencies || 'None',
           frozenSpecPath: join(this.tbdRoot, this.checkpoint.frozenSpecPath),
           runId: this.runId,
           targetBranch: this.checkpoint.targetBranch,
@@ -858,28 +912,53 @@ Create beads now.`;
   }
 
   private async createRemediationBeads(judgeResult: JudgeResult): Promise<void> {
-    // Create beads from judge findings
+    // Create beads from judge findings (with descriptions)
     for (const bead of judgeResult.newBeads) {
-      await this.tbdExecSafe([
+      const createResult = await this.tbdExecSafe([
         'create',
-        bead.title,
+        `${bead.title}: ${bead.description}`,
         `--type=${bead.type}`,
         `--label=compiler-run:${this.runId}`,
         `--label=remediation`,
       ]);
-      this.checkpoint.beads.total++;
+      if (createResult) this.checkpoint.beads.total++;
     }
 
     // Handle observation beads
     for (const obs of judgeResult.observations) {
       if (obs.action === 'promote') {
         this.checkpoint.observations.promoted.push(obs.beadId);
-        // Promoted beads are already labeled, just update
+        // Create an implementation bead from the promoted observation
+        const createResult = await this.tbdExecSafe([
+          'create',
+          `Promoted: ${obs.reason}`,
+          '--type=task',
+          `--label=compiler-run:${this.runId}`,
+          '--label=promoted-observation',
+        ]);
+        if (createResult) this.checkpoint.beads.total++;
+        // Close the observation bead
+        await this.tbdExecSafe(['close', obs.beadId, `--reason=Promoted to implementation bead`]);
       } else if (obs.action === 'dismiss') {
         this.checkpoint.observations.dismissed.push(obs.beadId);
         await this.tbdExecSafe(['close', obs.beadId, `--reason=Dismissed by judge: ${obs.reason}`]);
+      } else if (obs.action === 'merge' && obs.mergeWith) {
+        // Merge: close observation, reference the target finding
+        this.checkpoint.observations.dismissed.push(obs.beadId);
+        await this.tbdExecSafe([
+          'close',
+          obs.beadId,
+          `--reason=Merged with ${obs.mergeWith}: ${obs.reason}`,
+        ]);
       }
     }
+
+    this.eventLogger.emit({
+      event: 'remediation_created',
+      new_beads: judgeResult.newBeads.length,
+      promoted: judgeResult.observations.filter((o) => o.action === 'promote').length,
+      dismissed: judgeResult.observations.filter((o) => o.action === 'dismiss').length,
+    });
 
     await this.saveCheckpoint();
   }
@@ -990,18 +1069,42 @@ Create beads now.`;
   }
 
   /**
+   * Serialize tbd CLI calls to prevent concurrent file-system corruption.
+   * tbd uses file-based storage, so parallel CLI invocations can corrupt data.
+   */
+  private async withTbdLock<T>(fn: () => Promise<T>): Promise<T> {
+    let release!: () => void;
+    const next = new Promise<void>((r) => {
+      release = r;
+    });
+    const prev = this.tbdMutex;
+    this.tbdMutex = next;
+    await prev;
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  }
+
+  /**
    * Execute a tbd CLI command. Throws on failure.
    * Use for operations where failure is an error (label, list during decompose).
    */
   private async tbdExecStrict(args: string[]): Promise<string> {
-    try {
-      const { stdout } = await execFileAsync('tbd', args, { cwd: this.tbdRoot });
-      return stdout;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      this.eventLogger.emit({ event: 'tbd_command_error', args, error: msg });
-      throw compilerError('E_CONFIG_INVALID', `tbd command failed: tbd ${args.join(' ')}\n${msg}`);
-    }
+    return this.withTbdLock(async () => {
+      try {
+        const { stdout } = await execFileAsync('tbd', args, { cwd: this.tbdRoot });
+        return stdout;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.eventLogger.emit({ event: 'tbd_command_error', args, error: msg });
+        throw compilerError(
+          'E_CONFIG_INVALID',
+          `tbd command failed: tbd ${args.join(' ')}\n${msg}`,
+        );
+      }
+    });
   }
 
   /**
@@ -1009,14 +1112,16 @@ Create beads now.`;
    * Use for best-effort operations (status updates, listing).
    */
   private async tbdExecSafe(args: string[]): Promise<string> {
-    try {
-      const { stdout } = await execFileAsync('tbd', args, { cwd: this.tbdRoot });
-      return stdout;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      this.eventLogger.emit({ event: 'tbd_command_error', args, error: msg });
-      return '';
-    }
+    return this.withTbdLock(async () => {
+      try {
+        const { stdout } = await execFileAsync('tbd', args, { cwd: this.tbdRoot });
+        return stdout;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.eventLogger.emit({ event: 'tbd_command_error', args, error: msg });
+        return '';
+      }
+    });
   }
 
   private async listRunBeads(): Promise<Issue[]> {

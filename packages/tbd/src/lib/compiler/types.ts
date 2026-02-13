@@ -75,6 +75,7 @@ export const AgentResultSchema = z.object({
   lastLines: z.string(),
   logHint: z.string().optional(),
   duration: z.number(),
+  pid: z.number().int().optional(),
 });
 export type AgentResult = z.infer<typeof AgentResultSchema>;
 
@@ -258,6 +259,8 @@ export interface SpawnOptions {
   timeout: number;
   env?: Record<string, string>;
   systemPrompt?: string;
+  /** 'json' (default) for structured output; 'text' for plain text (acceptance, judge reasoning). */
+  outputFormat?: 'json' | 'text';
 }
 
 export interface AgentBackend {

@@ -31,6 +31,7 @@ export interface ProcessResult {
   lastLines: string;
   duration: number;
   timedOut: boolean;
+  pid: number;
 }
 
 /**
@@ -87,6 +88,7 @@ export function spawnProcess(
         lastLines: outputLines.join('\n'),
         duration: Date.now() - startTime,
         timedOut,
+        pid: proc.pid ?? 0,
       });
     });
 
@@ -98,6 +100,7 @@ export function spawnProcess(
         lastLines: outputLines.join('\n'),
         duration: Date.now() - startTime,
         timedOut: false,
+        pid: proc.pid ?? 0,
       });
     });
   });
@@ -136,5 +139,6 @@ export function toAgentResult(result: ProcessResult): AgentResult {
     exitCode: result.exitCode,
     lastLines: result.lastLines,
     duration: result.duration,
+    pid: result.pid,
   };
 }

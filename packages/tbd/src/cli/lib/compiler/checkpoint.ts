@@ -8,12 +8,13 @@
  * 4. fsync parent directory
  */
 
-import { readFile, open, rename } from 'node:fs/promises';
+import { readFile, open, rename, unlink } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { stringify as yamlStringify, parse as yamlParse } from 'yaml';
 
 import { CheckpointSchema, type Checkpoint } from '../../../lib/compiler/types.js';
+import { CompilerError } from '../errors.js';
 
 const CHECKPOINT_FILENAME = 'checkpoint.yml';
 const CHECKPOINT_TMP_FILENAME = 'checkpoint.yml.tmp';
@@ -48,14 +49,19 @@ export class CheckpointManager {
 
   /** Load checkpoint from disk with schema validation. */
   async load(): Promise<Checkpoint> {
+    // Clean up stale .tmp file from interrupted save (checkpoint.yml is still valid)
+    await unlink(this.tmpPath).catch(() => {});
+
     const content = await readFile(this.checkpointPath, 'utf-8');
     const raw = yamlParse(content) as Record<string, unknown> | undefined;
 
     // Validate schema version
     if (raw?.schemaVersion !== 1) {
-      throw new Error(
+      throw new CompilerError(
         `Unknown checkpoint schema version: ${String(raw?.schemaVersion)}. ` +
           'Upgrade tbd to resume this run.',
+        'E_CHECKPOINT_CORRUPT',
+        3,
       );
     }
 
@@ -88,10 +94,12 @@ export async function computeFileHash(filePath: string): Promise<string> {
 export async function verifySpecHash(filePath: string, expectedHash: string): Promise<void> {
   const actualHash = await computeFileHash(filePath);
   if (actualHash !== expectedHash) {
-    throw new Error(
+    throw new CompilerError(
       `Frozen spec hash mismatch — expected ${expectedHash.slice(0, 12)}... ` +
         `but got ${actualHash.slice(0, 12)}... ` +
         'The spec may have been modified after freezing.',
+      'E_SPEC_HASH_MISMATCH',
+      3,
     );
   }
 }
