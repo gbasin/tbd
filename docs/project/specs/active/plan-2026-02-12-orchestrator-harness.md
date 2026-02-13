@@ -494,6 +494,27 @@ both conditions before spawning the judge. This ensures maintenance fixes are
 included in the judge's evaluation — otherwise the judge might flag issues that
 maintenance would have fixed.
 
+#### Pre-Judge Setup
+
+Before spawning the judge, the harness performs these setup steps:
+
+1. **Discover observation beads**: Query `tbd list --label=observation
+   --label=harness-run:<run-id> --status=open --json`. This uses AND semantics
+   (both labels must match), returning only observation beads from this run.
+   Extract the bead IDs to pass to `JudgeBackend.evaluate()`.
+
+2. **Create judge worktree**: Create a fresh worktree from `origin/<target-branch>`
+   (the remote integration branch, which has all agents' pushed work):
+   ```bash
+   git fetch origin <target-branch>
+   git worktree add .tbd/worktrees/judge-<iteration> origin/<target-branch>
+   ```
+   This gives the judge a clean, up-to-date view of the integration branch.
+   The worktree is deleted after judging completes.
+
+3. **Prepare judge prompt**: Assemble the frozen spec path, acceptance criteria
+   path, observation bead IDs, and evaluation instructions.
+
 The judge is a **separate headless agent** with its own interface (`JudgeBackend`),
 distinct from the coding `AgentBackend`. The judge runs with tool access to the repo
 (grep, read files, git diff, etc.) but under stricter constraints: **read-only, no
@@ -672,6 +693,17 @@ work is unaffected during the run. The final PR shows the complete changeset.
 **Cons**: Extra merge step at the end. Integration branch can diverge from main if
 main moves forward during the run.
 
+**Branch divergence handling**: If `main` advances during the run (other developers
+push), the integration branch will diverge. The harness handles this **at PR
+creation time**, not during the run:
+1. After the judge passes, `git fetch origin main`
+2. Attempt `git rebase origin/main` on the integration branch
+3. If rebase succeeds: create PR normally
+4. If rebase has conflicts: create PR anyway with a note that manual conflict
+   resolution is needed. The PR description includes the list of conflicting files.
+This keeps the run itself simple (no mid-run rebasing) while ensuring the final PR
+is mergeable in the common case.
+
 #### Mode 2: Direct to main
 
 Agents rebase-merge directly onto main. No integration branch. No final PR step.
@@ -696,7 +728,8 @@ repo/
 │   ├── agent-1/        # worktree on branch tbd-run/<run-id>/bead-01hx5zzk
 │   ├── agent-2/        # worktree on branch tbd-run/<run-id>/bead-01hx6aab
 │   ├── agent-3/        # worktree on branch tbd-run/<run-id>/bead-01hx6bbc
-│   └── maint-1/        # fresh maintenance worktree (ephemeral)
+│   ├── maint-1/        # fresh maintenance worktree (ephemeral)
+│   └── judge-1/        # fresh judge worktree from origin/<target-branch>
 ```
 
 All worktrees are **ephemeral** — created fresh for each bead or maintenance run,
@@ -844,14 +877,21 @@ agents.
 
 **Coding agent**:
 ```bash
-claude -p "<prompt>" \
+claude -p "<bead details + frozen spec + completion checklist>" \
   --output-format json \
   --dangerously-skip-permissions \
   --allowedTools "Edit,Write,Bash,Read,Glob,Grep" \
   --no-session-persistence \
   --max-turns 100 \
-  --append-system-prompt "<guidelines + completion checklist>"
+  --append-system-prompt "<guidelines>"
 ```
+
+**Prompt composition** (Claude Code):
+- `-p` receives: bead details, entire frozen spec, completion checklist, observation
+  bead instructions, run ID / target branch
+- `--append-system-prompt` receives: coding guidelines (e.g., typescript-rules,
+  general-tdd-guidelines). These go into the system prompt so they act as persistent
+  rules rather than one-time instructions.
 
 **Judge agent (pass 1 — reasoning)**:
 ```bash
@@ -884,19 +924,26 @@ Key flags:
 - `--max-budget-usd`: Optional per-agent cost cap (future use)
 
 **CLAUDE.md interaction**: If the repo has a CLAUDE.md, `claude -p` reads it
-automatically. The harness uses `--append-system-prompt` to add harness-specific
-instructions (bead details, guidelines, completion checklist) **without overriding**
-the project's CLAUDE.md. This means agents benefit from existing project rules.
+automatically. The harness uses `--append-system-prompt` to inject coding guidelines
+**without overriding** the project's CLAUDE.md. Bead-specific instructions (bead
+details, frozen spec, completion checklist) go into the `-p` prompt. This means
+agents benefit from existing project rules plus harness-injected guidelines.
 
 #### Codex CLI
 
 **Coding agent**:
 ```bash
-codex exec "<prompt>" \
+codex exec "<bead details + frozen spec + completion checklist>" \
   --cd <workdir> \
   --ask-for-approval never \
+  --json \
   --ephemeral
 ```
+
+**Prompt composition** (Codex):
+- The `-p` equivalent is the positional prompt argument to `exec`
+- Codex has no `--append-system-prompt`, so guidelines are prepended to the prompt
+- `--json` outputs machine-readable JSON Lines for harness parsing
 
 **Judge agent (pass 1 — reasoning)**:
 ```bash
@@ -921,11 +968,50 @@ Key flags:
 - `--cd`: Set working directory (agent worktree)
 - `--sandbox read-only`: Perfect for judge — can read files but not modify
 - `--ask-for-approval never`: No interactive prompts
-- `--output-schema`: Force structured output (judge only)
+- `--json`: Machine-readable JSON Lines output (coding agents)
+- `--output-schema`: Force structured output matching a JSON schema (judge only)
 - `--ephemeral`: Don't persist conversation state
 
 **No built-in session timeout**: Neither Claude Code nor Codex has a native timeout
 flag. The harness implements timeout externally (see §Process Lifecycle).
+
+### Output Parsing
+
+Each backend wraps agent output differently. Claude Code's `--output-format json`
+returns a JSON envelope with metadata (session ID, token counts, etc.) and the
+actual result nested inside. Codex's `--json` returns JSON Lines. The exact schemas
+are **not hardcoded in this spec** — they should be verified empirically during
+implementation and may change between backend versions.
+
+**Design**: Each backend implements an `OutputParser` that extracts the agent result:
+
+```typescript
+interface OutputParser {
+  /**
+   * Parse raw process output into a structured result.
+   * Handles backend-specific envelope formats.
+   */
+  parseAgentOutput(raw: string, exitCode: number): AgentResult;
+
+  /**
+   * Parse judge pass 2 output into JudgeResult.
+   * Handles --json-schema / --output-schema envelope formats.
+   */
+  parseJudgeOutput(raw: string, exitCode: number): JudgeResult;
+}
+```
+
+**For coding agents**: The harness primarily cares about `exitCode` and bead status
+(checked via `tbd show <id>`). The structured JSON output is logged but not parsed
+for control flow — the bead being closed is the success signal.
+
+**For judge pass 2**: The structured output IS parsed for control flow (pass/fail,
+new beads to create). The `OutputParser` must extract the `JudgeResult` from the
+backend-specific envelope.
+
+**Implementation note**: Start by capturing raw output and parsing it. If the
+envelope format changes, only the `OutputParser` needs updating — the rest of the
+harness is insulated.
 
 ### Context Injection Per Bead
 
@@ -1062,6 +1148,13 @@ The harness maintains two log files:
 
 `tbd run --status` reads this file and presents a summary.
 
+**Write safety**: The harness is the sole writer of `events.jsonl`. However, with
+async operations (multiple agents finishing near-simultaneously), event emission
+must be serialized to prevent interleaved writes. The harness uses an in-memory
+write queue that flushes events sequentially via `fs.appendFile()`. Each event is
+a single `JSON.stringify()` + `\n` — written atomically at the OS level for lines
+under ~4KB (POSIX pipe atomicity guarantee for `write()` calls under `PIPE_BUF`).
+
 #### 2. Run Log (structured summary)
 
 `.tbd/harness/<run-id>/run-log.yml` — updated at phase transitions:
@@ -1132,6 +1225,36 @@ tbd run --spec plan.md --dry-run
 
 **v1 scope**: `--spec`, `--resume`, `--status`, `--dry-run`, `--concurrency`,
 `--backend`. No `--from-phase` or `--judge-only` (future versions).
+
+#### `--dry-run` Behavior
+
+`tbd run --spec plan.md --dry-run` runs Phase 1 (spec freeze) and Phase 2
+(decompose) but stops before Phase 3 (implement). It outputs:
+- The generated run ID
+- The frozen spec path
+- The number of beads created (or detected)
+- The dependency graph (as a table or tree)
+- The critical-path schedule (what order beads would execute)
+- The estimated number of agent slots needed
+- The backend that would be used
+
+This lets the user validate the decomposition and schedule before committing to a
+full run. Beads created during dry-run are labeled and remain in the queue — the
+user can `tbd run --resume` to continue from Phase 3.
+
+#### Final PR Creation
+
+When the judge passes (or `on_complete: pr` is configured), the harness creates a
+PR from the integration branch to the base branch:
+
+1. `git fetch origin main` (get latest base branch)
+2. Attempt `git rebase origin/main` on the integration branch (handle divergence)
+3. `git push origin <integration-branch>` (force-push after rebase)
+4. Create PR via `gh pr create` with:
+   - Title: `tbd run: <spec title>`
+   - Body: run summary (beads completed, iterations, judge results)
+   - Labels: `tbd-run`, `automated`
+5. Log PR URL to events.jsonl and run-log.yml
 
 ### Checkpoint Schema
 
@@ -1324,9 +1447,9 @@ packages/tbd/src/
 │   └── harness/
 │       ├── types.ts             # HarnessConfig, AgentResult, JudgeResult schemas
 │       ├── backends/
-│       │   ├── backend.ts       # AgentBackend + JudgeBackend interfaces
-│       │   ├── claude-code.ts   # ClaudeCodeBackend implementation
-│       │   ├── codex.ts         # CodexBackend implementation
+│       │   ├── backend.ts       # AgentBackend + JudgeBackend + OutputParser interfaces
+│       │   ├── claude-code.ts   # ClaudeCodeBackend + ClaudeCodeOutputParser
+│       │   ├── codex.ts         # CodexBackend + CodexOutputParser
 │       │   └── subprocess.ts    # SubprocessBackend implementation
 │       └── acceptance.ts        # Acceptance criteria generation + storage
 ```
@@ -1352,7 +1475,9 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 - [ ] Implement checkpoint save/restore (serialize state after each phase transition)
 - [ ] Implement `tbd run` command entry point
 - [ ] Implement `tbd run --status` (reads JSONL event log) and `tbd run --resume`
+- [ ] Implement resume config merging (checkpoint state + re-read harness.yml for ops)
 - [ ] Implement integration branch creation during Phase 1 (Spec Freeze)
+- [ ] Implement `tbd run --dry-run` (freeze + decompose, show schedule, stop)
 
 ### Phase 2: Agent Backend Abstraction
 
@@ -1366,8 +1491,9 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 - [ ] Implement backend auto-detection from PATH
 - [ ] Implement prompt assembly (bead details + entire frozen spec + guidelines)
 - [ ] Implement process group spawning (`detached: true` + `process.kill(-pid)`)
-- [ ] Implement agent output capture and logging
-- [ ] Implement external timeout via SIGTERM → 10s grace → SIGKILL
+- [ ] Implement `OutputParser` interface per backend (Claude Code envelope, Codex JSON Lines)
+- [ ] Implement agent output capture (last ~50 lines via streaming)
+- [ ] Implement external timeout via SIGTERM → 10s grace → SIGKILL (process groups)
 - [ ] Implement harness SIGTERM handler (cascade to agents, write checkpoint)
 
 ### Phase 3: Worktree + Branch Management
@@ -1425,6 +1551,11 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
   pass 2: `--json-schema` for structured output)
 - [ ] Implement JudgeBackend for Codex (pass 1: `--sandbox read-only`;
   pass 2: `--output-schema` for structured output)
+- [ ] Implement observation bead discovery
+  (`tbd list --label=observation --label=harness-run:<run-id> --status=open --json`)
+- [ ] Implement fresh judge worktree creation
+  (`git worktree add .tbd/worktrees/judge-<iteration> origin/<target-branch>`)
+- [ ] Implement judge worktree cleanup after evaluation
 - [ ] Implement judge trigger: wait for all beads + last maintenance to complete
 - [ ] Implement judge prompt (spec drift + acceptance eval + observation triage)
 - [ ] Implement structured judge output parsing against `JudgeResult` schema
@@ -1435,7 +1566,7 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 
 ### Phase 8: Observability
 
-- [ ] Implement JSONL event log writer (append-only)
+- [ ] Implement JSONL event log writer (append-only, serialized write queue)
 - [ ] Implement run-log.yml writer (phase-transition updates)
 - [ ] Implement `tbd run --status` reader (parses JSONL for live state)
 - [ ] Implement `--dry-run` mode (show planned beads + schedule without executing)
@@ -1597,11 +1728,13 @@ TBD_HARNESS_RUN_ID=run-2026-02-12-a1b2c3
 TBD_HARNESS_TARGET_BRANCH=tbd-run/run-2026-02-12-a1b2c3
 ```
 
-**How this prompt is delivered**:
-- The bead details, frozen spec, and completion checklist go into the `-p` prompt
-- The guidelines go into `--append-system-prompt` (Claude Code) or are prepended
-  to the prompt (Codex)
-- Environment variables are set via the `env` option on `spawn()`
+**How this prompt is delivered** (see §Backend CLI Reference for exact flags):
+- **Claude Code**: Bead details, frozen spec, completion checklist, observation
+  instructions → `-p` prompt. Guidelines → `--append-system-prompt`.
+- **Codex**: Everything (including guidelines) → positional prompt argument to
+  `codex exec`. Guidelines are prepended to the prompt since Codex has no
+  `--append-system-prompt`.
+- **Both**: Environment variables set via the `env` option on `spawn()`.
 
 ## Known Limitations
 
