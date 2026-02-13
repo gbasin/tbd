@@ -43,7 +43,8 @@ is no escape hatch for amending mid-run.
 - Replacing `tbd` interactive mode — the harness is an additional module, not a
   replacement
 - Supporting agents that need persistent conversations — agents are stateless per bead
-- Cost controls or budget caps (v1 — add in a future version)
+- Fine-grained cost controls or budget caps (v1 includes hard safety caps
+  `max_runtime` and `max_agent_spawns` but not per-agent cost tracking)
 - Spec amendments mid-run — if the spec is wrong, stop, fix it, re-run
 - `--from-phase` flexible entry points (v1 uses `--resume` only — add later)
 
@@ -158,10 +159,15 @@ wrong, stop the run, fix the spec, and re-run.
    integration branch mode). Push to origin.
 4. Create harness state directory `.tbd/harness/<run-id>/`
 5. Freeze: copy the spec to `.tbd/harness/<run-id>/frozen-spec.md` (immutable
-   reference)
+   reference). Compute SHA-256 hash and store in checkpoint.
 6. Generate acceptance criteria by spawning an agent via `AgentBackend.spawn()` —
    store **outside the repo** (see §Acceptance Criteria below)
-7. Write initial checkpoint
+7. Write initial checkpoint (includes `frozenSpecSha256`)
+
+**Frozen spec integrity**: The SHA-256 hash of the frozen spec is stored in the
+checkpoint at freeze time. The harness **verifies this hash before each phase
+transition** (decompose, implement, judge) to detect accidental or malicious
+modification. Hash mismatch is a hard error — the run stops immediately.
 
 **All LLM calls use `AgentBackend.spawn()`**: The acceptance criteria generation is
 not a direct API call — it spawns a headless agent using the same backend abstraction
@@ -209,6 +215,31 @@ Why: tbd has no atomic claim operation. Without a serialized claim point, two ag
 could both read the same bead as "ready" and race to claim it. The harness eliminates
 this race condition by being the single process that reads, claims, and assigns beads.
 
+#### Run Lock
+
+To prevent two harness processes from acting as "sole assigner" simultaneously
+(e.g., duplicate `--resume` invocations), the harness acquires a **per-run lock**:
+
+```
+.tbd/harness/<run-id>/lock.json
+{
+  "runId": "run-2026-02-12-a1b2c3",
+  "pid": 12345,
+  "hostname": "dev-machine",
+  "startedAt": "2026-02-12T10:00:00Z",
+  "heartbeatAt": "2026-02-12T10:15:30Z"
+}
+```
+
+- **Heartbeat**: Updated every 5 seconds while the harness is running
+- **Stale detection**: A lock is considered stale if `heartbeatAt` is older than
+  30 seconds (harness crashed without cleanup)
+- **Acquisition**: If lock exists and is not stale, the harness exits with
+  `E_RUN_LOCKED`. If lock is stale, the harness logs a warning, removes the stale
+  lock, and acquires a new one.
+- **Release**: Lock file is deleted on normal harness exit. On crash, the
+  heartbeat goes stale and the next `--resume` can safely acquire.
+
 **Harness-side ready filtering**: The harness does NOT call `tbd ready` (which lacks
 `--label` support). Instead, it:
 1. Calls `tbd list --label=harness-run:<run-id> --status=open --json`
@@ -216,6 +247,13 @@ this race condition by being the single process that reads, claims, and assigns 
    `buildDependencyGraph()` library function from `lib/graph.ts`
 3. Ranks the filtered set using critical-path scheduling (see below)
 4. Claims the top bead via `tbd update <id> --status=in_progress`
+
+**External dependency handling**: Beads may have dependencies on beads outside the
+run scope (not labeled `harness-run:<run-id>`). The scheduler treats these as
+unresolvable blockers — the bead stays blocked until the external dependency is
+closed manually. If all remaining beads are blocked by external dependencies, the
+harness reports the situation and exits with `E_DEADLOCK` rather than waiting
+indefinitely.
 
 The harness **serializes all its own tbd operations** (create, update, sync) to
 avoid collisions with concurrent agent tbd calls. Agents' own tbd calls (close,
@@ -488,11 +526,21 @@ when they rebase.
 
 ### Phase 5: Judge (Firewalled Agent)
 
-**Trigger**: The judge runs after **all implementation beads for this iteration are
-complete AND the last maintenance run (if any) has finished**. The harness waits for
-both conditions before spawning the judge. This ensures maintenance fixes are
-included in the judge's evaluation — otherwise the judge might flag issues that
-maintenance would have fixed.
+**Trigger**: The judge runs after an **iteration barrier** is satisfied. The barrier
+uses a **maintenance trigger watermark** for deterministic ordering:
+
+1. Let `finalCodingCount` = number of closed coding beads in this iteration's scope
+2. For each maintenance run, record its `triggerCompletedCount` (the bead count
+   that triggered it)
+3. Judge starts only when:
+   - All scoped coding beads are terminal (closed or blocked)
+   - All maintenance runs with `triggerCompletedCount <= finalCodingCount` are
+     terminal
+   - No coding agents are currently running
+
+This prevents the race where the judge starts before a relevant maintenance fix
+lands. The watermark ensures deterministic barrier resolution even with parallel
+maintenance triggers.
 
 #### Pre-Judge Setup
 
@@ -1095,6 +1143,10 @@ phases:
     max_iterations: 3           # Max spec→implement→judge loops
     on_complete: pr             # pr | none — what to do when done
 
+safety:
+  max_runtime: 24h                # Hard cap on total run duration
+  max_agent_spawns: 500           # Hard cap on total agent spawns (coding + maintenance + judge)
+
 acceptance:
   generate: true                # Auto-generate from spec during freeze
   model: claude-opus-4-6        # Model for generating acceptance criteria
@@ -1118,6 +1170,7 @@ acceptance:
   PR on completion
 - Acceptance criteria: auto-generated via `AgentBackend.spawn()`, stored in XDG cache
   (`~/.cache/tbd-harness/<run-id>/`)
+- Safety caps: `max_runtime: 24h`, `max_agent_spawns: 500`
 
 ### Run Log and Observability
 
@@ -1151,9 +1204,11 @@ The harness maintains two log files:
 **Write safety**: The harness is the sole writer of `events.jsonl`. However, with
 async operations (multiple agents finishing near-simultaneously), event emission
 must be serialized to prevent interleaved writes. The harness uses an in-memory
-write queue that flushes events sequentially via `fs.appendFile()`. Each event is
-a single `JSON.stringify()` + `\n` — written atomically at the OS level for lines
-under ~4KB (POSIX pipe atomicity guarantee for `write()` calls under `PIPE_BUF`).
+write queue that flushes events sequentially through a single open file descriptor.
+Each event is `JSON.stringify()` + `\n`, written via the serialized queue —
+**not** relying on kernel-level atomicity guarantees (POSIX `PIPE_BUF` applies
+to pipes/FIFOs, not regular files). The write queue ensures only one
+`fs.appendFile()` is in flight at a time.
 
 #### 2. Run Log (structured summary)
 
@@ -1226,6 +1281,35 @@ tbd run --spec plan.md --dry-run
 **v1 scope**: `--spec`, `--resume`, `--status`, `--dry-run`, `--concurrency`,
 `--backend`. No `--from-phase` or `--judge-only` (future versions).
 
+#### Process Exit Codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Run completed successfully (judge passed) |
+| `2` | Input/config error (missing spec, invalid config, backend not found) |
+| `3` | Lock/precondition error (run locked, acceptance cache missing) |
+| `4` | Runtime orchestration failure (all retries exhausted, deadlock) |
+| `5` | Partial completion (max iterations or max runtime reached) |
+
+#### JSON Error Envelope
+
+When `--json` is used, errors follow a consistent envelope:
+```json
+{
+  "error": {
+    "code": "E_RUN_LOCKED",
+    "message": "Run run-2026-02-12-a1b2c3 is already in progress (pid 12345)",
+    "runId": "run-2026-02-12-a1b2c3"
+  }
+}
+```
+
+Error codes: `E_SPEC_NOT_FOUND`, `E_CONFIG_INVALID`, `E_BACKEND_UNAVAILABLE`,
+`E_RUN_LOCKED`, `E_GRAPH_CYCLE`, `E_DEADLOCK`, `E_AGENT_TIMEOUT`,
+`E_ACCEPTANCE_MISSING`, `E_JUDGE_PARSE_FAILED`, `E_CHECKPOINT_CORRUPT`,
+`E_PR_CREATE_FAILED`, `E_MAX_ITERATIONS`, `E_MAX_RUNTIME`, `E_SPEC_HASH_MISMATCH`,
+`E_MAX_AGENT_SPAWNS`.
+
 #### `--dry-run` Behavior
 
 `tbd run --spec plan.md --dry-run` runs Phase 1 (spec freeze) and Phase 2
@@ -1249,7 +1333,9 @@ PR from the integration branch to the base branch:
 
 1. `git fetch origin main` (get latest base branch)
 2. Attempt `git rebase origin/main` on the integration branch (handle divergence)
-3. `git push origin <integration-branch>` (force-push after rebase)
+3. `git push --force-with-lease origin <integration-branch>` (safe force-push
+   after rebase — `--force-with-lease` prevents overwriting unexpected upstream
+   changes)
 4. Create PR via `gh pr create` with:
    - Title: `tbd run: <spec title>`
    - Body: run summary (beads completed, iterations, judge results)
@@ -1267,6 +1353,7 @@ This enables `--resume` to recover from crashes.
 run_id: run-2026-02-12-a1b2c3
 spec_path: docs/specs/plan-2026-02-12-feature-x.md
 frozen_spec_path: .tbd/harness/run-2026-02-12-a1b2c3/frozen-spec.md
+frozen_spec_sha256: a1b2c3d4e5f6...  # Verified before each phase transition
 acceptance_path: /home/user/.cache/tbd-harness/run-2026-02-12-a1b2c3/acceptance/
 target_branch: tbd-run/run-2026-02-12-a1b2c3
 base_branch: main
@@ -1296,6 +1383,15 @@ maintenance:
   worktree: .tbd/worktrees/maint-2  # Current maintenance worktree (if running)
   bead_id: scr-m1n2                 # Current maintenance bead (if running)
   run_count: 2                      # For naming: maint-1, maint-2, ...
+  runs:                             # All maintenance runs (for barrier watermark)
+    - id: maint-1
+      trigger_completed_count: 5    # Bead count that triggered this run
+      state: success
+    - id: maint-2
+      trigger_completed_count: 10
+      state: running
+
+total_agent_spawns: 19              # Running total for max_agent_spawns cap
 
 observations:
   pending: [scr-x9y8, scr-z1w2]
@@ -1309,6 +1405,18 @@ observations:
 - Bead completion (agent finishes, harness records result)
 - Agent spawn/exit (PID tracking for cleanup)
 - Maintenance start/finish
+
+**Atomic checkpoint writes**: Checkpoint writes use a crash-safe protocol to
+prevent corruption from mid-write crashes:
+1. Write to temp file: `.tbd/harness/<run-id>/checkpoint.yml.tmp`
+2. `fsync` the temp file (ensure data is on disk)
+3. `rename` temp file to `checkpoint.yml` (atomic on POSIX)
+4. `fsync` the parent directory (ensure rename is durable)
+
+This guarantees that the checkpoint file is always either the previous complete
+state or the new complete state — never a partial write. On resume, if
+`checkpoint.yml` is missing but `checkpoint.yml.tmp` exists, the harness warns
+and treats it as a corrupted checkpoint.
 
 **Resume behavior**:
 - `--resume` reads checkpoint for **run state** (which beads are done, current
@@ -1478,6 +1586,11 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 - [ ] Implement resume config merging (checkpoint state + re-read harness.yml for ops)
 - [ ] Implement integration branch creation during Phase 1 (Spec Freeze)
 - [ ] Implement `tbd run --dry-run` (freeze + decompose, show schedule, stop)
+- [ ] Implement run lock with heartbeat (`lock.json`, 5s heartbeat, 30s stale)
+- [ ] Implement frozen spec SHA-256 hash storage and per-phase verification
+- [ ] Implement atomic checkpoint writes (tmp + fsync + rename + parent fsync)
+- [ ] Implement hard safety caps (`max_runtime`, `max_agent_spawns`)
+- [ ] Implement CLI exit codes (0/2/3/4/5) and JSON error envelope
 
 ### Phase 2: Agent Backend Abstraction
 
@@ -1586,6 +1699,11 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 - Judge output parsing and bead creation
 - Event log serialization
 - Resume config merging (checkpoint state + current harness.yml operational config)
+- Run lock acquisition, heartbeat, stale detection
+- Atomic checkpoint write protocol (tmp + fsync + rename)
+- Frozen spec SHA-256 hash verification (detect tampering)
+- Safety cap enforcement (max_runtime, max_agent_spawns)
+- CLI exit code mapping and JSON error envelope
 
 ### Integration Tests
 - Full pipeline with mock agent backend (returns canned results)
@@ -1600,6 +1718,11 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 - Bead scoping: verify all beads labeled `harness-run:<run-id>`
 - Parallel maintenance: verify maintenance does not block coding agents
 - SIGTERM cascade: verify process groups receive signal and checkpoint is written
+- Run lock contention: two `--resume` invocations → second gets `E_RUN_LOCKED`
+- Stale lock recovery: simulate crashed harness, verify new process acquires lock
+- Safety cap: verify harness stops at `max_runtime` and `max_agent_spawns`
+- Maintenance barrier: verify judge waits for all triggered maintenance (watermark)
+- External dependency: bead blocked by non-run bead → harness reports and exits
 - Structured judge output: verify JSON schema enforcement
 - Cycle detection: beads with circular deps → immediate error before any agent spawns
 - Deadlock detection: all beads depend on a max-retried bead → harness exits
@@ -1748,28 +1871,42 @@ These are accepted tradeoffs for v1, documented for transparency:
    variable hints at the path. For stronger isolation, use the Codex backend with
    `--sandbox workspace-write` which restricts filesystem access to the worktree.
 
-2. **Frozen spec can be modified by agents**: The frozen spec at
+2. **Frozen spec is inside the repo**: The frozen spec at
    `.tbd/harness/<run-id>/frozen-spec.md` is inside the repo. Agents with write
    access could modify it. In practice this doesn't happen — agents are told to
-   work on their bead, not modify harness state. The judge independently re-reads
-   the frozen spec, so any tampering would cause a mismatch with the original
-   acceptance criteria (generated from the true spec). Hash verification could be
-   added in a future version.
+   work on their bead, not modify harness state. **Mitigation**: SHA-256 hash
+   verification before each phase transition detects any modification (see §Phase
+   1). Tampering triggers `E_SPEC_HASH_MISMATCH` and halts the run.
 
 3. **Process tree killing is Unix-only**: The `detached: true` + `process.kill(-pid)`
    pattern for killing agent process groups only works on Unix/macOS. Windows is
    not supported in v1 (add `tree-kill` package for Windows support if needed).
 
-4. **No cost controls in v1**: There is no budget cap or cost estimation. A run
-   with 50+ beads and 3 judge iterations could consume significant API credits.
-   `--max-budget-usd` exists in Claude Code but is not wired up in v1. See Future
-   Work.
+4. **No fine-grained cost controls in v1**: Hard safety caps exist (`max_runtime:
+   24h`, `max_agent_spawns: 500`) but there is no per-agent cost tracking or
+   budget estimation. A run with 50+ beads and 3 judge iterations could consume
+   significant API credits. `--max-budget-usd` exists in Claude Code but is not
+   wired up in v1. See Future Work.
 
 5. **LWW merge for concurrent tbd operations**: Multiple agents running `tbd sync`
    concurrently rely on Last-Write-Wins merge. In rare cases, a bead status update
    could be lost if two syncs collide within the same second. This is acceptable
    for v1 since the harness is the source of truth for bead state (via checkpoint),
    not the tbd data store.
+
+## Performance Design Targets
+
+These are testable targets for the harness's own overhead (not agent execution time):
+
+| Operation | Target | Notes |
+| --- | --- | --- |
+| Scheduler recompute | p95 < 250ms for 500 beads | Graph rebuild + ranking |
+| Checkpoint write | p95 < 100ms | Includes fsync |
+| Event append | p99 < 20ms | Single serialized write |
+| Resume from checkpoint | < 30s for ≤2000 beads | Includes bead status reconciliation |
+| Orchestrator memory | < 512MB at 2000 beads | Excludes agent processes |
+
+These targets inform the testing strategy — performance tests should validate them.
 
 ## Future Work (Post-v1)
 
@@ -1788,8 +1925,6 @@ These are accepted tradeoffs for v1, documented for transparency:
 - **Spec review phase**: Optional AI review of the spec before freezing (removed
   from v1 — the harness expects a finished spec)
 - **Windows support**: Add `tree-kill` package for cross-platform process group killing
-- **Frozen spec hash verification**: SHA-256 hash in checkpoint, verified before each
-  bead assignment to detect accidental or malicious modification
 
 ## References
 
