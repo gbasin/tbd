@@ -1,5 +1,5 @@
 /**
- * Zod schemas and TypeScript types for the orchestrator harness.
+ * Zod schemas and TypeScript types for the compiler.
  *
  * Pure types — no CLI or Node dependencies.
  */
@@ -25,7 +25,7 @@ export type RunPhaseType = z.infer<typeof RunPhase>;
 // Error Codes
 // =============================================================================
 
-export const HarnessErrorCode = z.enum([
+export const CompilerErrorCode = z.enum([
   'E_SPEC_NOT_FOUND',
   'E_CONFIG_INVALID',
   'E_BACKEND_UNAVAILABLE',
@@ -43,10 +43,10 @@ export const HarnessErrorCode = z.enum([
   'E_MAX_RUNTIME',
   'E_SPEC_HASH_MISMATCH',
 ]);
-export type HarnessErrorCodeType = z.infer<typeof HarnessErrorCode>;
+export type CompilerErrorCodeType = z.infer<typeof CompilerErrorCode>;
 
 /** Maps error codes to CLI exit codes */
-export const ERROR_CODE_EXIT_MAP: Record<HarnessErrorCodeType, number> = {
+export const ERROR_CODE_EXIT_MAP: Record<CompilerErrorCodeType, number> = {
   E_SPEC_NOT_FOUND: 2,
   E_CONFIG_INVALID: 2,
   E_BACKEND_UNAVAILABLE: 2,
@@ -125,10 +125,10 @@ export const JudgeResultSchema = z.object({
 export type JudgeResult = z.infer<typeof JudgeResultSchema>;
 
 // =============================================================================
-// Harness Event
+// Compiler Event
 // =============================================================================
 
-export const HarnessEventSchema = z
+export const CompilerEventSchema = z
   .object({
     v: z.literal(1),
     ts: z.string().datetime(),
@@ -136,7 +136,7 @@ export const HarnessEventSchema = z
     // Allow arbitrary additional fields
   })
   .passthrough();
-export type HarnessEvent = z.infer<typeof HarnessEventSchema>;
+export type CompilerEvent = z.infer<typeof CompilerEventSchema>;
 
 // =============================================================================
 // Maintenance Run Record

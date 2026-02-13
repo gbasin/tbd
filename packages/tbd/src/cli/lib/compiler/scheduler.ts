@@ -1,5 +1,5 @@
 /**
- * Critical-path scheduler for the orchestrator harness.
+ * Critical-path scheduler for the compiler.
  *
  * Picks beads in order: max fan-out (impact depth) DESC → priority ASC → created ASC.
  * Detects deadlocks and external blockers.
@@ -11,7 +11,7 @@ import {
   detectCycles,
   computeAllImpactDepths,
   type DependencyGraph,
-} from '../../../lib/harness/graph.js';
+} from '../../../lib/compiler/graph.js';
 import { comparisonChain, ordering } from '../../../lib/comparison-chain.js';
 
 export class Scheduler {

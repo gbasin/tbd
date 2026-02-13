@@ -1,10 +1,10 @@
 /**
- * Concurrent agent pool for the orchestrator harness.
+ * Concurrent agent pool for the compiler.
  *
  * Manages up to maxConcurrency agent slots with spawn/monitor/kill lifecycle.
  */
 
-import type { AgentBackend, AgentResult, SpawnOptions } from '../../../lib/harness/types.js';
+import type { AgentBackend, AgentResult, SpawnOptions } from '../../../lib/compiler/types.js';
 
 export interface PoolSlot {
   agentId: number;

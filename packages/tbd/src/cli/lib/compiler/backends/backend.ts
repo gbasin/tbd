@@ -4,7 +4,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process';
 
-import type { AgentResult } from '../../../../lib/harness/types.js';
+import type { AgentResult } from '../../../../lib/compiler/types.js';
 
 // =============================================================================
 // Shared Process Spawn

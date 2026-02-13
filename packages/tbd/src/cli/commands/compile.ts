@@ -11,11 +11,11 @@ import { join } from 'node:path';
 import { parse as yamlParse } from 'yaml';
 
 import { BaseCommand } from '../lib/base-command.js';
-import { requireInit, HarnessError } from '../lib/errors.js';
-import { HARNESS_DIR, TBD_DIR } from '../../lib/paths.js';
-import { parseHarnessConfig } from '../../lib/harness/config.js';
-import { RunLogSchema } from '../../lib/harness/types.js';
-import { Orchestrator } from '../lib/harness/orchestrator.js';
+import { requireInit, CompilerError } from '../lib/errors.js';
+import { COMPILER_DIR, TBD_DIR } from '../../lib/paths.js';
+import { parseCompilerConfig } from '../../lib/compiler/config.js';
+import { RunLogSchema } from '../../lib/compiler/types.js';
+import { Orchestrator } from '../lib/compiler/orchestrator.js';
 
 // =============================================================================
 // Options
@@ -45,12 +45,12 @@ class CompileHandler extends BaseCommand {
       return;
     }
 
-    // Load config from .tbd/harness.yml (optional)
+    // Load config from .tbd/compiler.yml (optional)
     const config = await this.loadConfig(tbdRoot, options);
 
     // Validate: need either --spec or --resume
     if (!options.spec && !options.resume) {
-      throw new HarnessError(
+      throw new CompilerError(
         'Must specify --spec <path> for a new run or --resume to continue.',
         'E_SPEC_NOT_FOUND',
         2,
@@ -102,8 +102,8 @@ class CompileHandler extends BaseCommand {
   private async loadConfig(tbdRoot: string, options: CompileOptions) {
     let rawConfig: unknown = {};
 
-    // Load from .tbd/harness.yml if it exists
-    const configPath = join(tbdRoot, TBD_DIR, 'harness.yml');
+    // Load from .tbd/compiler.yml if it exists
+    const configPath = join(tbdRoot, TBD_DIR, 'compiler.yml');
     try {
       const content = await readFile(configPath, 'utf-8');
       rawConfig = yamlParse(content) ?? {};
@@ -116,7 +116,7 @@ class CompileHandler extends BaseCommand {
     if (options.concurrency) {
       const n = parseInt(options.concurrency, 10);
       if (isNaN(n) || n < 1) {
-        throw new HarnessError(
+        throw new CompilerError(
           `Invalid concurrency value: ${options.concurrency}`,
           'E_CONFIG_INVALID',
           2,
@@ -145,7 +145,7 @@ class CompileHandler extends BaseCommand {
       ...(typeof rawConfig === 'object' && rawConfig !== null ? rawConfig : {}),
       ...overrides,
     };
-    return parseHarnessConfig(merged);
+    return parseCompilerConfig(merged);
   }
 
   // ===========================================================================
@@ -153,24 +153,24 @@ class CompileHandler extends BaseCommand {
   // ===========================================================================
 
   private async showStatus(tbdRoot: string, runIdArg: string | true): Promise<void> {
-    const harnessDir = join(tbdRoot, HARNESS_DIR);
+    const compilerDir = join(tbdRoot, COMPILER_DIR);
 
     if (runIdArg === true) {
       // No specific run-id — list all runs
-      await this.listRuns(harnessDir);
+      await this.listRuns(compilerDir);
       return;
     }
 
     // Show specific run
-    await this.showRunStatus(harnessDir, runIdArg);
+    await this.showRunStatus(compilerDir, runIdArg);
   }
 
-  private async listRuns(harnessDir: string): Promise<void> {
+  private async listRuns(compilerDir: string): Promise<void> {
     let entries: string[];
     try {
-      entries = await readdir(harnessDir);
+      entries = await readdir(compilerDir);
     } catch {
-      this.output.info('No harness runs found.');
+      this.output.info('No compiler runs found.');
       return;
     }
 
@@ -181,14 +181,14 @@ class CompileHandler extends BaseCommand {
       .reverse();
 
     if (runs.length === 0) {
-      this.output.info('No harness runs found.');
+      this.output.info('No compiler runs found.');
       return;
     }
 
     const summaries: { runId: string; status: string; spec: string; startedAt: string }[] = [];
 
     for (const runId of runs) {
-      const logPath = join(harnessDir, runId, 'run-log.yml');
+      const logPath = join(compilerDir, runId, 'run-log.yml');
       try {
         const content = await readFile(logPath, 'utf-8');
         const log = RunLogSchema.parse(yamlParse(content));
@@ -210,7 +210,7 @@ class CompileHandler extends BaseCommand {
 
     this.output.data(summaries, () => {
       const colors = this.output.getColors();
-      console.log(colors.bold('Harness runs:'));
+      console.log(colors.bold('Compiler runs:'));
       console.log('');
       for (const s of summaries) {
         const statusColor =
@@ -226,13 +226,13 @@ class CompileHandler extends BaseCommand {
     });
   }
 
-  private async showRunStatus(harnessDir: string, runId: string): Promise<void> {
-    const logPath = join(harnessDir, runId, 'run-log.yml');
+  private async showRunStatus(compilerDir: string, runId: string): Promise<void> {
+    const logPath = join(compilerDir, runId, 'run-log.yml');
     let logContent: string;
     try {
       logContent = await readFile(logPath, 'utf-8');
     } catch {
-      throw new HarnessError(`Run not found: ${runId}`, 'E_SPEC_NOT_FOUND', 2);
+      throw new CompilerError(`Run not found: ${runId}`, 'E_SPEC_NOT_FOUND', 2);
     }
 
     const log = RunLogSchema.parse(yamlParse(logContent));
@@ -284,7 +284,7 @@ export const compileCommand = new Command('compile')
   .description('Automated spec-to-code pipeline: freeze, decompose, implement, judge')
   .option('--spec <path>', 'Path to the specification file')
   .option('--resume', 'Resume the most recent interrupted run')
-  .option('--status [run-id]', 'Show status of harness runs')
+  .option('--status [run-id]', 'Show status of compiler runs')
   .option('--dry-run', 'Freeze and decompose only — do not implement')
   .option('--concurrency <n>', 'Maximum concurrent agents')
   .option('--backend <name>', 'Agent backend: auto, claude-code, codex, subprocess')

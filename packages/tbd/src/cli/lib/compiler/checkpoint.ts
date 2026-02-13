@@ -1,5 +1,5 @@
 /**
- * Atomic checkpoint save/restore for the orchestrator harness.
+ * Atomic checkpoint save/restore for the compiler.
  *
  * Uses crash-safe write protocol:
  * 1. Write to tmp file
@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { stringify as yamlStringify, parse as yamlParse } from 'yaml';
 
-import { CheckpointSchema, type Checkpoint } from '../../../lib/harness/types.js';
+import { CheckpointSchema, type Checkpoint } from '../../../lib/compiler/types.js';
 
 const CHECKPOINT_FILENAME = 'checkpoint.yml';
 const CHECKPOINT_TMP_FILENAME = 'checkpoint.yml.tmp';

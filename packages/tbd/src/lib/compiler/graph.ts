@@ -1,7 +1,7 @@
 /**
  * Dependency graph construction and analysis.
  *
- * Shared between `tbd ready` and the harness scheduler.
+ * Shared between `tbd ready` and the compiler scheduler.
  *
  * IMPORTANT: tbd stores dependencies inversely.
  * `tbd dep add A B` ("A depends on B") stores `{type: blocks, target: A}` on issue B.

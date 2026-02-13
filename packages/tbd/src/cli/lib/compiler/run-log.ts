@@ -13,7 +13,7 @@ import {
   RunLogSchema,
   type RunLog,
   type RunLogIterationSchema,
-} from '../../../lib/harness/types.js';
+} from '../../../lib/compiler/types.js';
 import type { z } from 'zod';
 
 const RUN_LOG_FILENAME = 'run-log.yml';

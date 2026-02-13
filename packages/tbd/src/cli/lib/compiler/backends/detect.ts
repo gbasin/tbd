@@ -6,7 +6,7 @@
 
 import { execFileSync } from 'node:child_process';
 
-import type { AgentBackend, JudgeBackend } from '../../../../lib/harness/types.js';
+import type { AgentBackend, JudgeBackend } from '../../../../lib/compiler/types.js';
 import { ClaudeCodeBackend, ClaudeCodeJudge } from './claude-code.js';
 import { CodexBackend, CodexJudge } from './codex.js';
 import { SubprocessBackend } from './subprocess.js';

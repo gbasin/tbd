@@ -1,7 +1,7 @@
 /**
- * Per-run lock with heartbeat for preventing duplicate harness processes.
+ * Per-run lock with heartbeat for preventing duplicate compiler processes.
  *
- * - Lock file: .tbd/harness/<run-id>/lock.json
+ * - Lock file: .tbd/compiler/<run-id>/lock.json
  * - Heartbeat: updated every 5 seconds
  * - Stale detection: heartbeat > 30s old AND PID not alive
  */
@@ -10,8 +10,8 @@ import { readFile, unlink } from 'node:fs/promises';
 import { writeFile } from 'atomically';
 import { join } from 'node:path';
 
-import { HarnessError } from '../errors.js';
-import { ERROR_CODE_EXIT_MAP } from '../../../lib/harness/types.js';
+import { CompilerError } from '../errors.js';
+import { ERROR_CODE_EXIT_MAP } from '../../../lib/compiler/types.js';
 
 const LOCK_FILENAME = 'lock.json';
 const HEARTBEAT_INTERVAL_MS = 5_000;
@@ -46,7 +46,7 @@ export class RunLock {
     if (existing) {
       const isStale = this.isStale(existing);
       if (!isStale) {
-        throw new HarnessError(
+        throw new CompilerError(
           `Run ${existing.runId} is already in progress (pid ${existing.pid}). ` +
             'Use --resume after the other process exits.',
           'E_RUN_LOCKED',

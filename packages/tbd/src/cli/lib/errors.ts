@@ -119,17 +119,17 @@ export class SyncBranchError extends CLIError {
 }
 
 /**
- * Harness error — thrown by tbd compile orchestrator.
+ * Compiler error — thrown by tbd compile orchestrator.
  * Maps error codes to specific exit codes (2/3/4/5).
  */
-export class HarnessError extends CLIError {
+export class CompilerError extends CLIError {
   constructor(
     message: string,
     public code: string,
     exitCode: number,
   ) {
     super(message, exitCode);
-    this.name = 'HarnessError';
+    this.name = 'CompilerError';
   }
 }
 

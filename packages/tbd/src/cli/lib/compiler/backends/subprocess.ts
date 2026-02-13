@@ -4,7 +4,7 @@
  * The command receives the prompt via stdin (piped) or as the first argument.
  */
 
-import type { AgentBackend, AgentResult, SpawnOptions } from '../../../../lib/harness/types.js';
+import type { AgentBackend, AgentResult, SpawnOptions } from '../../../../lib/compiler/types.js';
 import { spawnProcess, toAgentResult } from './backend.js';
 
 export class SubprocessBackend implements AgentBackend {

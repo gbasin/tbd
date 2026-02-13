@@ -1,5 +1,5 @@
 /**
- * Prompt assembly for harness agents.
+ * Prompt assembly for compiler agents.
  *
  * Builds prompts for: coding agents, maintenance agents, judge (pass 1+2).
  */
@@ -64,7 +64,7 @@ You MUST complete ALL of these before exiting:
 If you discover out-of-scope issues while working, create observation beads:
 \`\`\`
 tbd create "Observation: <description>" \\
-  --type=task --label=observation --label=harness-run:${opts.runId}
+  --type=task --label=observation --label=compiler-run:${opts.runId}
 \`\`\`
 Do NOT fix out-of-scope issues yourself. Just log them and move on.
 

@@ -11,8 +11,8 @@ import type {
   JudgeResult,
   SpawnOptions,
   JudgeEvaluateOptions,
-} from '../../../../lib/harness/types.js';
-import { JudgeResultSchema } from '../../../../lib/harness/types.js';
+} from '../../../../lib/compiler/types.js';
+import { JudgeResultSchema } from '../../../../lib/compiler/types.js';
 import { spawnProcess, toAgentResult } from './backend.js';
 
 export class ClaudeCodeBackend implements AgentBackend {

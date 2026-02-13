@@ -21,7 +21,7 @@ function xdgCacheHome(): string {
 
 /** Get the acceptance criteria directory for a run. */
 export function acceptanceCacheDir(runId: string): string {
-  return join(xdgCacheHome(), 'tbd-harness', runId, 'acceptance');
+  return join(xdgCacheHome(), 'tbd-compiler', runId, 'acceptance');
 }
 
 // =============================================================================

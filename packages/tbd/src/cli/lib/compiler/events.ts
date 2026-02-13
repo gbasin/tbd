@@ -1,5 +1,5 @@
 /**
- * JSONL event log writer for the orchestrator harness.
+ * JSONL event log writer for the compiler.
  *
  * Append-only, serialized write queue to prevent interleaved writes
  * from concurrent agent completions.
@@ -7,7 +7,7 @@
 
 import { open, type FileHandle } from 'node:fs/promises';
 
-import type { HarnessEvent } from '../../../lib/harness/types.js';
+import type { CompilerEvent } from '../../../lib/compiler/types.js';
 
 export class EventLogger {
   private fd: FileHandle | null = null;
@@ -21,7 +21,7 @@ export class EventLogger {
   }
 
   /** Emit a single event. Serialized through a write queue. */
-  emit(event: Omit<HarnessEvent, 'v' | 'ts'>): void {
+  emit(event: Omit<CompilerEvent, 'v' | 'ts'>): void {
     const record = {
       v: 1 as const,
       ts: new Date().toISOString(),

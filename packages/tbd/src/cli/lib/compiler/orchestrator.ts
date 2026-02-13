@@ -1,7 +1,7 @@
 /**
  * Main orchestrator state machine for tbd compile.
  *
- * Composes all harness components:
+ * Composes all compiler components:
  * freeze → decompose → implement → maintain → judge → (loop or done)
  */
 
@@ -10,14 +10,14 @@ import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import type { HarnessConfig } from '../../../lib/harness/config.js';
-import { getBeadTimeoutMs } from '../../../lib/harness/config.js';
-import type { Checkpoint, AgentResult, JudgeResult } from '../../../lib/harness/types.js';
+import type { CompilerConfig } from '../../../lib/compiler/config.js';
+import { getBeadTimeoutMs } from '../../../lib/compiler/config.js';
+import type { Checkpoint, AgentResult, JudgeResult } from '../../../lib/compiler/types.js';
 import type { Issue } from '../../../lib/types.js';
-import { ERROR_CODE_EXIT_MAP } from '../../../lib/harness/types.js';
-import type { HarnessErrorCodeType } from '../../../lib/harness/types.js';
-import { AcceptanceManager } from '../../../lib/harness/acceptance.js';
-import { harnessRunDir } from '../../../lib/paths.js';
+import { ERROR_CODE_EXIT_MAP } from '../../../lib/compiler/types.js';
+import type { CompilerErrorCodeType } from '../../../lib/compiler/types.js';
+import { AcceptanceManager } from '../../../lib/compiler/acceptance.js';
+import { compilerRunDir } from '../../../lib/paths.js';
 import { CheckpointManager, computeFileHash, verifySpecHash } from './checkpoint.js';
 import { EventLogger } from './events.js';
 import { RunLock } from './run-lock.js';
@@ -28,7 +28,7 @@ import { AgentPool } from './agent-pool.js';
 import { buildCodingAgentPrompt, buildMaintenancePrompt, loadGuidelines } from './prompts.js';
 import { createAgentBackend, createJudgeBackend } from './backends/detect.js';
 import { killAllActiveProcesses } from './backends/backend.js';
-import { HarnessError } from '../errors.js';
+import { CompilerError } from '../errors.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -47,7 +47,7 @@ function generateRunId(): string {
 // =============================================================================
 
 export interface OrchestratorOptions {
-  config: HarnessConfig;
+  config: CompilerConfig;
   tbdRoot: string;
   specPath?: string;
   resume?: boolean;
@@ -64,7 +64,7 @@ export interface OrchestratorResult {
 }
 
 export class Orchestrator {
-  private readonly config: HarnessConfig;
+  private readonly config: CompilerConfig;
   private readonly tbdRoot: string;
   private runId = '';
   private runDir = '';
@@ -103,10 +103,10 @@ export class Orchestrator {
         await this.runLock.release();
       }
     } catch (error) {
-      if (error instanceof HarnessError) throw error;
+      if (error instanceof CompilerError) throw error;
 
       const message = error instanceof Error ? error.message : String(error);
-      throw new HarnessError(message, 'E_CONFIG_INVALID', 2);
+      throw new CompilerError(message, 'E_CONFIG_INVALID', 2);
     }
   }
 
@@ -116,18 +116,18 @@ export class Orchestrator {
 
   private async startFresh(): Promise<void> {
     if (!this.opts.specPath) {
-      throw harnessError('E_SPEC_NOT_FOUND', 'No spec path provided. Use --spec <path>');
+      throw compilerError('E_SPEC_NOT_FOUND', 'No spec path provided. Use --spec <path>');
     }
 
     // Verify spec exists
     try {
       await readFile(join(this.tbdRoot, this.opts.specPath));
     } catch {
-      throw harnessError('E_SPEC_NOT_FOUND', `Spec file not found: ${this.opts.specPath}`);
+      throw compilerError('E_SPEC_NOT_FOUND', `Spec file not found: ${this.opts.specPath}`);
     }
 
     this.runId = generateRunId();
-    this.runDir = join(this.tbdRoot, harnessRunDir(this.runId));
+    this.runDir = join(this.tbdRoot, compilerRunDir(this.runId));
 
     // Create state directory
     await mkdir(this.runDir, { recursive: true });
@@ -179,23 +179,23 @@ export class Orchestrator {
   private async resumeFromCheckpoint(): Promise<void> {
     // Find most recent run
     const { readdirSync } = await import('node:fs');
-    const harnessDir = join(this.tbdRoot, '.tbd', 'harness');
+    const compilerDir = join(this.tbdRoot, '.tbd', 'compiler');
     let runDirs: string[];
     try {
-      runDirs = readdirSync(harnessDir)
+      runDirs = readdirSync(compilerDir)
         .filter((d: string) => d.startsWith('run-'))
         .sort()
         .reverse();
     } catch {
-      throw harnessError('E_CHECKPOINT_CORRUPT', 'No harness runs found to resume');
+      throw compilerError('E_CHECKPOINT_CORRUPT', 'No compiler runs found to resume');
     }
 
     if (runDirs.length === 0) {
-      throw harnessError('E_CHECKPOINT_CORRUPT', 'No harness runs found to resume');
+      throw compilerError('E_CHECKPOINT_CORRUPT', 'No compiler runs found to resume');
     }
 
     this.runId = runDirs[0]!;
-    this.runDir = join(harnessDir, this.runId);
+    this.runDir = join(compilerDir, this.runId);
     this.checkpointMgr = new CheckpointManager(this.runDir);
     this.checkpoint = await this.checkpointMgr.load();
 
@@ -331,7 +331,7 @@ export class Orchestrator {
     this.runLog.fail();
     await this.runLog.flush();
 
-    throw harnessError(
+    throw compilerError(
       'E_MAX_ITERATIONS',
       `Max iterations (${maxIterations}) reached. Some acceptance criteria still failing.`,
     );
@@ -345,7 +345,7 @@ export class Orchestrator {
     this.eventLogger.emit({ event: 'phase_changed', phase: 'freeze' });
     this.checkpoint.state = 'freezing';
 
-    const frozenPath = join(harnessRunDir(this.runId), 'frozen-spec.md');
+    const frozenPath = join(compilerRunDir(this.runId), 'frozen-spec.md');
     const absFrozenPath = join(this.tbdRoot, frozenPath);
 
     // Copy spec to frozen location
@@ -398,15 +398,15 @@ export class Orchestrator {
 
       const beads = JSON.parse(stdout) as { id: string }[];
       if (!Array.isArray(beads) || beads.length === 0) {
-        throw harnessError(
+        throw compilerError(
           'E_BEAD_SCOPE_AMBIGUOUS',
           `No open beads found with label: ${beadLabel}`,
         );
       }
 
-      // Add harness-run label to existing beads
+      // Add compiler-run label to existing beads
       for (const bead of beads) {
-        await this.tbdExecStrict(['label', 'add', bead.id, `harness-run:${this.runId}`]);
+        await this.tbdExecStrict(['label', 'add', bead.id, `compiler-run:${this.runId}`]);
       }
 
       this.checkpoint.beads.total = beads.length;
@@ -429,7 +429,7 @@ ${frozenSpec}
 2. Each bead should be completable by a single agent in one session
 3. Create beads with dependencies where order matters
 4. Use these commands:
-   - \`tbd create "<title>" --type=task --label=harness-run:${this.runId}\`
+   - \`tbd create "<title>" --type=task --label=compiler-run:${this.runId}\`
    - \`tbd dep add <bead-id> <depends-on-id>\` (first bead depends on second)
 5. After creating all beads: \`tbd sync\`
 
@@ -443,7 +443,7 @@ Create beads now.`;
       this.totalAgentSpawns++;
 
       if (result.status !== 'success') {
-        throw harnessError(
+        throw compilerError(
           'E_DEADLOCK',
           `Decomposition agent failed: ${result.lastLines.slice(-200)}`,
         );
@@ -452,7 +452,7 @@ Create beads now.`;
       // Count created beads
       const stdout = await this.tbdExecSafe([
         'list',
-        `--label=harness-run:${this.runId}`,
+        `--label=compiler-run:${this.runId}`,
         '--status=open',
         '--json',
       ]);
@@ -488,7 +488,7 @@ Create beads now.`;
     // Get all run beads AND their external blockers for correct graph construction
     const runBeadStdout = await this.tbdExecSafe([
       'list',
-      `--label=harness-run:${this.runId}`,
+      `--label=compiler-run:${this.runId}`,
       '--json',
     ]);
     const allBeads = JSON.parse(runBeadStdout || '[]') as Issue[];
@@ -508,7 +508,7 @@ Create beads now.`;
     // Check for cycles
     const cycles = scheduler.checkCycles();
     if (cycles.length > 0) {
-      throw harnessError('E_GRAPH_CYCLE', `Dependency cycles detected: ${JSON.stringify(cycles)}`);
+      throw compilerError('E_GRAPH_CYCLE', `Dependency cycles detected: ${JSON.stringify(cycles)}`);
     }
 
     let beadsCompletedThisIteration = 0;
@@ -574,8 +574,8 @@ Create beads now.`;
           timeout,
           systemPrompt: guidelines || undefined,
           env: {
-            TBD_HARNESS_RUN_ID: this.runId,
-            TBD_HARNESS_TARGET_BRANCH: this.checkpoint.targetBranch,
+            TBD_COMPILER_RUN_ID: this.runId,
+            TBD_COMPILER_TARGET_BRANCH: this.checkpoint.targetBranch,
           },
         });
 
@@ -596,9 +596,9 @@ Create beads now.`;
           // Check for external blockers
           const external = scheduler.detectExternalBlockers(completedIds, blockedIds);
           if (external.blocked) {
-            throw harnessError('E_EXTERNAL_BLOCKED', external.chains.join('\n'));
+            throw compilerError('E_EXTERNAL_BLOCKED', external.chains.join('\n'));
           }
-          throw harnessError('E_DEADLOCK', deadlock.reason);
+          throw compilerError('E_DEADLOCK', deadlock.reason);
         }
         break; // All beads done
       }
@@ -723,7 +723,7 @@ Create beads now.`;
       'create',
       `Maintenance run #${index}`,
       '--type=task',
-      `--label=harness-run:${this.runId}`,
+      `--label=compiler-run:${this.runId}`,
       '--label=maintenance',
     ]);
 
@@ -750,8 +750,8 @@ Create beads now.`;
       prompt,
       timeout: getBeadTimeoutMs(this.config),
       env: {
-        TBD_HARNESS_RUN_ID: this.runId,
-        TBD_HARNESS_TARGET_BRANCH: this.checkpoint.targetBranch,
+        TBD_COMPILER_RUN_ID: this.runId,
+        TBD_COMPILER_TARGET_BRANCH: this.checkpoint.targetBranch,
       },
     });
     this.totalAgentSpawns++;
@@ -804,7 +804,7 @@ Create beads now.`;
       observationBeadIds: observationIds,
       timeout: getBeadTimeoutMs(this.config) * 2, // Judge gets more time
       env: {
-        TBD_HARNESS_RUN_ID: this.runId,
+        TBD_COMPILER_RUN_ID: this.runId,
       },
     });
     this.totalAgentSpawns++;
@@ -864,7 +864,7 @@ Create beads now.`;
         'create',
         bead.title,
         `--type=${bead.type}`,
-        `--label=harness-run:${this.runId}`,
+        `--label=compiler-run:${this.runId}`,
         `--label=remediation`,
       ]);
       this.checkpoint.beads.total++;
@@ -1000,7 +1000,7 @@ Create beads now.`;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       this.eventLogger.emit({ event: 'tbd_command_error', args, error: msg });
-      throw harnessError('E_CONFIG_INVALID', `tbd command failed: tbd ${args.join(' ')}\n${msg}`);
+      throw compilerError('E_CONFIG_INVALID', `tbd command failed: tbd ${args.join(' ')}\n${msg}`);
     }
   }
 
@@ -1023,7 +1023,7 @@ Create beads now.`;
     try {
       const stdout = await this.tbdExecSafe([
         'list',
-        `--label=harness-run:${this.runId}`,
+        `--label=compiler-run:${this.runId}`,
         '--json',
       ]);
       return JSON.parse(stdout || '[]') as Issue[];
@@ -1047,7 +1047,7 @@ Create beads now.`;
       const stdout = await this.tbdExecSafe([
         'list',
         '--label=observation',
-        `--label=harness-run:${this.runId}`,
+        `--label=compiler-run:${this.runId}`,
         '--status=open',
         '--json',
       ]);
@@ -1091,6 +1091,6 @@ Create beads now.`;
   }
 }
 
-function harnessError(code: HarnessErrorCodeType, message: string): HarnessError {
-  return new HarnessError(message, code, ERROR_CODE_EXIT_MAP[code] ?? 4);
+function compilerError(code: CompilerErrorCodeType, message: string): CompilerError {
+  return new CompilerError(message, code, ERROR_CODE_EXIT_MAP[code] ?? 4);
 }

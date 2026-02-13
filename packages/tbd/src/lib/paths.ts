@@ -162,23 +162,23 @@ export function isValidWorkspaceName(name: string): boolean {
 }
 
 // =============================================================================
-// Harness Paths (tbd compile)
+// Compiler Paths (tbd compile)
 // =============================================================================
 
-/** Harness state directory: .tbd/harness/ */
-export const HARNESS_DIR = join(TBD_DIR, 'harness');
+/** Compiler state directory: .tbd/compiler/ */
+export const COMPILER_DIR = join(TBD_DIR, 'compiler');
 
-/** Harness worktrees directory: .tbd/worktrees/ */
-export const HARNESS_WORKTREES_DIR = join(TBD_DIR, 'worktrees');
+/** Compiler worktrees directory: .tbd/worktrees/ */
+export const COMPILER_WORKTREES_DIR = join(TBD_DIR, 'worktrees');
 
-/** Get the state directory for a specific harness run */
-export function harnessRunDir(runId: string): string {
-  return join(HARNESS_DIR, runId);
+/** Get the state directory for a specific compiler run */
+export function compilerRunDir(runId: string): string {
+  return join(COMPILER_DIR, runId);
 }
 
 /** Get the worktree path for a specific agent slot */
-export function harnessAgentWorktree(slotId: string): string {
-  return join(HARNESS_WORKTREES_DIR, slotId);
+export function compilerAgentWorktree(slotId: string): string {
+  return join(COMPILER_WORKTREES_DIR, slotId);
 }
 
 // =============================================================================

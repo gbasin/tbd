@@ -1,5 +1,5 @@
 /**
- * Ephemeral worktree management for the orchestrator harness.
+ * Ephemeral worktree management for the compiler.
  *
  * Creates per-agent, per-maintenance, and per-judge worktrees under .tbd/worktrees/.
  * All worktrees are ephemeral — created fresh per bead and deleted after completion.
@@ -10,7 +10,7 @@ import { rm, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
-import { HARNESS_WORKTREES_DIR } from '../../../lib/paths.js';
+import { COMPILER_WORKTREES_DIR } from '../../../lib/paths.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -18,7 +18,7 @@ export class WorktreeManager {
   private readonly worktreesDir: string;
 
   constructor(private readonly repoRoot: string) {
-    this.worktreesDir = join(repoRoot, HARNESS_WORKTREES_DIR);
+    this.worktreesDir = join(repoRoot, COMPILER_WORKTREES_DIR);
   }
 
   /**

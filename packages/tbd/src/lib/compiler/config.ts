@@ -1,8 +1,8 @@
 /**
- * Harness configuration schema and loader.
+ * Compiler configuration schema and loader.
  *
  * Zero-config works out of the box — all fields have sensible defaults.
- * Power users can create .tbd/harness.yml to customize.
+ * Power users can create .tbd/compiler.yml to customize.
  */
 
 import { z } from 'zod';
@@ -39,7 +39,7 @@ export function parseDuration(input: string): number {
 // Config Schema
 // =============================================================================
 
-export const HarnessConfigSchema = z.object({
+export const CompilerConfigSchema = z.object({
   spec: z.string().optional(),
 
   agent: z
@@ -110,14 +110,14 @@ export const HarnessConfigSchema = z.object({
     .default({}),
 });
 
-export type HarnessConfig = z.infer<typeof HarnessConfigSchema>;
+export type CompilerConfig = z.infer<typeof CompilerConfigSchema>;
 
 /** Load and validate a raw config object, applying all defaults. */
-export function parseHarnessConfig(raw: unknown): HarnessConfig {
-  return HarnessConfigSchema.parse(raw ?? {});
+export function parseCompilerConfig(raw: unknown): CompilerConfig {
+  return CompilerConfigSchema.parse(raw ?? {});
 }
 
 /** Get the bead timeout in milliseconds. */
-export function getBeadTimeoutMs(config: HarnessConfig): number {
+export function getBeadTimeoutMs(config: CompilerConfig): number {
   return parseDuration(config.agent.timeout_per_bead);
 }
