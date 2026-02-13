@@ -125,6 +125,20 @@ export class WorktreeManager {
     // Fetch target branch
     await execFileAsync('git', ['-C', this.repoRoot, 'fetch', 'origin', targetBranch]);
 
+    // Remove existing worktree if present (handles retry after failure)
+    try {
+      await this.removeWorktree(worktreePath);
+    } catch {
+      // No existing worktree — fine
+    }
+
+    // Delete existing branch if present (from a previous attempt)
+    try {
+      await execFileAsync('git', ['-C', this.repoRoot, 'branch', '-D', branchName]);
+    } catch {
+      // Branch doesn't exist — fine
+    }
+
     // Create worktree with a new branch based on target
     await execFileAsync('git', [
       '-C',

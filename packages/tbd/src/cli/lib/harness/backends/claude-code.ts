@@ -175,19 +175,31 @@ Return ONLY the JSON object, no other text.`;
 }
 
 function extractJsonFromOutput(output: string): string {
-  // Try to find JSON in the output (may be wrapped in Claude Code envelope)
+  // Find the first complete JSON object in the output, handling multi-line JSON.
+  // Claude Code --output-format json may emit envelopes or multi-line objects.
   const lines = output.split('\n');
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-      try {
-        JSON.parse(trimmed);
-        return trimmed;
-      } catch {
-        // Not valid JSON, continue
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i]!.trim().startsWith('{')) continue;
+
+    // Accumulate lines, tracking brace depth
+    let depth = 0;
+    let candidate = '';
+    for (let j = i; j < lines.length; j++) {
+      candidate += (j > i ? '\n' : '') + lines[j];
+      for (const ch of lines[j]!) {
+        if (ch === '{') depth++;
+        if (ch === '}') depth--;
+      }
+      if (depth === 0) {
+        try {
+          JSON.parse(candidate.trim());
+          return candidate.trim();
+        } catch {
+          break; // malformed — try next start line
+        }
       }
     }
   }
-  // Try parsing the whole output
+  // Last resort: try parsing the whole output
   return output.trim();
 }

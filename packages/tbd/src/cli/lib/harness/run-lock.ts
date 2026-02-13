@@ -10,6 +10,9 @@ import { readFile, unlink } from 'node:fs/promises';
 import { writeFile } from 'atomically';
 import { join } from 'node:path';
 
+import { HarnessError } from '../errors.js';
+import { ERROR_CODE_EXIT_MAP } from '../../../lib/harness/types.js';
+
 const LOCK_FILENAME = 'lock.json';
 const HEARTBEAT_INTERVAL_MS = 5_000;
 const STALE_THRESHOLD_MS = 30_000;
@@ -43,9 +46,11 @@ export class RunLock {
     if (existing) {
       const isStale = this.isStale(existing);
       if (!isStale) {
-        throw new Error(
+        throw new HarnessError(
           `Run ${existing.runId} is already in progress (pid ${existing.pid}). ` +
             'Use --resume after the other process exits.',
+          'E_RUN_LOCKED',
+          ERROR_CODE_EXIT_MAP.E_RUN_LOCKED,
         );
       }
       // Stale lock — remove and acquire

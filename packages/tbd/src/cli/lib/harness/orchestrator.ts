@@ -27,6 +27,7 @@ import { Scheduler } from './scheduler.js';
 import { AgentPool } from './agent-pool.js';
 import { buildCodingAgentPrompt, buildMaintenancePrompt, loadGuidelines } from './prompts.js';
 import { createAgentBackend, createJudgeBackend } from './backends/detect.js';
+import { killAllActiveProcesses } from './backends/backend.js';
 import { HarnessError } from '../errors.js';
 
 const execFileAsync = promisify(execFile);
@@ -217,10 +218,12 @@ export class Orchestrator {
     }
 
     // Verify frozen spec hash
-    await verifySpecHash(
-      join(this.tbdRoot, this.checkpoint.frozenSpecPath),
-      this.checkpoint.frozenSpecSha256,
-    );
+    if (this.checkpoint.frozenSpecPath) {
+      await verifySpecHash(
+        join(this.tbdRoot, this.checkpoint.frozenSpecPath),
+        this.checkpoint.frozenSpecSha256,
+      );
+    }
 
     this.eventLogger.emit({
       event: 'run_resumed',
@@ -234,11 +237,14 @@ export class Orchestrator {
   // ===========================================================================
 
   private async executePipeline(): Promise<OrchestratorResult> {
-    // Execute from current phase
-    const phase = this.checkpoint.state;
+    // Re-read phase from checkpoint each time (not cached — fixes resume loops)
+    const initialPhase = this.checkpoint.state;
 
-    if (phase === 'freezing' || phase === 'decomposing') {
-      await this.freeze();
+    if (initialPhase === 'freezing' || initialPhase === 'decomposing') {
+      // Guard: skip freeze if already frozen (resume safety)
+      if (!this.checkpoint.frozenSpecPath) {
+        await this.freeze();
+      }
       await this.decompose();
 
       if (this.opts.dryRun) {
@@ -256,11 +262,16 @@ export class Orchestrator {
     const maxIterations = this.config.phases.judge.max_iterations;
 
     while (this.checkpoint.iteration <= maxIterations) {
-      if (phase !== 'judging') {
+      // Re-read state each iteration (critical for post-judge remediation loops)
+      if (this.checkpoint.state !== 'judging') {
+        // Verify spec hash before implement phase
+        await this.verifyFrozenSpec();
         await this.implement();
       }
 
       if (this.config.phases.judge.enabled) {
+        // Verify spec hash before judge phase
+        await this.verifyFrozenSpec();
         const judgeResult = await this.judge();
 
         if (judgeResult.acceptance.passed && !judgeResult.specDrift.detected) {
@@ -293,7 +304,12 @@ export class Orchestrator {
         // FAIL — create remediation beads and loop
         await this.createRemediationBeads(judgeResult);
         this.checkpoint.iteration++;
+        // Reset state to implementing for next iteration
+        this.checkpoint.state = 'implementing';
         await this.saveCheckpoint();
+
+        this.runLog.startIteration(this.checkpoint.iteration);
+        await this.runLog.flush();
       } else {
         // No judge — complete after implementation
         this.checkpoint.state = 'completed';
@@ -373,17 +389,12 @@ export class Orchestrator {
 
     if (beadLabel) {
       // Use existing beads with this label
-      const { stdout } = await execFileAsync(
-        'node',
-        [
-          join(this.tbdRoot, 'node_modules/.bin/tbd'),
-          'list',
-          `--label=${beadLabel}`,
-          '--status=open',
-          '--json',
-        ],
-        { cwd: this.tbdRoot },
-      );
+      const stdout = await this.tbdExecStrict([
+        'list',
+        `--label=${beadLabel}`,
+        '--status=open',
+        '--json',
+      ]);
 
       const beads = JSON.parse(stdout) as { id: string }[];
       if (!Array.isArray(beads) || beads.length === 0) {
@@ -395,17 +406,7 @@ export class Orchestrator {
 
       // Add harness-run label to existing beads
       for (const bead of beads) {
-        await execFileAsync(
-          'node',
-          [
-            join(this.tbdRoot, 'node_modules/.bin/tbd'),
-            'label',
-            'add',
-            bead.id,
-            `harness-run:${this.runId}`,
-          ],
-          { cwd: this.tbdRoot },
-        );
+        await this.tbdExecStrict(['label', 'add', bead.id, `harness-run:${this.runId}`]);
       }
 
       this.checkpoint.beads.total = beads.length;
@@ -449,19 +450,14 @@ Create beads now.`;
       }
 
       // Count created beads
-      const { stdout } = await execFileAsync(
-        'node',
-        [
-          join(this.tbdRoot, 'node_modules/.bin/tbd'),
-          'list',
-          `--label=harness-run:${this.runId}`,
-          '--status=open',
-          '--json',
-        ],
-        { cwd: this.tbdRoot },
-      );
+      const stdout = await this.tbdExecSafe([
+        'list',
+        `--label=harness-run:${this.runId}`,
+        '--status=open',
+        '--json',
+      ]);
 
-      const beads = JSON.parse(stdout);
+      const beads = JSON.parse(stdout || '[]') as unknown[];
       this.checkpoint.beads.total = Array.isArray(beads) ? beads.length : 0;
     }
 
@@ -489,15 +485,25 @@ Create beads now.`;
     const guidelines = await loadGuidelines(this.tbdRoot, this.config.phases.implement.guidelines);
     const timeout = getBeadTimeoutMs(this.config);
 
-    // Get all run beads
-    const allBeads = await this.listRunBeads();
-    const runBeadIds = new Set<string>(allBeads.map((b: { id: string }) => b.id));
+    // Get all run beads AND their external blockers for correct graph construction
+    const runBeadStdout = await this.tbdExecSafe([
+      'list',
+      `--label=harness-run:${this.runId}`,
+      '--json',
+    ]);
+    const allBeads = JSON.parse(runBeadStdout || '[]') as Issue[];
+    const runBeadIds = new Set<string>(allBeads.map((b) => b.id));
+
+    // Also fetch all open issues so external blocker edges are visible
+    const allIssuesStdout = await this.tbdExecSafe(['list', '--status=open', '--json']);
+    const allIssues = JSON.parse(allIssuesStdout || '[]') as Issue[];
+
     const completedIds = new Set<string>(this.checkpoint.beads.completed);
     const inProgressIds = new Set<string>(this.checkpoint.beads.inProgress);
     const blockedIds = new Set<string>(this.checkpoint.beads.blocked);
 
     const scheduler = new Scheduler(runBeadIds);
-    scheduler.rebuild(allBeads);
+    scheduler.rebuild(allIssues);
 
     // Check for cycles
     const cycles = scheduler.checkCycles();
@@ -507,15 +513,18 @@ Create beads now.`;
 
     let beadsCompletedThisIteration = 0;
     let maintRunCount = this.checkpoint.maintenance.runCount;
-    let maintRunning = false;
+    let maintPromise: Promise<void> | null = null;
 
     // Main implementation loop
     while (true) {
       // Assign beads while there's capacity
       while (pool.hasCapacity) {
-        // Refresh bead list periodically
-        const freshBeads = await this.listRunBeads();
-        scheduler.rebuild(freshBeads);
+        // Refresh bead lists periodically for accurate scheduling
+        await this.listRunBeads();
+        const freshAllIssues = JSON.parse(
+          (await this.tbdExecSafe(['list', '--status=open', '--json'])) || '[]',
+        ) as Issue[];
+        scheduler.rebuild(freshAllIssues);
 
         const nextBead = scheduler.pickNext(completedIds, inProgressIds, blockedIds);
         if (!nextBead) break;
@@ -523,17 +532,28 @@ Create beads now.`;
         // Claim bead
         inProgressIds.add(nextBead.id);
         this.checkpoint.beads.inProgress = Array.from(inProgressIds);
-        this.checkpoint.beads.claims[nextBead.id] = `${this.runId}:${this.checkpoint.iteration}:0`;
+        const claimCount = (this.checkpoint.beads.retryCounts[nextBead.id] ?? 0) + 1;
+        this.checkpoint.beads.claims[nextBead.id] =
+          `${this.runId}:${this.checkpoint.iteration}:${claimCount}`;
 
         // Update bead status
-        await this.tbdExec(['update', nextBead.id, '--status=in_progress']);
+        await this.tbdExecSafe(['update', nextBead.id, '--status=in_progress']);
 
-        // Create worktree
+        // Create worktree (handles existing worktrees from retries)
         const worktreePath = await this.worktreeMgr.createAgentWorktree(
           this.runId,
           nextBead.id,
           this.checkpoint.targetBranch,
         );
+
+        // Track active agent in checkpoint
+        this.checkpoint.agents.active.push({
+          agentId: this.totalAgentSpawns + 1,
+          beadId: nextBead.id,
+          worktree: worktreePath,
+          startedAt: new Date().toISOString(),
+          pid: 0, // PID assigned by backend
+        });
 
         // Build prompt
         const prompt = await buildCodingAgentPrompt({
@@ -586,6 +606,10 @@ Create beads now.`;
       const { slot, result } = completed;
       inProgressIds.delete(slot.beadId);
       this.checkpoint.beads.inProgress = Array.from(inProgressIds);
+      // Remove from active agents
+      this.checkpoint.agents.active = this.checkpoint.agents.active.filter(
+        (a) => a.beadId !== slot.beadId,
+      );
 
       this.eventLogger.emit({
         event: 'agent_finished',
@@ -603,29 +627,19 @@ Create beads now.`;
         // Trigger maintenance if needed
         if (
           this.config.phases.maintain.trigger === 'every_n_beads' &&
-          beadsCompletedThisIteration % this.config.phases.maintain.n === 0 &&
-          !maintRunning
+          beadsCompletedThisIteration % this.config.phases.maintain.n === 0
         ) {
+          // Wait for any running maintenance before starting new one
+          if (maintPromise) await maintPromise;
           maintRunCount++;
-          maintRunning = true;
-          this.spawnMaintenance(maintRunCount)
-            .then(() => {
-              maintRunning = false;
-            })
-            .catch(() => {
-              maintRunning = false;
-            });
+          maintPromise = this.spawnMaintenance(maintRunCount);
         }
       }
 
       // Clean up worktree if bead is terminal
       if (completedIds.has(slot.beadId) || blockedIds.has(slot.beadId)) {
-        const worktreePath = join(
-          this.tbdRoot,
-          '.tbd',
-          'worktrees',
-          `agent-${slot.beadId.replace(/^is-/, '').slice(0, 8)}`,
-        );
+        const shortId = slot.beadId.replace(/^is-/, '').slice(0, 8);
+        const worktreePath = join(this.tbdRoot, '.tbd', 'worktrees', `agent-${shortId}`);
         if (this.config.worktree.cleanup) {
           await this.worktreeMgr.removeWorktree(worktreePath).catch(() => {});
         }
@@ -634,12 +648,13 @@ Create beads now.`;
       await this.saveCheckpoint();
     }
 
-    // Wait for final maintenance
-    if (this.config.phases.maintain.trigger === 'after_all' || maintRunning) {
-      if (!maintRunning && this.config.phases.maintain.trigger === 'after_all') {
-        maintRunCount++;
-        await this.spawnMaintenance(maintRunCount);
-      }
+    // Await any running maintenance before leaving implement phase
+    if (maintPromise) await maintPromise;
+
+    // Run final maintenance if configured
+    if (this.config.phases.maintain.trigger === 'after_all') {
+      maintRunCount++;
+      await this.spawnMaintenance(maintRunCount);
     }
 
     this.checkpoint.maintenance.runCount = maintRunCount;
@@ -677,7 +692,7 @@ Create beads now.`;
       // Max retries exceeded — mark as blocked
       blockedIds.add(beadId);
       this.checkpoint.beads.blocked = Array.from(blockedIds);
-      await this.tbdExec(['update', beadId, '--status=blocked']);
+      await this.tbdExecSafe(['update', beadId, '--status=blocked']);
       this.eventLogger.emit({
         event: 'bead_blocked',
         bead_id: beadId,
@@ -685,8 +700,8 @@ Create beads now.`;
         last_lines: result.lastLines.slice(-200),
       });
     } else {
-      // Reset to open for retry
-      await this.tbdExec(['update', beadId, '--status=open']);
+      // Reset to open for retry (worktree will be cleaned up on next assignment)
+      await this.tbdExecSafe(['update', beadId, '--status=open']);
       this.eventLogger.emit({
         event: 'bead_retry',
         bead_id: beadId,
@@ -703,12 +718,31 @@ Create beads now.`;
   private async spawnMaintenance(index: number): Promise<void> {
     this.eventLogger.emit({ event: 'maintenance_started', index });
 
+    // Create a maintenance bead for tracking
+    const maintBeadId = await this.tbdExecSafe([
+      'create',
+      `Maintenance run #${index}`,
+      '--type=task',
+      `--label=harness-run:${this.runId}`,
+      '--label=maintenance',
+    ]);
+
     const backend = createAgentBackend(this.config.agent.backend, this.config.agent.command);
     const worktreePath = await this.worktreeMgr.createMaintenanceWorktree(
       this.runId,
       index,
       this.checkpoint.targetBranch,
     );
+
+    // Track maintenance run in checkpoint
+    this.checkpoint.maintenance.runs.push({
+      id: `maint-${index}`,
+      triggerCompletedCount: this.checkpoint.beads.completed.length,
+      state: 'running',
+    });
+    this.checkpoint.maintenance.lastRunAt = new Date().toISOString();
+    this.checkpoint.maintenance.beadId = maintBeadId.trim() || undefined;
+    await this.saveCheckpoint();
 
     const prompt = buildMaintenancePrompt(this.checkpoint.targetBranch, this.runId);
     const result = await backend.spawn({
@@ -721,6 +755,13 @@ Create beads now.`;
       },
     });
     this.totalAgentSpawns++;
+
+    // Update maintenance run state
+    const maintRun = this.checkpoint.maintenance.runs.find((r) => r.id === `maint-${index}`);
+    if (maintRun) {
+      maintRun.state = result.status === 'success' ? 'success' : 'failure';
+    }
+    await this.saveCheckpoint();
 
     this.eventLogger.emit({
       event: 'maintenance_finished',
@@ -744,10 +785,7 @@ Create beads now.`;
     await this.saveCheckpoint();
 
     // Verify spec hash before judging
-    await verifySpecHash(
-      join(this.tbdRoot, this.checkpoint.frozenSpecPath),
-      this.checkpoint.frozenSpecSha256,
-    );
+    await this.verifyFrozenSpec();
 
     // Discover observation beads
     const observationIds = await this.getObservationBeadIds();
@@ -809,12 +847,11 @@ Create beads now.`;
     // Store judge result
     const judgeResultDir = join(this.runDir, 'judge-results');
     await mkdir(judgeResultDir, { recursive: true });
-    const { writeFile: writeFileFs } = await import('node:fs/promises');
+    const { writeFile: atomicWrite } = await import('atomically');
     const yaml = await import('yaml');
-    await writeFileFs(
+    await atomicWrite(
       join(judgeResultDir, `iteration-${this.checkpoint.iteration}.yml`),
       yaml.stringify(result),
-      'utf-8',
     );
 
     return result;
@@ -823,7 +860,7 @@ Create beads now.`;
   private async createRemediationBeads(judgeResult: JudgeResult): Promise<void> {
     // Create beads from judge findings
     for (const bead of judgeResult.newBeads) {
-      await this.tbdExec([
+      await this.tbdExecSafe([
         'create',
         bead.title,
         `--type=${bead.type}`,
@@ -840,7 +877,7 @@ Create beads now.`;
         // Promoted beads are already labeled, just update
       } else if (obs.action === 'dismiss') {
         this.checkpoint.observations.dismissed.push(obs.beadId);
-        await this.tbdExec(['close', obs.beadId, `--reason=Dismissed by judge: ${obs.reason}`]);
+        await this.tbdExecSafe(['close', obs.beadId, `--reason=Dismissed by judge: ${obs.reason}`]);
       }
     }
 
@@ -855,7 +892,7 @@ Create beads now.`;
     if (this.config.target_branch !== 'auto') return; // Only for integration branch mode
 
     try {
-      // Rebase integration branch onto latest base
+      // Fetch latest base branch
       await execFileAsync('git', [
         '-C',
         this.tbdRoot,
@@ -864,7 +901,21 @@ Create beads now.`;
         this.config.worktree.base_branch,
       ]);
 
-      // Push
+      // Rebase integration branch onto latest base
+      try {
+        await execFileAsync('git', [
+          '-C',
+          this.tbdRoot,
+          'rebase',
+          `origin/${this.config.worktree.base_branch}`,
+          this.checkpoint.targetBranch,
+        ]);
+      } catch {
+        // Rebase conflict — abort and continue with current state
+        await execFileAsync('git', ['-C', this.tbdRoot, 'rebase', '--abort']).catch(() => {});
+      }
+
+      // Push with force-with-lease (safe force push after rebase)
       try {
         await execFileAsync('git', [
           '-C',
@@ -928,12 +979,40 @@ Create beads now.`;
     await this.checkpointMgr.save(this.checkpoint);
   }
 
-  private async tbdExec(args: string[]): Promise<string> {
+  /** Verify frozen spec hash. Throws E_SPEC_HASH_MISMATCH on tampering. */
+  private async verifyFrozenSpec(): Promise<void> {
+    if (this.checkpoint.frozenSpecPath && this.checkpoint.frozenSpecSha256) {
+      await verifySpecHash(
+        join(this.tbdRoot, this.checkpoint.frozenSpecPath),
+        this.checkpoint.frozenSpecSha256,
+      );
+    }
+  }
+
+  /**
+   * Execute a tbd CLI command. Throws on failure.
+   * Use for operations where failure is an error (label, list during decompose).
+   */
+  private async tbdExecStrict(args: string[]): Promise<string> {
     try {
       const { stdout } = await execFileAsync('tbd', args, { cwd: this.tbdRoot });
       return stdout;
     } catch (error) {
-      // Non-fatal — log and continue
+      const msg = error instanceof Error ? error.message : String(error);
+      this.eventLogger.emit({ event: 'tbd_command_error', args, error: msg });
+      throw harnessError('E_CONFIG_INVALID', `tbd command failed: tbd ${args.join(' ')}\n${msg}`);
+    }
+  }
+
+  /**
+   * Execute a tbd CLI command. Logs errors but does not throw.
+   * Use for best-effort operations (status updates, listing).
+   */
+  private async tbdExecSafe(args: string[]): Promise<string> {
+    try {
+      const { stdout } = await execFileAsync('tbd', args, { cwd: this.tbdRoot });
+      return stdout;
+    } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       this.eventLogger.emit({ event: 'tbd_command_error', args, error: msg });
       return '';
@@ -942,7 +1021,11 @@ Create beads now.`;
 
   private async listRunBeads(): Promise<Issue[]> {
     try {
-      const stdout = await this.tbdExec(['list', `--label=harness-run:${this.runId}`, '--json']);
+      const stdout = await this.tbdExecSafe([
+        'list',
+        `--label=harness-run:${this.runId}`,
+        '--json',
+      ]);
       return JSON.parse(stdout || '[]') as Issue[];
     } catch {
       return [];
@@ -951,7 +1034,7 @@ Create beads now.`;
 
   private async getBeadStatus(beadId: string): Promise<string> {
     try {
-      const stdout = await this.tbdExec(['show', beadId, '--json']);
+      const stdout = await this.tbdExecSafe(['show', beadId, '--json']);
       const bead = JSON.parse(stdout) as { status?: string };
       return bead.status ?? 'open';
     } catch {
@@ -961,7 +1044,7 @@ Create beads now.`;
 
   private async getObservationBeadIds(): Promise<string[]> {
     try {
-      const stdout = await this.tbdExec([
+      const stdout = await this.tbdExecSafe([
         'list',
         '--label=observation',
         `--label=harness-run:${this.runId}`,
@@ -978,7 +1061,17 @@ Create beads now.`;
   private setupSignalHandlers(): () => void {
     const handler = async () => {
       this.eventLogger.emit({ event: 'run_interrupted' });
-      // Checkpoint is saved periodically, so state is preserved
+
+      // Kill all active agent process groups
+      killAllActiveProcesses();
+
+      // Save checkpoint so run is safely resumable
+      try {
+        await this.saveCheckpoint();
+      } catch {
+        // Best effort
+      }
+
       await this.eventLogger.close();
       await this.runLock.release();
       process.exit(130);

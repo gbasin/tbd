@@ -116,16 +116,8 @@ export class CodexJudge implements JudgeBackend {
     );
 
     try {
-      const lines = pass2.lastLines.split('\n');
-      let jsonStr = '';
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('{')) {
-          jsonStr = trimmed;
-          break;
-        }
-      }
-      const parsed = JSON.parse(jsonStr || pass2.lastLines.trim());
+      const jsonStr = extractJsonFromCodexOutput(pass2.lastLines);
+      const parsed = JSON.parse(jsonStr);
       return JudgeResultSchema.parse({
         ...parsed,
         status: 'success',
@@ -144,4 +136,30 @@ export class CodexJudge implements JudgeBackend {
       };
     }
   }
+}
+
+function extractJsonFromCodexOutput(output: string): string {
+  const lines = output.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i]!.trim().startsWith('{')) continue;
+
+    let depth = 0;
+    let candidate = '';
+    for (let j = i; j < lines.length; j++) {
+      candidate += (j > i ? '\n' : '') + lines[j];
+      for (const ch of lines[j]!) {
+        if (ch === '{') depth++;
+        if (ch === '}') depth--;
+      }
+      if (depth === 0) {
+        try {
+          JSON.parse(candidate.trim());
+          return candidate.trim();
+        } catch {
+          break;
+        }
+      }
+    }
+  }
+  return output.trim();
 }

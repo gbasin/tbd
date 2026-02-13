@@ -10,8 +10,21 @@ import type { AgentResult } from '../../../../lib/harness/types.js';
 // Shared Process Spawn
 // =============================================================================
 
-const MAX_OUTPUT_LINES = 50;
+const MAX_OUTPUT_LINES = 5_000;
 const KILL_GRACE_MS = 10_000;
+
+// =============================================================================
+// Active Process Registry (for signal handler cleanup)
+// =============================================================================
+
+const activeProcesses = new Map<number, ChildProcess>();
+
+/** Kill all active agent process groups. Used by signal handler. */
+export function killAllActiveProcesses(): void {
+  for (const [, proc] of activeProcesses) {
+    killProcessGroup(proc);
+  }
+}
 
 export interface ProcessResult {
   exitCode: number;
@@ -46,6 +59,9 @@ export function spawnProcess(
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
+    // Track for signal handler cleanup
+    if (proc.pid) activeProcesses.set(proc.pid, proc);
+
     // Circular buffer for last N lines
     const outputLines: string[] = [];
     const collectLines = (chunk: Buffer) => {
@@ -65,6 +81,7 @@ export function spawnProcess(
 
     proc.on('close', (code) => {
       clearTimeout(timeoutId);
+      if (proc.pid) activeProcesses.delete(proc.pid);
       resolve({
         exitCode: code ?? 1,
         lastLines: outputLines.join('\n'),
@@ -75,6 +92,7 @@ export function spawnProcess(
 
     proc.on('error', () => {
       clearTimeout(timeoutId);
+      if (proc.pid) activeProcesses.delete(proc.pid);
       resolve({
         exitCode: 1,
         lastLines: outputLines.join('\n'),

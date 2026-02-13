@@ -30,11 +30,11 @@ export class Scheduler {
    * Call this before each scheduling cycle.
    */
   rebuild(allIssues: Issue[]): void {
-    // Filter to run beads only for the graph
-    const runIssues = allIssues.filter((i) => this.runBeadIds.has(i.id));
+    // Build graph from ALL issues so external blocker edges are visible.
+    // (tbd stores deps inversely — external blockers carry `blocks` edges for run beads.)
     this.issueMap = new Map(allIssues.map((i) => [i.id, i]));
 
-    this.graph = buildDependencyGraph(runIssues);
+    this.graph = buildDependencyGraph(allIssues);
     this.impactDepths = computeAllImpactDepths(this.graph);
   }
 
