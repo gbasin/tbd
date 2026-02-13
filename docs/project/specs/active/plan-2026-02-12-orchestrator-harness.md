@@ -9,7 +9,9 @@
 ## Overview
 
 Add an orchestrator harness to tbd that drives a fully automated spec-to-code loop.
-The harness replaces the chat-based human-in-the-loop with a deterministic pipeline:
+The harness replaces the chat-based human-in-the-loop with a deterministic
+orchestration pipeline (the scheduling, state transitions, and control flow are
+deterministic given the same inputs — LLM outputs are inherently non-deterministic):
 freeze a spec, decompose into beads, fan out to coding agents using critical-path
 scheduling, run maintenance, judge against the spec via a firewalled agent, and loop
 until done.
@@ -286,8 +288,9 @@ The scheduler detects two deadlock scenarios and **fails fast**:
    `detectCycles()` (see §Dependency Graph Construction). The harness errors
    before any agent spawns.
 
-2. **Blocked-bead deadlock**: All remaining open beads depend on a permanently-failed
-   bead (max retries exceeded, marked blocked). The scheduler detects this when:
+2. **Blocked-bead deadlock**: All remaining open beads depend on a bead that was
+   closed due to max retries (the harness tracks these in the checkpoint). The
+   scheduler detects this when:
    - No beads are ready (all have unresolved blockers)
    - No agents are currently running
    - Open beads still remain
@@ -488,7 +491,11 @@ Three failure modes, each with distinct retry behavior:
 - Mark bead as `open`, increment retry counter
 
 **All failure modes**:
-- Max retries exceeded → mark bead as blocked, log for human review
+- Max retries exceeded → close bead via `tbd close <id> --reason="blocked: max
+  retries exceeded (<failure-mode>)"`, log for human review. Since tbd has no
+  native `blocked` status, this uses the existing `closed` status with a
+  descriptive reason. The harness's checkpoint tracks which beads were closed
+  due to blocking (vs. successful completion) for accurate reporting.
 
 ### Phase 4: Maintain
 
@@ -800,8 +807,12 @@ repo/
 │   └── judge-1/        # fresh judge worktree from origin/<target-branch>
 ```
 
-All worktrees are **ephemeral** — created fresh for each bead or maintenance run,
-deleted after completion. Branch names use truncated ULIDs (first 8 chars) for
+All worktrees are **ephemeral** — created fresh for each bead assignment and
+deleted after the bead reaches a **terminal state** (closed or max retries
+exceeded). For **incomplete retries** (agent exits cleanly but bead not closed),
+the worktree is **reused** since the agent likely made progress. For **timeout or
+crash retries**, the worktree is deleted and a fresh one is created (previous
+state is suspect). Branch names use truncated ULIDs (first 8 chars) for
 readability: `tbd-run/<run-id>/bead-01hx5zzk` instead of the full 26-char ULID.
 
 Each agent works in total isolation. Merging happens per-agent:
@@ -1383,7 +1394,7 @@ beads:
   total: 12
   completed: [scr-a1b2, scr-c3d4, ...]
   in_progress: [scr-e5f6]
-  blocked: []
+  closed_as_blocked: []             # Beads closed via max retries (not successful)
   retry_counts:
     scr-g7h8: 1
   claims:                           # Claim tokens for idempotent resume
@@ -1907,9 +1918,11 @@ These are accepted tradeoffs for v1, documented for transparency:
 1. **Acceptance criteria isolation is soft**: Coding agents run with full filesystem
    access (`--dangerously-skip-permissions` for Claude Code). An agent could
    theoretically read `~/.cache/tbd-harness/<run-id>/acceptance/*` if it knew the
-   path. The isolation works because: (a) the path is never mentioned in agent
-   prompts, (b) agents don't know acceptance criteria exist, (c) no environment
-   variable hints at the path. For stronger isolation, use the Codex backend with
+   path. Additionally, the checkpoint file (`.tbd/harness/<run-id>/checkpoint.yml`)
+   stores the `acceptance_path`, which agents could read from their worktree.
+   The isolation works because: (a) the path is not mentioned in agent prompts,
+   (b) agents don't know acceptance criteria exist, (c) no environment variable
+   hints at the path. For stronger isolation, use the Codex backend with
    `--sandbox workspace-write` which restricts filesystem access to the worktree.
 
 2. **Frozen spec is inside the repo**: The frozen spec at
