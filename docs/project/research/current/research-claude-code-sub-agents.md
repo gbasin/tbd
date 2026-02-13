@@ -1382,6 +1382,143 @@ workaround: set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70`, configure a
 `PreCompact` hook to back up state, and a `SessionStart(compact)` hook to
 inject the handoff after compaction.
 
+#### Approach 8: Bead-Managed Loop (Structured Iteration via Issue Tracking)
+
+The most structured variant of the Ralph Loop: use **tbd beads** to track
+each iteration as a separate issue, with parent-child relationships providing
+a clear audit trail and structured context for the next agent.
+
+**Core idea:** A parent bead represents the overall task. Each iteration
+spawns a child bead that captures what happened in that step. The next
+iteration reads the chain of completed child beads to understand full
+history — without relying on context window memory at all.
+
+**Why this is powerful:**
+
+1. **Each bead is a structured summary.** Not a generic LLM compaction — a
+   deliberate, curated record of what was attempted, what worked, what failed.
+2. **The chain is the memory.** After 50 restarts, you have 50 beads. The
+   next agent reads the recent ones (not all 50) to understand current state
+   and trajectory.
+3. **Beads survive everything.** Context compaction, session crashes, VM
+   teardowns, Cloud/local boundary crossings. They're git-native.
+4. **Natural stopping points.** Each bead close is a clean checkpoint. If
+   something goes wrong, you can see exactly which iteration introduced the
+   problem.
+5. **Dependency tracking.** Child beads can depend on each other sequentially,
+   so `tbd ready` naturally surfaces the next step.
+
+**Implementation pattern (shell orchestrator):**
+
+```bash
+#!/bin/bash
+# bead-loop.sh — Ralph Loop with bead-per-iteration tracking
+
+PARENT_BEAD="$1"  # e.g., "ar-k8m2" — the overall task bead
+MAX_ITERATIONS=50
+TASK_FILE=".handoff/task.md"
+
+for i in $(seq 1 $MAX_ITERATIONS); do
+  echo "=== Iteration $i ==="
+
+  # Create a child bead for this iteration
+  CHILD_ID=$(tbd create "Iteration $i of: $(tbd show $PARENT_BEAD --json | jq -r '.title')" \
+    --type task --priority P2 --json | jq -r '.id')
+  tbd dep add "$CHILD_ID" "$PARENT_BEAD"
+  tbd update "$CHILD_ID" --status in_progress
+
+  PROMPT="You are iteration $i of up to $MAX_ITERATIONS.
+
+TASK: Read $TASK_FILE for the overall objective.
+
+PREVIOUS ITERATIONS: Run 'tbd show $PARENT_BEAD' to see the parent task,
+then check its child beads for history of previous iterations.
+
+YOUR JOB:
+1. Read the most recent closed child beads to understand what's been done
+2. Do ONE meaningful unit of work toward the objective
+3. When done, update bead $CHILD_ID with a clear summary:
+   tbd close $CHILD_ID --reason 'Did X. Result: Y. Next: Z.'
+4. If the OVERALL task is complete, also close $PARENT_BEAD
+5. Run tbd sync"
+
+  claude -p "$PROMPT" \
+    --model opus \
+    --allowedTools "Bash,Read,Edit,Write,Glob,Grep" \
+    --max-turns 30 \
+    --max-budget-usd 3.00
+
+  tbd sync
+
+  # Check if parent bead was closed (task complete)
+  STATUS=$(tbd show "$PARENT_BEAD" --json | jq -r '.status')
+  if [ "$STATUS" = "closed" ]; then
+    echo "Task completed in $i iterations"
+    break
+  fi
+
+  # Commit progress between iterations
+  git add -A && git commit -m "bead loop: iteration $i ($CHILD_ID)" --no-verify 2>/dev/null
+  git push 2>/dev/null
+done
+```
+
+**Implementation pattern (tbd-native / future):**
+
+The tbd harness itself could manage the loop, removing the need for a shell
+script:
+
+```bash
+# Hypothetical tbd command (not yet implemented)
+tbd loop $PARENT_BEAD \
+  --max-iterations 50 \
+  --model opus \
+  --budget-per-iteration 3.00 \
+  --prompt-file .handoff/task.md
+```
+
+This would:
+1. Create child beads automatically for each iteration
+2. Build the prompt from parent bead + recent child bead history
+3. Spawn `claude -p` with the constructed prompt
+4. Close the child bead with the agent's summary
+5. Check if the parent bead was closed (done) or continue
+6. Run `tbd sync` and `git push` between iterations
+
+**What the bead chain looks like after 5 iterations:**
+
+```
+ar-k8m2  [open]     "Refactor auth module to use JWT"
+  ├── ar-m3n1  [closed]  "Iteration 1: Analyzed current auth code, identified 3 modules"
+  ├── ar-p4q2  [closed]  "Iteration 2: Created JWT token service, wrote tests"
+  ├── ar-r5s3  [closed]  "Iteration 3: Migrated login endpoint, tests passing"
+  ├── ar-t6u4  [closed]  "Iteration 4: Migrated registration endpoint, found edge case"
+  └── ar-v7w5  [in_progress]  "Iteration 5: Fix edge case in token refresh"
+```
+
+Each closed bead's `--reason` contains a structured summary: what was done,
+what the result was, what should happen next. This is far richer than
+auto-compaction's generic summary.
+
+**Advantages over plain Ralph Loop:**
+
+| Aspect | Plain Ralph Loop | Bead-Managed Loop |
+|--------|-----------------|-------------------|
+| State format | Free-form text file | Structured beads with metadata |
+| History | Single state file (overwritten) | Full chain of closed beads |
+| Audit trail | Git commits only | Beads + git commits |
+| Searchable | `grep` through state file | `tbd search`, `tbd show` |
+| Resumable | Read state file | `tbd ready` surfaces next step |
+| Cross-agent | Must share file path | `tbd sync` shares everywhere |
+| Rollback | `git revert` | Close/reopen beads, `git revert` |
+| Visibility | Log file | `tbd list` shows all iterations |
+
+**When to use this vs plain Ralph Loop:**
+- Use plain Ralph Loop for quick, low-ceremony autonomous work.
+- Use bead-managed loop when you want full traceability, when multiple
+  people/agents might inspect progress, or when iterations are complex
+  enough that a one-line state file isn't sufficient.
+
 #### Decision Matrix: Which Approach to Use
 
 | Approach | Complexity | Context Quality | Autonomy | Cloud? | Best For |
@@ -1391,9 +1528,14 @@ inject the handoff after compaction.
 | `claude -p` from session | Medium | High | Semi-auto | Local only | Agent-initiated fresh start |
 | `--continue`/`--resume` | Low | Full (risky) | Manual | Yes | Quick session pickup |
 | Ralph Loop script | High | High | Fully auto | Local only | Long autonomous multi-phase work |
+| Bead-managed loop | High | Highest | Fully auto | Yes* | Traceable multi-phase with full audit trail |
 | Hooks (Pre/Post compact) | Medium | Medium-High | Automatic | Yes | Augmenting auto-compaction |
 | Git-based handoff | Medium | High | Semi-auto | Yes | Cross-device, cross-agent work |
 | tbd handoff + git | Medium | Highest | Semi-auto | Yes | This project specifically |
+
+\* Bead-managed loop: the shell orchestrator runs locally, but beads sync
+via git so progress is visible everywhere. A tbd-native orchestrator could
+run in any environment.
 
 ---
 
