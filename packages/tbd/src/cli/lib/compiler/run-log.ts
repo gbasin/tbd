@@ -9,11 +9,8 @@ import { writeFile } from 'atomically';
 import { join } from 'node:path';
 import { stringify as yamlStringify, parse as yamlParse } from 'yaml';
 
-import {
-  RunLogSchema,
-  type RunLog,
-  type RunLogIterationSchema,
-} from '../../../lib/compiler/types.js';
+import type { RunLogIterationSchema} from '../../../lib/compiler/types.js';
+import { RunLogSchema, type RunLog } from '../../../lib/compiler/types.js';
 import type { z } from 'zod';
 
 const RUN_LOG_FILENAME = 'run-log.yml';

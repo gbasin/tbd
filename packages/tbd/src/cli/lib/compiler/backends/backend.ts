@@ -26,6 +26,38 @@ export function killAllActiveProcesses(): void {
   }
 }
 
+/**
+ * Kill all active process groups and wait for them to die.
+ * Sends SIGTERM, waits the grace period, then SIGKILLs any remaining.
+ * Returns once all processes have been handled.
+ */
+export async function killAllActiveProcessesAndWait(): Promise<void> {
+  if (activeProcesses.size === 0) return;
+
+  // Send SIGTERM to all process groups
+  for (const [, proc] of activeProcesses) {
+    if (!proc.pid) continue;
+    try {
+      process.kill(-proc.pid, 'SIGTERM');
+    } catch {
+      // Process may already be dead
+    }
+  }
+
+  // Wait for grace period
+  await new Promise((resolve) => setTimeout(resolve, KILL_GRACE_MS));
+
+  // SIGKILL any still-alive process groups
+  for (const [, proc] of activeProcesses) {
+    if (!proc.pid) continue;
+    try {
+      process.kill(-proc.pid, 'SIGKILL');
+    } catch {
+      // Process already exited
+    }
+  }
+}
+
 export interface ProcessResult {
   exitCode: number;
   lastLines: string;

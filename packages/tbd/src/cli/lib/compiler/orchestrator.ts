@@ -25,9 +25,10 @@ import { RunLogWriter } from './run-log.js';
 import { WorktreeManager } from './worktree.js';
 import { Scheduler } from './scheduler.js';
 import { AgentPool } from './agent-pool.js';
+import { buildDependencyGraph, topologicalSort } from '../../../lib/compiler/graph.js';
 import { buildCodingAgentPrompt, buildMaintenancePrompt, loadGuidelines } from './prompts.js';
 import { resolveBackendSpec, resolveJudgeBackendSpec } from './backends/detect.js';
-import { killAllActiveProcesses } from './backends/backend.js';
+import { killAllActiveProcessesAndWait } from './backends/backend.js';
 import { CompilerError } from '../errors.js';
 import { ConsoleReporter } from './console-reporter.js';
 
@@ -62,6 +63,8 @@ export interface OrchestratorResult {
   totalBeads: number;
   iterations: number;
   message: string;
+  /** Dependency-ordered schedule (dry-run only). */
+  schedule?: { id: string; title: string; deps: string[] }[];
 }
 
 export class Orchestrator {
@@ -76,6 +79,8 @@ export class Orchestrator {
   private worktreeMgr!: WorktreeManager;
   private checkpoint!: Checkpoint;
   private totalAgentSpawns = 0;
+  /** Beads whose worktrees should be reused on retry (incomplete: exit 0, bead not closed). */
+  private reuseWorktreeBeads = new Set<string>();
   private tbdMutex = Promise.resolve();
 
   constructor(private readonly opts: OrchestratorOptions) {
@@ -292,12 +297,15 @@ export class Orchestrator {
       await this.decompose();
 
       if (this.opts.dryRun) {
+        // Compute dependency-ordered schedule for display
+        const schedule = await this.computeSchedule();
         return {
           runId: this.runId,
           status: 'dry_run',
           totalBeads: this.checkpoint.beads.total,
           iterations: 0,
           message: `Dry run complete. ${this.checkpoint.beads.total} beads created. Use --resume to continue.`,
+          schedule,
         };
       }
     }
@@ -476,7 +484,25 @@ export class Orchestrator {
       }
 
       this.checkpoint.beads.total = beads.length;
-    } else if (this.config.phases.decompose.auto) {
+    } else {
+      // Guard: if open beads exist but no selector, fail with E_BEAD_SCOPE_AMBIGUOUS
+      const existingStdout = await this.tbdExecSafe(['list', '--status=open', '--json']);
+      const existingBeads = JSON.parse(existingStdout || '[]') as unknown[];
+      if (Array.isArray(existingBeads) && existingBeads.length > 0) {
+        throw compilerError(
+          'E_BEAD_SCOPE_AMBIGUOUS',
+          `${existingBeads.length} open bead(s) exist but no --bead-label selector was provided. ` +
+            'Use --bead-label <label> to select existing beads, or close them to avoid conflicts.',
+        );
+      }
+
+      if (!this.config.phases.decompose.auto) {
+        throw compilerError(
+          'E_BEAD_SCOPE_AMBIGUOUS',
+          'No beads found and auto-decompose is disabled. Use --bead-label or enable decompose.auto.',
+        );
+      }
+
       // Spawn decomposition agent
       const backend = this.resolveBackend('decompose');
 
@@ -562,8 +588,9 @@ Create beads now.`;
     const allBeads = JSON.parse(runBeadStdout || '[]') as Issue[];
     const runBeadIds = new Set<string>(allBeads.map((b) => b.id));
 
-    // Also fetch all open issues so external blocker edges are visible
-    const allIssuesStdout = await this.tbdExecSafe(['list', '--status=open', '--json']);
+    // Fetch ALL issues (not just open) so blockers in any non-closed status are visible.
+    // The scheduler treats any blocker with status !== 'closed' as unresolved.
+    const allIssuesStdout = await this.tbdExecSafe(['list', '--json']);
     const allIssues = JSON.parse(allIssuesStdout || '[]') as Issue[];
 
     const completedIds = new Set<string>(this.checkpoint.beads.completed);
@@ -590,7 +617,7 @@ Create beads now.`;
         // Refresh bead lists periodically for accurate scheduling
         await this.listRunBeads();
         const freshAllIssues = JSON.parse(
-          (await this.tbdExecSafe(['list', '--status=open', '--json'])) || '[]',
+          (await this.tbdExecSafe(['list', '--json'])) || '[]',
         ) as Issue[];
         scheduler.rebuild(freshAllIssues);
 
@@ -608,12 +635,15 @@ Create beads now.`;
         await this.tbdExecSafe(['update', nextBead.id, '--status=in_progress']);
         await this.tbdExecSafe(['sync']);
 
-        // Create worktree (handles existing worktrees from retries)
+        // Create worktree — reuse existing for incomplete retries (exit 0, bead not closed)
+        const reuseExisting = this.reuseWorktreeBeads.has(nextBead.id);
         const worktreePath = await this.worktreeMgr.createAgentWorktree(
           this.runId,
           nextBead.id,
           this.checkpoint.targetBranch,
+          reuseExisting,
         );
+        this.reuseWorktreeBeads.delete(nextBead.id);
 
         // Track active agent in checkpoint
         this.checkpoint.agents.active.push({
@@ -782,13 +812,24 @@ Create beads now.`;
       });
       ConsoleReporter.beadBlocked(beadId, 'max retries exceeded');
     } else {
-      // Reset to open for retry (worktree will be cleaned up on next assignment)
+      // Reset to open for retry
       await this.tbdExecSafe(['update', beadId, '--status=open']);
+
+      // Worktree reuse policy: if agent exited cleanly (exit 0) but didn't close
+      // the bead, there's likely useful partial progress — reuse the worktree.
+      // For timeouts or crashes, start fresh (state may be corrupt).
+      if (result.status === 'success') {
+        this.reuseWorktreeBeads.add(beadId);
+      } else {
+        this.reuseWorktreeBeads.delete(beadId);
+      }
+
       this.eventLogger.emit({
         event: 'bead_retry',
         bead_id: beadId,
         retry: retryCount,
         failure_mode: result.status,
+        worktree_reuse: result.status === 'success',
       });
       ConsoleReporter.beadRetry(beadId, retryCount);
     }
@@ -1089,6 +1130,33 @@ Create beads now.`;
   // Helpers
   // ===========================================================================
 
+  /** Compute a dependency-ordered schedule from the run's beads. */
+  private async computeSchedule(): Promise<{ id: string; title: string; deps: string[] }[]> {
+    try {
+      const stdout = await this.tbdExecSafe([
+        'list',
+        `--label=compiler-run:${this.runId}`,
+        '--json',
+      ]);
+      const beads = JSON.parse(stdout || '[]') as Issue[];
+      if (beads.length === 0) return [];
+
+      const graph = buildDependencyGraph(beads);
+      const sorted = topologicalSort(graph);
+      const issueMap = new Map(beads.map((b) => [b.id, b]));
+
+      return sorted
+        .filter((id) => issueMap.has(id))
+        .map((id) => {
+          const issue = issueMap.get(id)!;
+          const deps = (graph.reverse.get(id) ?? []).filter((d) => issueMap.has(d));
+          return { id: issue.id, title: issue.title, deps };
+        });
+    } catch {
+      return [];
+    }
+  }
+
   private async saveCheckpoint(): Promise<void> {
     await this.checkpointMgr.save(this.checkpoint);
   }
@@ -1203,8 +1271,9 @@ Create beads now.`;
       this.eventLogger.emit({ event: 'run_interrupted' });
       ConsoleReporter.runInterrupted();
 
-      // Kill all active agent process groups
-      killAllActiveProcesses();
+      // Kill all active agent process groups and wait for them to die.
+      // This sends SIGTERM, waits the grace period, then SIGKILLs any remaining.
+      await killAllActiveProcessesAndWait();
 
       // Save checkpoint so run is safely resumable
       try {

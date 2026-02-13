@@ -151,7 +151,7 @@ export class Scheduler {
       deadlocked: true,
       reason:
         `Deadlock: ${openBeads.length} open bead(s) but none are ready and no agents are running. ` +
-        `Blocked beads: ${openBeads.join(', ')}`,
+        `Unready beads: ${openBeads.join(', ')}`,
     };
   }
 

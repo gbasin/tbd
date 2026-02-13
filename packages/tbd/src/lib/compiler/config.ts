@@ -95,8 +95,6 @@ export const CompilerConfigSchema = z.object({
         .object({
           trigger: z.enum(['every_n_beads', 'after_all', 'never']).default('every_n_beads'),
           n: z.number().int().min(1).default(25),
-          parallel: z.boolean().default(true),
-          max_concurrency: z.number().int().min(1).default(1),
           backend: BackendSpec.optional(),
         })
         .default({}),

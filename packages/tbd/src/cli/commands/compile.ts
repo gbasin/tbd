@@ -79,9 +79,19 @@ class CompileHandler extends BaseCommand {
 
         if (result.status === 'dry_run') {
           console.log(colors.bold('Dry run complete'));
-          console.log(`  Run ID:  ${result.runId}`);
-          console.log(`  Beads:   ${result.totalBeads}`);
-          console.log(result.message);
+          console.log(`  Run ID:   ${result.runId}`);
+          console.log(`  Beads:    ${result.totalBeads}`);
+          console.log(`  Backend:  ${String(config.agent.backend)}`);
+          console.log(`  Branch:   ${config.target_branch}`);
+          if (result.message) console.log(result.message);
+          if (result.schedule) {
+            console.log('');
+            console.log(colors.bold('  Schedule (critical-path order):'));
+            for (const entry of result.schedule) {
+              const deps = entry.deps.length > 0 ? ` (after: ${entry.deps.join(', ')})` : '';
+              console.log(`    ${entry.id}  ${entry.title}${deps}`);
+            }
+          }
           return;
         }
 
@@ -124,8 +134,18 @@ class CompileHandler extends BaseCommand {
     try {
       const content = await readFile(configPath, 'utf-8');
       rawConfig = yamlParse(content) ?? {};
-    } catch {
-      // No config file — use defaults
+    } catch (err: unknown) {
+      // Only ignore "file not found" — surface parse errors
+      if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
+        // No config file — use defaults
+      } else {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new CompilerError(
+          `Invalid compiler config at ${configPath}: ${msg}`,
+          'E_CONFIG_INVALID',
+          2,
+        );
+      }
     }
 
     // CLI overrides

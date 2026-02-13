@@ -24,11 +24,46 @@ export class WorktreeManager {
   /**
    * Create a worktree for a coding agent.
    * Branch name: tbd-compile/<run-id>/bead-<first-8-chars-of-ulid>
+   *
+   * When `reuseExisting` is true (incomplete retry — agent exited 0 but didn't
+   * close the bead), the existing worktree is kept so the next agent can continue
+   * from partial progress. We merge latest from the integration branch to pick up
+   * work from other agents. Falls through to fresh creation if the worktree is
+   * missing or corrupted.
    */
-  async createAgentWorktree(runId: string, beadId: string, targetBranch: string): Promise<string> {
+  async createAgentWorktree(
+    runId: string,
+    beadId: string,
+    targetBranch: string,
+    reuseExisting = false,
+  ): Promise<string> {
     const shortId = beadId.replace(/^is-/, '').slice(0, 8);
     const branchName = `tbd-compile/${runId}/bead-${shortId}`;
     const worktreePath = join(this.worktreesDir, `agent-${shortId}`);
+
+    if (reuseExisting) {
+      try {
+        // Verify worktree is usable
+        await execFileAsync('git', ['-C', worktreePath, 'status', '--porcelain']);
+        // Merge latest from integration branch so we pick up other agents' work
+        await execFileAsync('git', ['-C', worktreePath, 'fetch', 'origin', targetBranch]);
+        try {
+          await execFileAsync('git', [
+            '-C',
+            worktreePath,
+            'merge',
+            `origin/${targetBranch}`,
+            '--no-edit',
+          ]);
+        } catch {
+          // Merge conflict — abort and fall through to fresh creation
+          await execFileAsync('git', ['-C', worktreePath, 'merge', '--abort']).catch(() => {});
+        }
+        return worktreePath;
+      } catch {
+        // Worktree missing or corrupted — fall through to create fresh
+      }
+    }
 
     await this.createWorktree(worktreePath, branchName, targetBranch);
     return worktreePath;
