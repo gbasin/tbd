@@ -119,6 +119,21 @@ export class SyncBranchError extends CLIError {
 }
 
 /**
+ * Harness error — thrown by tbd compile orchestrator.
+ * Maps error codes to specific exit codes (2/3/4/5).
+ */
+export class HarnessError extends CLIError {
+  constructor(
+    message: string,
+    public code: string,
+    exitCode: number,
+  ) {
+    super(message, exitCode);
+    this.name = 'HarnessError';
+  }
+}
+
+/**
  * Classification of sync errors for auto-save/retry decisions.
  * - 'permanent': Error indicates push is blocked (e.g., 403, protected branch).
  *   Auto-save to outbox is appropriate.
