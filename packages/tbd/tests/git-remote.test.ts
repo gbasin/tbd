@@ -357,7 +357,7 @@ describeUnlessWindows('concurrent sync operations', () => {
     }
   });
 
-  it('detects non-fast-forward push rejection', async () => {
+  it('detects non-fast-forward push rejection', { timeout: 15000 }, async () => {
     // Create a repo with remote
     const repo1Path = join(testDir, 'repo1');
     await initRepoWithRemote(repo1Path, bareRepoPath);

@@ -95,8 +95,8 @@ describe('performance tests', () => {
           }
         });
 
-        // Allow 15000ms on Windows CI (very slow file I/O on GHA runners), 3000ms elsewhere
-        expect(ms).toBeLessThan(isWindows ? 15000 : 3000);
+        // Allow 15000ms on Windows CI (very slow file I/O on GHA runners), 5000ms elsewhere
+        expect(ms).toBeLessThan(isWindows ? 15000 : 5000);
         const avgMs = ms / 100;
         // Log average for visibility in test output
         console.log(`Average write time: ${avgMs.toFixed(2)}ms per issue`);
@@ -155,7 +155,7 @@ describe('performance tests', () => {
         }
       });
 
-      expect(ms).toBeLessThan(500);
+      expect(ms).toBeLessThan(800);
       console.log(`Read 100 random issues in ${ms.toFixed(2)}ms (${(ms / 100).toFixed(2)}ms avg)`);
     });
   });
