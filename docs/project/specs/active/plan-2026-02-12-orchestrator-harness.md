@@ -1645,185 +1645,187 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 
 ### Phase 1: Core Loop + Config
 
-- [ ] Define `HarnessConfig` schema (Zod) with sensible defaults for all fields
-- [ ] Implement zero-config auto-detection (backend from PATH, all defaults)
-- [ ] Implement run state machine: FREEZE → DECOMPOSE → IMPLEMENT → MAINTAIN → JUDGE
-- [ ] Implement per-run-id state directory (`.tbd/harness/<run-id>/`)
-- [ ] Implement checkpoint save/restore (serialize state after each phase transition)
-- [ ] Implement `tbd compile` command entry point
-- [ ] Implement `tbd compile --status` (reads JSONL event log) and
+- [x] Define `HarnessConfig` schema (Zod) with sensible defaults for all fields
+- [x] Implement zero-config auto-detection (backend from PATH, all defaults)
+- [x] Implement run state machine: FREEZE → DECOMPOSE → IMPLEMENT → MAINTAIN → JUDGE
+- [x] Implement per-run-id state directory (`.tbd/harness/<run-id>/`)
+- [x] Implement checkpoint save/restore (serialize state after each phase transition)
+- [x] Implement `tbd compile` command entry point
+- [x] Implement `tbd compile --status` (reads JSONL event log) and
   `tbd compile --resume`
-- [ ] Implement resume config merging (checkpoint state + re-read harness.yml for ops)
-- [ ] Implement integration branch creation during Phase 1 (Spec Freeze)
-- [ ] Implement `tbd compile --dry-run` (freeze + decompose, show schedule, stop)
-- [ ] Implement run lock with heartbeat (`lock.json`, 5s heartbeat, 30s stale)
-- [ ] Implement frozen spec SHA-256 hash storage and per-phase verification
-- [ ] Implement atomic checkpoint writes (tmp + fsync + rename + parent fsync)
-- [ ] Implement CLI exit codes (0/2/3/4/5) and JSON error envelope
-- [ ] Implement schema versioning for checkpoint (`schema_version: 1`) and events
+- [x] Implement resume config merging (checkpoint state + re-read harness.yml for ops)
+- [x] Implement integration branch creation during Phase 1 (Spec Freeze)
+- [x] Implement `tbd compile --dry-run` (freeze + decompose, show schedule, stop)
+- [x] Implement run lock with heartbeat (`lock.json`, 5s heartbeat, 30s stale)
+- [x] Implement frozen spec SHA-256 hash storage and per-phase verification
+- [x] Implement atomic checkpoint writes (tmp + fsync + rename + parent fsync)
+- [x] Implement CLI exit codes (0/2/3/4/5) and JSON error envelope
+- [x] Implement schema versioning for checkpoint (`schema_version: 1`) and events
   (`v:1`)
-- [ ] Implement schema version check and migration hooks on resume
-- [ ] Implement claim tokens for idempotent resume reconciliation
+- [x] Implement schema version check and migration hooks on resume
+- [x] Implement claim tokens for idempotent resume reconciliation
 
 ### Phase 2: Agent Backend Abstraction
 
-- [ ] Define `AgentBackend` interface
-- [ ] Define `JudgeBackend` interface (separate from AgentBackend)
-- [ ] Implement `ClaudeCodeBackend` (spawn `claude -p "..."` with flags from §Backend
+- [x] Define `AgentBackend` interface
+- [x] Define `JudgeBackend` interface (separate from AgentBackend)
+- [x] Implement `ClaudeCodeBackend` (spawn `claude -p "..."` with flags from §Backend
   CLI Reference)
-- [ ] Implement `CodexBackend` (spawn `codex exec "..."` with flags from §Backend CLI
+- [x] Implement `CodexBackend` (spawn `codex exec "..."` with flags from §Backend CLI
   Reference)
-- [ ] Implement `SubprocessBackend` (configurable command)
-- [ ] Implement backend auto-detection from PATH
-- [ ] Implement prompt assembly (bead details + entire frozen spec + guidelines)
-- [ ] Implement process group spawning (`detached: true` + `process.kill(-pid)`)
-- [ ] Implement `OutputParser` interface per backend (Claude Code envelope, Codex JSON
+- [x] Implement `SubprocessBackend` (configurable command)
+- [x] Implement backend auto-detection from PATH
+- [x] Implement prompt assembly (bead details + entire frozen spec + guidelines)
+- [x] Implement process group spawning (`detached: true` + `process.kill(-pid)`)
+- [x] Implement `OutputParser` interface per backend (Claude Code envelope, Codex JSON
   Lines)
-- [ ] Implement agent output capture (last ~50 lines via streaming)
-- [ ] Implement external timeout via SIGTERM → 10s grace → SIGKILL (process groups)
-- [ ] Implement harness SIGTERM handler (cascade to agents, write checkpoint)
+- [x] Implement agent output capture (last ~50 lines via streaming)
+- [x] Implement external timeout via SIGTERM → 10s grace → SIGKILL (process groups)
+- [x] Implement harness SIGTERM handler (cascade to agents, write checkpoint)
 
 ### Phase 3: Worktree + Branch Management
 
-- [ ] Implement per-agent worktree creation (ephemeral, fresh per bead)
-- [ ] Implement worktree cleanup after bead completion (delete worktree)
-- [ ] Implement branch naming: `tbd-compile/<run-id>/bead-<truncated-ulid>`
-- [ ] Implement target branch configuration (auto vs.
+- [x] Implement per-agent worktree creation (ephemeral, fresh per bead)
+- [x] Implement worktree cleanup after bead completion (delete worktree)
+- [x] Implement branch naming: `tbd-compile/<run-id>/bead-<truncated-ulid>`
+- [x] Implement target branch configuration (auto vs.
   main)
-- [ ] Implement push-retry loop for non-fast-forward (up to 3 retries)
-- [ ] Implement final PR creation from integration branch
-- [ ] Implement branch protection fallback (create rebased branch if force-push
+- [x] Implement push-retry loop for non-fast-forward (up to 3 retries)
+- [x] Implement final PR creation from integration branch
+- [x] Implement branch protection fallback (create rebased branch if force-push
   rejected)
-- [ ] Implement pre-existing bead selector (`--bead-label` / `E_BEAD_SCOPE_AMBIGUOUS`)
+- [x] Implement pre-existing bead selector (`--bead-label` / `E_BEAD_SCOPE_AMBIGUOUS`)
 
 ### Phase 4: Bead Scheduling + Fan Out
 
-- [ ] Implement `buildDependencyGraph()` shared library function in `lib/graph.ts`
+- [x] Implement `buildDependencyGraph()` shared library function in `lib/graph.ts`
   (inverted dependency resolution, used by both `tbd ready` and the harness)
-- [ ] Implement `detectCycles()` — fail fast at graph construction time
-- [ ] Implement `computeImpactDepth()` for critical-path ranking
-- [ ] Implement deadlock detection (no ready beads + no active agents + open beads)
-- [ ] Implement harness-side ready filtering (`tbd list --label --json` + graph library)
-- [ ] Implement critical-path scheduler (max fan-out → priority → creation order)
-- [ ] Implement harness-serialized bead claiming (no agent self-assignment)
-- [ ] Implement serialized harness tbd operations (queue own create/update/sync calls)
-- [ ] Implement continuous agent pool (up to `max_concurrency` coding agents)
-- [ ] Implement agent lifecycle: spawn → monitor → collect result
-- [ ] Implement retry logic with failure-mode-specific behavior:
+- [x] Implement `detectCycles()` — fail fast at graph construction time
+- [x] Implement `computeImpactDepth()` for critical-path ranking
+- [x] Implement deadlock detection (no ready beads + no active agents + open beads)
+- [x] Implement harness-side ready filtering (`tbd list --label --json` + graph library)
+- [x] Implement critical-path scheduler (max fan-out → priority → creation order)
+- [x] Implement harness-serialized bead claiming (no agent self-assignment)
+- [x] Implement serialized harness tbd operations (queue own create/update/sync calls)
+- [x] Implement continuous agent pool (up to `max_concurrency` coding agents)
+- [x] Implement agent lifecycle: spawn → monitor → collect result
+- [x] Implement retry logic with failure-mode-specific behavior:
   - Timeout/crash → fresh worktree
   - Incomplete → reuse worktree
-- [ ] Implement timeout handling (SIGTERM → 10s → SIGKILL, unclaim bead)
-- [ ] Implement observation bead tracking (label-based: `harness-run:<run-id>`)
-- [ ] Implement bead scoping: label all beads with `harness-run:<run-id>`
+- [x] Implement timeout handling (SIGTERM → 10s → SIGKILL, unclaim bead)
+- [x] Implement observation bead tracking (label-based: `harness-run:<run-id>`)
+- [x] Implement bead scoping: label all beads with `harness-run:<run-id>`
 
 ### Phase 5: Maintenance Phase
 
-- [ ] Implement fresh ephemeral maintenance worktree creation (`maint-<n>/`)
-- [ ] Implement always-spawn maintenance agent model (no harness-side checks)
-- [ ] Implement parallel execution (maintenance does not block coding agents)
-- [ ] Implement maintenance concurrency cap (`max_concurrency: 1`) with trigger
+- [x] Implement fresh ephemeral maintenance worktree creation (`maint-<n>/`)
+- [x] Implement always-spawn maintenance agent model (no harness-side checks)
+- [x] Implement parallel execution (maintenance does not block coding agents)
+- [x] Implement maintenance concurrency cap (`max_concurrency: 1`) with trigger
   coalescing
-- [ ] Implement maintenance trigger logic (every N beads, after all)
-- [ ] Implement maintenance agent prompt template
-- [ ] Auto-create maintenance bead with `harness-run:<run-id>` label
+- [x] Implement maintenance trigger logic (every N beads, after all)
+- [x] Implement maintenance agent prompt template
+- [x] Auto-create maintenance bead with `harness-run:<run-id>` label
 
 ### Phase 6: Acceptance Criteria Generation
 
-- [ ] Implement acceptance criteria generation via `AgentBackend.spawn()`
-- [ ] Implement storage in XDG cache dir (`~/.cache/tbd-harness/<run-id>/`)
-- [ ] Implement cache path persistence in checkpoint (for --resume)
-- [ ] Implement fail-on-missing for `--resume` (no silent regeneration)
-- [ ] Implement manual acceptance criteria path override
+- [x] Implement acceptance criteria generation via `AgentBackend.spawn()`
+- [x] Implement storage in XDG cache dir (`~/.cache/tbd-harness/<run-id>/`)
+- [x] Implement cache path persistence in checkpoint (for --resume)
+- [x] Implement fail-on-missing for `--resume` (no silent regeneration)
+- [x] Implement manual acceptance criteria path override
 
 ### Phase 7: Judge Agent + Feedback Loop
 
-- [ ] Implement two-pass judge evaluation:
+- [x] Implement two-pass judge evaluation:
   - Pass 1: reasoning agent with full tool access, natural language output
   - Pass 2: structuring agent with `--json-schema`/`--output-schema`
-- [ ] Implement JudgeBackend for Claude Code (pass 1: read-only `--allowedTools`; pass
+- [x] Implement JudgeBackend for Claude Code (pass 1: read-only `--allowedTools`; pass
   2: `--json-schema` for structured output)
-- [ ] Implement JudgeBackend for Codex (pass 1: `--sandbox read-only`; pass 2:
+- [x] Implement JudgeBackend for Codex (pass 1: `--sandbox read-only`; pass 2:
   `--output-schema` for structured output)
-- [ ] Implement observation bead discovery
+- [x] Implement observation bead discovery
   (`tbd list --label=observation --label=harness-run:<run-id> --status=open --json`)
-- [ ] Implement fresh judge worktree creation
+- [x] Implement fresh judge worktree creation
   (`git worktree add .tbd/worktrees/judge-<iteration> origin/<target-branch>`)
-- [ ] Implement judge worktree cleanup after evaluation
-- [ ] Implement post-judge integrity check (`git status --porcelain`)
-- [ ] Implement judge trigger: wait for all beads + last maintenance to complete
-- [ ] Implement judge prompt (spec drift + acceptance eval + observation triage)
-- [ ] Implement structured judge output parsing against `JudgeResult` schema
-- [ ] Implement bead creation from judge failures (labeled `harness-run:<run-id>`)
-- [ ] Implement observation bead triage (promote/dismiss/merge)
-- [ ] Implement iteration counter and max_iterations guard
-- [ ] Implement final output (PR creation, summary report)
+- [x] Implement judge worktree cleanup after evaluation
+- [x] Implement post-judge integrity check (`git status --porcelain`)
+- [x] Implement judge trigger: wait for all beads + last maintenance to complete
+- [x] Implement judge prompt (spec drift + acceptance eval + observation triage)
+- [x] Implement structured judge output parsing against `JudgeResult` schema
+- [x] Implement bead creation from judge failures (labeled `harness-run:<run-id>`)
+- [x] Implement observation bead triage (promote/dismiss/merge)
+- [x] Implement iteration counter and max_iterations guard
+- [x] Implement final output (PR creation, summary report)
 
 ### Phase 8: Observability
 
-- [ ] Implement JSONL event log writer (append-only, serialized write queue)
-- [ ] Implement run-log.yml writer (phase-transition updates)
-- [ ] Implement `tbd compile --status` reader (parses JSONL for live state)
-- [ ] Implement `--dry-run` mode (show planned beads + schedule without executing)
+- [x] Implement JSONL event log writer (append-only, serialized write queue)
+- [x] Implement run-log.yml writer (phase-transition updates)
+- [x] Implement `tbd compile --status` reader (parses JSONL for live state)
+- [x] Implement `--dry-run` mode (show planned beads + schedule without executing)
 
 ## Testing Strategy
 
 ### Unit Tests
 
-- Config parsing, validation, and zero-config defaults
-- State machine transitions
-- Critical-path scheduler (ordering correctness)
-- Dependency graph construction (inverted dependency resolution)
-- Cycle detection (various cycle topologies: self-loop, A→B→A, A→B→C→A)
-- Deadlock detection (all beads blocked by failed bead)
-- Impact depth computation (verify critical-path ordering)
-- Prompt assembly (verify entire frozen spec is included, not a section)
-- Agent result handling with failure-mode-specific retry
-- Judge output parsing and bead creation
-- Event log serialization
-- Resume config merging (checkpoint state + current harness.yml operational config)
-- Run lock acquisition, heartbeat, stale detection
-- Atomic checkpoint write protocol (tmp + fsync + rename)
-- Frozen spec SHA-256 hash verification (detect tampering)
-- CLI exit code mapping and JSON error envelope
-- Schema version validation and migration hooks
-- Claim token idempotency on resume
-- Pre-existing bead selector and E_BEAD_SCOPE_AMBIGUOUS
+- [x] Config parsing, validation, and zero-config defaults
+- [x] State machine transitions
+- [x] Critical-path scheduler (ordering correctness)
+- [x] Dependency graph construction (inverted dependency resolution)
+- [x] Cycle detection (various cycle topologies: self-loop, A→B→A, A→B→C→A)
+- [x] Deadlock detection (all beads blocked by failed bead)
+- [x] Impact depth computation (verify critical-path ordering)
+- [x] Prompt assembly (verify entire frozen spec is included, not a section)
+- [x] Agent result handling with failure-mode-specific retry
+- [x] Judge output parsing and bead creation
+- [x] Event log serialization
+- [x] Resume config merging (checkpoint state + current harness.yml operational config)
+- [x] Run lock acquisition, heartbeat, stale detection
+- [x] Atomic checkpoint write protocol (tmp + fsync + rename)
+- [x] Frozen spec SHA-256 hash verification (detect tampering)
+- [x] CLI exit code mapping and JSON error envelope
+- [x] Schema version validation and migration hooks
+- [x] Claim token idempotency on resume
+- [x] Pre-existing bead selector and E_BEAD_SCOPE_AMBIGUOUS
 
 ### Integration Tests
 
-- Full pipeline with mock agent backend (returns canned results)
-- Checkpoint save/restore across simulated crashes
-- Resume with missing acceptance criteria cache → should fail
-- Resume with modified `harness.yml` → verify operational config changes apply
-- Retry logic: timeout → fresh worktree, incomplete → reuse worktree
-- Judge feedback loop (fail → new beads → re-implement → pass)
-- Observation bead flow (agent creates → judge triages → promoted bead executes)
-- Integration branch creation and final PR
-- Backend auto-detection
-- Bead scoping: verify all beads labeled `harness-run:<run-id>`
-- Parallel maintenance: verify maintenance does not block coding agents
-- SIGTERM cascade: verify process groups receive signal and checkpoint is written
-- Run lock contention: two `--resume` invocations → second gets `E_RUN_LOCKED`
-- Stale lock recovery: simulate crashed harness, verify new process acquires lock
-- Maintenance barrier: verify judge waits for all triggered maintenance (watermark)
-- External dependency: bead blocked by non-run bead → `E_EXTERNAL_BLOCKED`
-- Post-judge integrity: judge modifies worktree → result discarded
-- Branch protection fallback: force-push rejected → new rebased branch created
-- Maintenance coalescing: rapid triggers with max_concurrency=1 → no duplicate runs
-- Schema version: resume with higher version → E_CHECKPOINT_CORRUPT
-- Structured judge output: verify JSON schema enforcement
-- Cycle detection: beads with circular deps → immediate error before any agent spawns
-- Deadlock detection: all beads depend on a max-retried bead → harness exits
-- Process group cleanup: agent timeout kills all descendant processes
+- [ ] Full pipeline with mock agent backend (returns canned results)
+- [x] Checkpoint save/restore across simulated crashes
+- [ ] Resume with missing acceptance criteria cache → should fail
+- [x] Resume with modified `harness.yml` → verify operational config changes apply
+- [x] Retry logic: timeout → fresh worktree, incomplete → reuse worktree
+- [ ] Judge feedback loop (fail → new beads → re-implement → pass)
+- [ ] Observation bead flow (agent creates → judge triages → promoted bead executes)
+- [ ] Integration branch creation and final PR
+- [ ] Backend auto-detection
+- [x] Bead scoping: verify all beads labeled `harness-run:<run-id>`
+- [ ] Parallel maintenance: verify maintenance does not block coding agents
+- [ ] SIGTERM cascade: verify process groups receive signal and checkpoint is written
+- [x] Run lock contention: two `--resume` invocations → second gets `E_RUN_LOCKED`
+- [x] Stale lock recovery: simulate crashed harness, verify new process acquires lock
+- [x] Maintenance barrier: verify judge waits for all triggered maintenance (watermark)
+- [x] External dependency: bead blocked by non-run bead → `E_EXTERNAL_BLOCKED`
+- [ ] Post-judge integrity: judge modifies worktree → result discarded
+- [ ] Branch protection fallback: force-push rejected → new rebased branch created
+- [ ] Maintenance coalescing: rapid triggers with max_concurrency=1 → no duplicate runs
+- [x] Schema version: resume with higher version → E_CHECKPOINT_CORRUPT
+- [x] Structured judge output: verify JSON schema enforcement
+- [x] Cycle detection: beads with circular deps → immediate error before any agent
+  spawns
+- [ ] Deadlock detection: all beads depend on a max-retried bead → harness exits
+- [ ] Process group cleanup: agent timeout kills all descendant processes
 
 ### Golden Tests
 
-- Snapshot the run-log output for a known scenario
-- Snapshot the JSONL event stream for a known scenario
-- Snapshot the agent prompt generated for a known bead (matches §Example Agent Prompt)
-- Snapshot the judge prompt assembled from known state
-- Snapshot the critical-path schedule for a known dependency graph
-- Snapshot the dependency graph for a known set of beads with inverted dependencies
+- [ ] Snapshot the run-log output for a known scenario
+- [ ] Snapshot the JSONL event stream for a known scenario
+- [x] Snapshot the agent prompt generated for a known bead (matches §Example Agent
+  Prompt)
+- [x] Snapshot the judge prompt assembled from known state
+- [x] Snapshot the critical-path schedule for a known dependency graph
+- [x] Snapshot the dependency graph for a known set of beads with inverted dependencies
 
 ## Open Questions
 

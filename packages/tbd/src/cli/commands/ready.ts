@@ -21,6 +21,7 @@ import {
   formatIssueHeader,
   type IssueForDisplay,
 } from '../lib/issue-format.js';
+import { buildDependencyGraph } from '../../lib/compiler/graph.js';
 
 interface ReadyOptions {
   type?: string;
@@ -42,21 +43,11 @@ class ReadyHandler extends BaseCommand {
       throw new NotInitializedError('No issue store found. Run `tbd init` first.');
     }
 
-    // Build lookup map for dependency resolution
+    // Build lookup map for status resolution
     const issueMap = new Map(issues.map((i) => [i.id, i]));
 
-    // Build reverse lookup: which issues are blocked by which
-    // "blocks" dependency means "this issue blocks target"
-    const blockedByMap = new Map<string, string[]>();
-    for (const issue of issues) {
-      for (const dep of issue.dependencies) {
-        if (dep.type === 'blocks') {
-          const existing = blockedByMap.get(dep.target) ?? [];
-          existing.push(issue.id);
-          blockedByMap.set(dep.target, existing);
-        }
-      }
-    }
+    // Build dependency graph using shared library
+    const graph = buildDependencyGraph(issues);
 
     // Filter for ready issues
     let readyIssues = issues.filter((issue) => {
@@ -67,7 +58,7 @@ class ReadyHandler extends BaseCommand {
       if (issue.assignee) return false;
 
       // Must not have unresolved blocking dependencies
-      const blockers = blockedByMap.get(issue.id) ?? [];
+      const blockers = graph.reverse.get(issue.id) ?? [];
       const hasUnresolvedBlocker = blockers.some((blockerId) => {
         const blocker = issueMap.get(blockerId);
         return blocker && blocker.status !== 'closed';

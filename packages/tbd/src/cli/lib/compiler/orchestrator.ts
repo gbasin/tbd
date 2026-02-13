@@ -241,9 +241,17 @@ export class Orchestrator {
     await this.runLog.load();
 
     // Reconcile in-progress beads: they were interrupted by the previous crash/signal.
-    // Reset them to open so they can be rescheduled.
+    // Use claim tokens to detect incomplete retries and increment retry counts.
     if (this.checkpoint.beads.inProgress.length > 0) {
       for (const beadId of this.checkpoint.beads.inProgress) {
+        const claimToken = this.checkpoint.beads.claims[beadId];
+        if (claimToken) {
+          // Bead was claimed but agent didn't finish — increment retry count
+          const currentRetries = this.checkpoint.beads.retryCounts[beadId] ?? 0;
+          this.checkpoint.beads.retryCounts[beadId] = currentRetries + 1;
+          // Clear the stale claim token
+          delete this.checkpoint.beads.claims[beadId];
+        }
         await this.tbdExecSafe(['update', beadId, '--status=open']);
       }
       this.checkpoint.beads.inProgress = [];

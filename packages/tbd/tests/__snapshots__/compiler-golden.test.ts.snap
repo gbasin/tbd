@@ -1,0 +1,215 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`compiler golden tests > dependency graph snapshot > should produce a deterministic dependency graph for known beads 1`] = `
+{
+  "allIds": [
+    "is-00000000000000000000000001",
+    "is-00000000000000000000000002",
+    "is-00000000000000000000000003",
+    "is-00000000000000000000000004",
+  ],
+  "forward": {
+    "is-00000000000000000000000001": [
+      "is-00000000000000000000000002",
+      "is-00000000000000000000000003",
+    ],
+    "is-00000000000000000000000002": [
+      "is-00000000000000000000000004",
+    ],
+    "is-00000000000000000000000003": [
+      "is-00000000000000000000000004",
+    ],
+  },
+  "reverse": {
+    "is-00000000000000000000000002": [
+      "is-00000000000000000000000001",
+    ],
+    "is-00000000000000000000000003": [
+      "is-00000000000000000000000001",
+    ],
+    "is-00000000000000000000000004": [
+      "is-00000000000000000000000002",
+      "is-00000000000000000000000003",
+    ],
+  },
+  "roots": [
+    "is-00000000000000000000000001",
+  ],
+}
+`;
+
+exports[`compiler golden tests > prompt snapshots > should produce a deterministic coding agent prompt 1`] = `
+"You are a coding agent working on a single task (bead) as part of an automated pipeline. Work ONLY on the bead described below. Do not work on other tasks.
+
+## Your Bead
+
+**ID**: is-01HX5ZZK
+**Title**: Implement user authentication middleware
+**Type**: task
+**Priority**: P1
+**Dependencies**: is-X9Y8 (closed), is-Z1W2 (closed)
+**Description**: Create Express middleware for JWT validation
+
+## Frozen Spec
+
+# Test Spec
+
+This is the frozen spec content for testing.
+
+## Features
+- Feature A
+- Feature B
+
+## Completion Checklist
+
+You MUST complete ALL of these before exiting:
+
+1. Write code and tests for your bead
+2. Run your own tests (the tests you wrote or modified)
+3. Typecheck: \`pnpm tsc --noEmit\` (or equivalent)
+4. Build: \`pnpm build\` (or equivalent)
+5. Lint: \`pnpm lint\` (or equivalent)
+6. Push to remote:
+   \`\`\`
+   git fetch origin tbd-compile/run-2026-02-12-a1b2c3
+   git rebase origin/tbd-compile/run-2026-02-12-a1b2c3
+   git push origin HEAD:tbd-compile/run-2026-02-12-a1b2c3
+   \`\`\`
+   If push fails with non-fast-forward: re-fetch, re-rebase, retry (up to 3 times).
+7. Close your bead: \`tbd close is-01HX5ZZK --reason="<brief summary>"\`
+8. Sync: \`tbd sync\`
+
+## Observation Beads
+
+If you discover out-of-scope issues while working, create observation beads:
+\`\`\`
+tbd create "Observation: <description>" \\
+  --type=task --label=observation --label=compiler-run:run-2026-02-12-a1b2c3
+\`\`\`
+Do NOT fix out-of-scope issues yourself. Just log them and move on.
+
+## What NOT to Do
+
+- Do NOT work on other beads
+- Do NOT fix other agents' broken tests (maintenance handles that)
+- Do NOT read or reference acceptance criteria (you don't have access)
+- Do NOT modify the frozen spec"
+`;
+
+exports[`compiler golden tests > prompt snapshots > should produce a deterministic judge reasoning prompt 1`] = `
+"You are a judge evaluating an implementation against its specification.
+
+## Frozen Spec
+Read the frozen spec at: /path/to/frozen-spec.md
+
+## Acceptance Criteria
+Read the acceptance criteria at: /home/user/.cache/tbd-compiler/run-abc/acceptance/
+
+## Instructions
+
+1. Explore the codebase using tools (Read, Glob, Grep, Bash for git diff/log)
+2. Compare the implementation against each section of the frozen spec
+3. Evaluate each acceptance criterion by reading code and checking tests
+4. Identify any spec drift (missing features, wrong behavior, extra features)
+5. For each finding, cite specific files and line numbers as evidence
+
+Do NOT modify any files. You are read-only.
+
+Report your findings in detail.
+
+## Observation Beads to Triage
+
+Review these observation beads: obs-1, obs-2
+For each, decide: promote (create implementation bead), dismiss, or merge with a finding."
+`;
+
+exports[`compiler golden tests > prompt snapshots > should produce a deterministic judge structuring prompt 1`] = `
+"Parse the following evaluation into a structured JSON object.
+
+## Evaluation
+The implementation covers all spec sections. Feature A works correctly. Feature B has a minor issue with edge case handling.
+
+## Required JSON Structure
+{
+  "specDrift": {
+    "detected": boolean,
+    "issues": [{"section": string, "description": string, "severity": "critical"|"major"|"minor"}]
+  },
+  "acceptance": {
+    "passed": boolean,
+    "results": [{"criterion": string, "passed": boolean, "evidence": string}]
+  },
+  "observations": [{"beadId": string, "action": "promote"|"dismiss"|"merge", "reason": string}],
+  "newBeads": [{"title": string, "description": string, "type": "bug"|"task"|"feature"}]
+}
+
+Return ONLY the JSON object, no other text."
+`;
+
+exports[`compiler golden tests > prompt snapshots > should produce a deterministic maintenance prompt 1`] = `
+"You are a maintenance agent. Your job is to fix breakage introduced by recent merges.
+
+## Instructions
+
+1. Pull latest from the target branch:
+   \`\`\`
+   git fetch origin tbd-compile/run-2026-02-12-a1b2c3
+   git rebase origin/tbd-compile/run-2026-02-12-a1b2c3
+   \`\`\`
+2. Run the full test suite, build, typecheck, and lint
+3. Fix any failures — focus on:
+   - Test regressions from merge conflicts
+   - Build errors from incompatible changes
+   - Type errors from interface mismatches
+   - Import/export issues
+4. Do NOT change behavior or add features — only fix breakage
+5. Commit with: "chore: fix test/build breakage (maintenance)"
+6. Push:
+   \`\`\`
+   git push origin HEAD:tbd-compile/run-2026-02-12-a1b2c3
+   \`\`\`
+7. Close your maintenance bead and sync:
+   \`\`\`
+   tbd close <your-bead-id> --reason="Fixed breakage"
+   tbd sync
+   \`\`\`
+
+## What NOT to Do
+
+- Do NOT add new features
+- Do NOT refactor working code
+- Do NOT modify the frozen spec
+- Do NOT create observation beads (only coding agents do that)"
+`;
+
+exports[`compiler golden tests > prompt snapshots > should produce judge reasoning prompt without observations 1`] = `
+"You are a judge evaluating an implementation against its specification.
+
+## Frozen Spec
+Read the frozen spec at: /path/to/frozen-spec.md
+
+## Acceptance Criteria
+Read the acceptance criteria at: /path/to/acceptance/
+
+## Instructions
+
+1. Explore the codebase using tools (Read, Glob, Grep, Bash for git diff/log)
+2. Compare the implementation against each section of the frozen spec
+3. Evaluate each acceptance criterion by reading code and checking tests
+4. Identify any spec drift (missing features, wrong behavior, extra features)
+5. For each finding, cite specific files and line numbers as evidence
+
+Do NOT modify any files. You are read-only.
+
+Report your findings in detail."
+`;
+
+exports[`compiler golden tests > scheduler schedule snapshot > should produce a deterministic schedule for a known graph 1`] = `
+[
+  "is-00000000000000000000000001 (Setup types)",
+  "is-00000000000000000000000002 (Implement auth)",
+  "is-00000000000000000000000003 (Implement API)",
+  "is-00000000000000000000000004 (Integration tests)",
+  "is-00000000000000000000000005 (Update docs)",
+]
+`;
