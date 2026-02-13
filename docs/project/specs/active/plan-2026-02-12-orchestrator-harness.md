@@ -288,9 +288,8 @@ The scheduler detects two deadlock scenarios and **fails fast**:
    `detectCycles()` (see §Dependency Graph Construction). The harness errors
    before any agent spawns.
 
-2. **Blocked-bead deadlock**: All remaining open beads depend on a bead that was
-   closed due to max retries (the harness tracks these in the checkpoint). The
-   scheduler detects this when:
+2. **Blocked-bead deadlock**: All remaining open beads depend on a bead with
+   `status=blocked` (max retries exhausted). The scheduler detects this when:
    - No beads are ready (all have unresolved blockers)
    - No agents are currently running
    - Open beads still remain
@@ -491,11 +490,11 @@ Three failure modes, each with distinct retry behavior:
 - Mark bead as `open`, increment retry counter
 
 **All failure modes**:
-- Max retries exceeded → close bead via `tbd close <id> --reason="blocked: max
-  retries exceeded (<failure-mode>)"`, log for human review. Since tbd has no
-  native `blocked` status, this uses the existing `closed` status with a
-  descriptive reason. The harness's checkpoint tracks which beads were closed
-  due to blocking (vs. successful completion) for accurate reporting.
+- Max retries exceeded → mark bead as blocked via
+  `tbd update <id> --status=blocked`, log for human review. `blocked` is a
+  native tbd status (alongside `open`, `in_progress`, `deferred`, `closed`)
+  and preserves the bead for operator triage without conflating it with
+  successful completion.
 
 ### Phase 4: Maintain
 
@@ -1394,7 +1393,7 @@ beads:
   total: 12
   completed: [scr-a1b2, scr-c3d4, ...]
   in_progress: [scr-e5f6]
-  closed_as_blocked: []             # Beads closed via max retries (not successful)
+  blocked: []                       # Beads with status=blocked (max retries exhausted)
   retry_counts:
     scr-g7h8: 1
   claims:                           # Claim tokens for idempotent resume
