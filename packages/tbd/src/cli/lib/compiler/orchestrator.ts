@@ -29,6 +29,7 @@ import { buildCodingAgentPrompt, buildMaintenancePrompt, loadGuidelines } from '
 import { createAgentBackend, createJudgeBackend } from './backends/detect.js';
 import { killAllActiveProcesses } from './backends/backend.js';
 import { CompilerError } from '../errors.js';
+import { ConsoleReporter } from './console-reporter.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -140,6 +141,7 @@ export class Orchestrator {
     await this.runLock.acquire();
 
     this.eventLogger.emit({ event: 'run_started', run_id: this.runId, spec: this.opts.specPath });
+    ConsoleReporter.runStarted(this.runId, this.opts.specPath);
 
     // Initialize checkpoint
     this.checkpoint = {
@@ -258,6 +260,7 @@ export class Orchestrator {
       run_id: this.runId,
       phase: this.checkpoint.state,
     });
+    ConsoleReporter.runResumed(this.runId, this.checkpoint.state);
   }
 
   // ===========================================================================
@@ -334,6 +337,7 @@ export class Orchestrator {
             status: 'completed',
             total_beads: this.checkpoint.beads.total,
           });
+          ConsoleReporter.runCompleted(this.checkpoint.beads.total, this.checkpoint.iteration);
 
           return {
             runId: this.runId,
@@ -373,6 +377,7 @@ export class Orchestrator {
     await this.saveCheckpoint();
     this.runLog.fail();
     await this.runLog.flush();
+    ConsoleReporter.runFailed(`max iterations (${maxIterations}) reached`);
 
     throw compilerError(
       'E_MAX_ITERATIONS',
@@ -386,6 +391,7 @@ export class Orchestrator {
 
   private async freeze(): Promise<void> {
     this.eventLogger.emit({ event: 'phase_changed', phase: 'freeze' });
+    ConsoleReporter.phaseStarted('freeze');
     this.checkpoint.state = 'freezing';
 
     const frozenPath = join(compilerRunDir(this.runId), 'frozen-spec.md');
@@ -413,12 +419,14 @@ export class Orchestrator {
         return result.lastLines;
       });
       this.checkpoint.acceptancePath = acceptance.getPath();
+      ConsoleReporter.acceptanceGenerated();
     } else if (this.config.acceptance.path) {
       this.checkpoint.acceptancePath = this.config.acceptance.path;
     }
 
     await this.saveCheckpoint();
     this.eventLogger.emit({ event: 'spec_frozen', hash });
+    ConsoleReporter.specFrozen(hash);
   }
 
   // ===========================================================================
@@ -427,6 +435,7 @@ export class Orchestrator {
 
   private async decompose(): Promise<void> {
     this.eventLogger.emit({ event: 'phase_changed', phase: 'decompose' });
+    ConsoleReporter.phaseStarted('decompose');
     this.checkpoint.state = 'decomposing';
 
     const beadLabel = this.opts.beadLabel ?? this.config.phases.decompose.existing_selector;
@@ -510,6 +519,7 @@ Create beads now.`;
       event: 'beads_created',
       count: this.checkpoint.beads.total,
     });
+    ConsoleReporter.beadsCreated(this.checkpoint.beads.total);
 
     this.runLog.startIteration(this.checkpoint.iteration);
     this.runLog.updateIteration({ beadsTotal: this.checkpoint.beads.total });
@@ -522,6 +532,7 @@ Create beads now.`;
 
   private async implement(): Promise<void> {
     this.eventLogger.emit({ event: 'phase_changed', phase: 'implement' });
+    ConsoleReporter.phaseStarted('implement', this.checkpoint.iteration);
     this.checkpoint.state = 'implementing';
 
     const backend = createAgentBackend(this.config.agent.backend, this.config.agent.command);
@@ -638,6 +649,7 @@ Create beads now.`;
           event: 'agent_started',
           bead_id: nextBead.id,
         });
+        ConsoleReporter.agentStarted(nextBead.id, nextBead.title);
         await this.saveCheckpoint();
       }
 
@@ -671,6 +683,7 @@ Create beads now.`;
         status: result.status,
         duration_ms: result.duration,
       });
+      ConsoleReporter.agentFinished(slot.beadId, result.status, result.duration);
 
       // Handle result
       await this.handleAgentResult(slot.beadId, result, completedIds, blockedIds);
@@ -735,6 +748,7 @@ Create beads now.`;
       completedIds.add(beadId);
       this.checkpoint.beads.completed = Array.from(completedIds);
       this.eventLogger.emit({ event: 'bead_completed', bead_id: beadId });
+      ConsoleReporter.beadCompleted(beadId);
       return;
     }
 
@@ -753,6 +767,7 @@ Create beads now.`;
         reason: 'max_retries_exceeded',
         last_lines: result.lastLines.slice(-200),
       });
+      ConsoleReporter.beadBlocked(beadId, 'max retries exceeded');
     } else {
       // Reset to open for retry (worktree will be cleaned up on next assignment)
       await this.tbdExecSafe(['update', beadId, '--status=open']);
@@ -762,6 +777,7 @@ Create beads now.`;
         retry: retryCount,
         failure_mode: result.status,
       });
+      ConsoleReporter.beadRetry(beadId, retryCount);
     }
   }
 
@@ -771,6 +787,7 @@ Create beads now.`;
 
   private async spawnMaintenance(index: number): Promise<void> {
     this.eventLogger.emit({ event: 'maintenance_started', index });
+    ConsoleReporter.maintenanceStarted(index);
 
     // Create a maintenance bead for tracking
     const maintBeadId = await this.tbdExecSafe([
@@ -822,6 +839,7 @@ Create beads now.`;
       status: result.status,
       duration_ms: result.duration,
     });
+    ConsoleReporter.maintenanceFinished(index, result.status, result.duration);
 
     // Cleanup maintenance worktree
     if (this.config.worktree.cleanup) {
@@ -835,6 +853,7 @@ Create beads now.`;
 
   private async judge(): Promise<JudgeResult> {
     this.eventLogger.emit({ event: 'phase_changed', phase: 'judge' });
+    ConsoleReporter.phaseStarted('judge', this.checkpoint.iteration);
     this.checkpoint.state = 'judging';
     await this.saveCheckpoint();
 
@@ -891,12 +910,14 @@ Create beads now.`;
       await this.worktreeMgr.removeWorktree(judgeWorktree).catch(() => {});
     }
 
+    const judgePassed = result.acceptance.passed && !result.specDrift.detected;
     this.eventLogger.emit({
       event: 'judge_finished',
       iteration: this.checkpoint.iteration,
-      verdict: result.acceptance.passed && !result.specDrift.detected ? 'pass' : 'fail',
+      verdict: judgePassed ? 'pass' : 'fail',
       new_beads: result.newBeads.length,
     });
+    ConsoleReporter.judgeVerdict(this.checkpoint.iteration, judgePassed, result.newBeads.length);
 
     // Store judge result
     const judgeResultDir = join(this.runDir, 'judge-results');
@@ -1043,6 +1064,7 @@ Create beads now.`;
       );
 
       this.eventLogger.emit({ event: 'pr_created', url: stdout.trim() });
+      ConsoleReporter.prCreated(stdout.trim());
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       this.eventLogger.emit({ event: 'pr_creation_failed', error: msg });
@@ -1166,6 +1188,7 @@ Create beads now.`;
   private setupSignalHandlers(): () => void {
     const handler = async () => {
       this.eventLogger.emit({ event: 'run_interrupted' });
+      ConsoleReporter.runInterrupted();
 
       // Kill all active agent process groups
       killAllActiveProcesses();
