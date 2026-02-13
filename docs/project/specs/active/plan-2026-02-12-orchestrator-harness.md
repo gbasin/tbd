@@ -43,8 +43,7 @@ is no escape hatch for amending mid-run.
 - Replacing `tbd` interactive mode — the harness is an additional module, not a
   replacement
 - Supporting agents that need persistent conversations — agents are stateless per bead
-- Fine-grained cost controls or budget caps (v1 includes hard safety caps
-  `max_runtime` and `max_agent_spawns` but not per-agent cost tracking)
+- Cost controls or budget caps (v1 — add in a future version)
 - Spec amendments mid-run — if the spec is wrong, stop, fix it, re-run
 - `--from-phase` flexible entry points (v1 uses `--resume` only — add later)
 
@@ -1165,10 +1164,6 @@ phases:
     max_iterations: 3           # Max spec→implement→judge loops
     on_complete: pr             # pr | none — what to do when done
 
-safety:
-  max_runtime: 24h                # Hard cap on total run duration
-  max_agent_spawns: 500           # Hard cap on total agent spawns (coding + maintenance + judge)
-
 acceptance:
   generate: true                # Auto-generate from spec during freeze
   model: claude-opus-4-6        # Model for generating acceptance criteria
@@ -1192,7 +1187,6 @@ acceptance:
   PR on completion
 - Acceptance criteria: auto-generated via `AgentBackend.spawn()`, stored in XDG cache
   (`~/.cache/tbd-harness/<run-id>/`)
-- Safety caps: `max_runtime: 24h`, `max_agent_spawns: 500`
 
 ### Run Log and Observability
 
@@ -1311,7 +1305,7 @@ tbd run --spec plan.md --dry-run
 | `2` | Input/config error (missing spec, invalid config, backend not found) |
 | `3` | Lock/precondition error (run locked, acceptance cache missing) |
 | `4` | Runtime orchestration failure (all retries exhausted, deadlock) |
-| `5` | Partial completion (max iterations or max runtime reached) |
+| `5` | Partial completion (max iterations reached) |
 
 #### JSON Error Envelope
 
@@ -1330,7 +1324,7 @@ Error codes: `E_SPEC_NOT_FOUND`, `E_CONFIG_INVALID`, `E_BACKEND_UNAVAILABLE`,
 `E_RUN_LOCKED`, `E_BEAD_SCOPE_AMBIGUOUS`, `E_GRAPH_CYCLE`, `E_DEADLOCK`,
 `E_EXTERNAL_BLOCKED`, `E_AGENT_TIMEOUT`, `E_ACCEPTANCE_MISSING`,
 `E_JUDGE_PARSE_FAILED`, `E_CHECKPOINT_CORRUPT`, `E_PR_CREATE_FAILED`,
-`E_MAX_ITERATIONS`, `E_MAX_RUNTIME`, `E_SPEC_HASH_MISMATCH`, `E_MAX_AGENT_SPAWNS`.
+`E_MAX_ITERATIONS`, `E_MAX_RUNTIME`, `E_SPEC_HASH_MISMATCH`.
 
 #### `--dry-run` Behavior
 
@@ -1416,8 +1410,6 @@ maintenance:
     - id: maint-2
       trigger_completed_count: 10
       state: running
-
-total_agent_spawns: 19              # Running total for max_agent_spawns cap
 
 observations:
   pending: [scr-x9y8, scr-z1w2]
@@ -1627,7 +1619,6 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 - [ ] Implement run lock with heartbeat (`lock.json`, 5s heartbeat, 30s stale)
 - [ ] Implement frozen spec SHA-256 hash storage and per-phase verification
 - [ ] Implement atomic checkpoint writes (tmp + fsync + rename + parent fsync)
-- [ ] Implement hard safety caps (`max_runtime`, `max_agent_spawns`)
 - [ ] Implement CLI exit codes (0/2/3/4/5) and JSON error envelope
 - [ ] Implement schema versioning for checkpoint (`schema_version: 1`) and events (`v:1`)
 - [ ] Implement schema version check and migration hooks on resume
@@ -1747,7 +1738,6 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 - Run lock acquisition, heartbeat, stale detection
 - Atomic checkpoint write protocol (tmp + fsync + rename)
 - Frozen spec SHA-256 hash verification (detect tampering)
-- Safety cap enforcement (max_runtime, max_agent_spawns)
 - CLI exit code mapping and JSON error envelope
 - Schema version validation and migration hooks
 - Claim token idempotency on resume
@@ -1768,7 +1758,6 @@ CLI-aware logic, and `lib/` has pure domain logic (see `lib/paths.ts`, `file/git
 - SIGTERM cascade: verify process groups receive signal and checkpoint is written
 - Run lock contention: two `--resume` invocations → second gets `E_RUN_LOCKED`
 - Stale lock recovery: simulate crashed harness, verify new process acquires lock
-- Safety cap: verify harness stops at `max_runtime` and `max_agent_spawns`
 - Maintenance barrier: verify judge waits for all triggered maintenance (watermark)
 - External dependency: bead blocked by non-run bead → `E_EXTERNAL_BLOCKED`
 - Post-judge integrity: judge modifies worktree → result discarded
@@ -1934,11 +1923,10 @@ These are accepted tradeoffs for v1, documented for transparency:
    pattern for killing agent process groups only works on Unix/macOS. Windows is
    not supported in v1 (add `tree-kill` package for Windows support if needed).
 
-4. **No fine-grained cost controls in v1**: Hard safety caps exist (`max_runtime:
-   24h`, `max_agent_spawns: 500`) but there is no per-agent cost tracking or
-   budget estimation. A run with 50+ beads and 3 judge iterations could consume
-   significant API credits. `--max-budget-usd` exists in Claude Code but is not
-   wired up in v1. See Future Work.
+4. **No cost controls in v1**: There is no budget cap or cost estimation. A run
+   with 50+ beads and 3 judge iterations could consume significant API credits.
+   `--max-budget-usd` exists in Claude Code but is not wired up in v1. See Future
+   Work.
 
 5. **LWW merge for concurrent tbd operations**: Multiple agents running `tbd sync`
    concurrently rely on Last-Write-Wins merge. In rare cases, a bead status update
