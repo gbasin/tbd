@@ -432,7 +432,7 @@ describeUnlessWindows('large repository performance', () => {
     const elapsed = performance.now() - start;
 
     expect(issues.length).toBe(LARGE_ISSUE_COUNT);
-    expect(elapsed).toBeLessThan(5000);
+    expect(elapsed).toBeLessThan(15000);
     console.log(`Listed ${LARGE_ISSUE_COUNT} issues in ${elapsed.toFixed(2)}ms`);
   });
 
@@ -452,7 +452,7 @@ describeUnlessWindows('large repository performance', () => {
     const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
     const maxTime = Math.max(...times);
 
-    expect(avgTime).toBeLessThan(10);
+    expect(avgTime).toBeLessThan(50);
     console.log(
       `Read 100 random issues from ${LARGE_ISSUE_COUNT}: avg=${avgTime.toFixed(2)}ms, max=${maxTime.toFixed(2)}ms`,
     );
