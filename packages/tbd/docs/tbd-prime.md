@@ -50,6 +50,7 @@ Every session must end with tbd in a clean state:
 - `tbd list --status open` - All open issues
 - `tbd list --status in_progress` - Your active work
 - `tbd show <id>` - Detailed issue view with dependencies
+  - Auto-displays parent context for child issues (use `--no-parent` to suppress)
 
 ### Creating & Updating
 

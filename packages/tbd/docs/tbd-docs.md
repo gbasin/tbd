@@ -286,10 +286,13 @@ Display detailed information about an issue.
 ```bash
 tbd show proj-a7k2                            # YAML output
 tbd show proj-a7k2 --json                     # JSON output
+tbd show proj-a7k2 --no-parent                # Suppress parent context
 ```
 
 Output includes all fields: title, description, status, priority, labels, dependencies,
 timestamps, and working notes.
+For child issues, the parent’s details (ID, title, status, priority, description) are
+automatically displayed above the child for context.
 
 ### update
 
@@ -837,6 +840,8 @@ tbd sync
 tbd create "User Authentication System" --type=epic --priority=P1 --spec=docs/specs/auth.md
 
 # Create child tasks (they inherit spec_path from the epic automatically)
+# No need to duplicate the epic's description — `tbd show` on any child
+# automatically displays the parent's context.
 tbd create "Design auth API" --parent=proj-epic
 tbd create "Implement login endpoint" --parent=proj-epic
 tbd create "Add password reset" --parent=proj-epic
