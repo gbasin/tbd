@@ -46,7 +46,8 @@ function inferGuidelineCategory(name: string): GuidelineCategory | undefined {
     name.includes('patterns') ||
     name.startsWith('backward-') ||
     name.startsWith('convex-') ||
-    name.startsWith('release-')
+    name.startsWith('release-') ||
+    name.startsWith('writing-')
   ) {
     return 'general';
   }

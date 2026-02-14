@@ -1694,6 +1694,9 @@ parent_id: is-01hx5zzkbkbctav9wevgemmvrz  # Points to parent epic
 - **Organizational**: Used for grouping tasks under epics or features
 - **Single parent**: Each issue can have at most one parent
 - **Visualized by**: `tbd list --pretty`, `tbd list --parent <id>`
+- **Context inheritance**: `tbd show` auto-displays parent context for child issues, so
+  child descriptions don’t need to duplicate the parent’s context (suppress with
+  `--no-parent`)
 
 **Commands:**
 
@@ -2562,6 +2565,8 @@ tbd show <id> [options]
 Options:
   --json                    Output as JSON instead of YAML+Markdown
   --show-order              Display child_order_hints (if any)
+  --no-parent               Suppress automatic parent context display
+  --max-lines <n>           Truncate output to N lines (with omission notice)
 ```
 
 **Output:**
@@ -2569,6 +2574,48 @@ Options:
 The `show` command outputs the issue in the exact storage format (YAML frontmatter +
 Markdown body). This format is both human-readable and machine-parseable, enabling
 round-trip editing workflows.
+
+**Parent context (auto-displayed for child issues):**
+
+When the shown issue has a `parent_id`, the show command displays the requested issue
+first, then appends the full parent issue (in the same YAML+Markdown format) below,
+capped at `PARENT_CONTEXT_MAX_LINES` (default: 50) from `settings.ts`. This provides
+essential context without requiring a separate lookup.
+
+```
+---
+(child issue shown first)
+---
+
+The parent of this bead is:
+---
+id: is-a1b2c3
+kind: epic
+title: Build Auth System
+status: in_progress
+priority: 1
+---
+Users need OAuth, SAML, and API key authentication methods.
+```
+
+This means child issues do NOT need to duplicate the parent’s context in their own
+description. When creating children under a parent epic, the parent’s description serves
+as shared context that is always visible when viewing any child.
+
+Use `--no-parent` to suppress this behavior (e.g., for scripting or piping).
+For `--json` output, the parent issue data is included as a `parent` object.
+
+**Output truncation (`--max-lines`):**
+
+When `--max-lines <n>` is specified, the issue output is truncated to at most `n` lines.
+If truncated, a dimmed omission notice is appended:
+
+```
+… [15 lines omitted]
+```
+
+This option is off by default for the main issue.
+The parent context display always uses `PARENT_CONTEXT_MAX_LINES` (50) as its cap.
 
 ```markdown
 ---

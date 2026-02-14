@@ -81,3 +81,10 @@ export const TEXT_LINE_WIDTH = 88;
  * ~50 lines is slightly more than one terminal screen.
  */
 export const PAGINATION_LINE_THRESHOLD = 50;
+
+/**
+ * Maximum lines to display when showing parent bead context in `tbd show`.
+ * The parent's full serialized output is truncated to this many lines,
+ * with an ellipsis and omitted-line count appended if exceeded.
+ */
+export const PARENT_CONTEXT_MAX_LINES = 50;

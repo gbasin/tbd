@@ -13,10 +13,77 @@ import { readIssue } from '../../file/storage.js';
 import { serializeIssue } from '../../file/parser.js';
 import { formatPriority, getPriorityColor } from '../../lib/priority.js';
 import { getStatusColor } from '../../lib/status.js';
-import type { IssueStatusType } from '../../lib/types.js';
+import { PARENT_CONTEXT_MAX_LINES } from '../../lib/settings.js';
+import type { createColors } from '../lib/output.js';
+import type { Issue, IssueStatusType } from '../../lib/types.js';
 
 interface ShowOptions {
   showOrder?: boolean;
+  parent?: boolean; // Commander: --no-parent sets this to false (default: true)
+  maxLines?: string;
+}
+
+/**
+ * Render a serialized issue with colorized output, optionally truncated.
+ *
+ * @param issue - The issue to render
+ * @param colors - Color functions
+ * @param maxLines - If set, truncate output to this many lines with an omission notice
+ * @returns Array of formatted lines
+ */
+function renderIssueLines(issue: Issue, colors: ReturnType<typeof createColors>): string[] {
+  const serialized = serializeIssue(issue);
+  const output: string[] = [];
+
+  for (const line of serialized.split('\n')) {
+    if (line === '---') {
+      output.push(colors.dim(line));
+    } else if (line.startsWith('id:')) {
+      output.push(`${colors.dim('id:')} ${colors.id(line.slice(4))}`);
+    } else if (line.startsWith('status:')) {
+      const status = line.slice(8).trim() as IssueStatusType;
+      const statusColor = getStatusColor(status, colors);
+      output.push(`${colors.dim('status:')} ${statusColor(status)}`);
+    } else if (line.startsWith('priority:')) {
+      const priority = parseInt(line.slice(10).trim(), 10);
+      const priorityColor = getPriorityColor(priority, colors);
+      output.push(`${colors.dim('priority:')} ${priorityColor(formatPriority(priority))}`);
+    } else if (line.startsWith('title:')) {
+      output.push(`${colors.dim('title:')} ${colors.bold(line.slice(7))}`);
+    } else if (line.startsWith('spec_path:')) {
+      output.push(`${colors.dim('spec_path:')} ${colors.id(line.slice(11))}`);
+    } else if (line.startsWith('## Notes')) {
+      output.push(colors.bold(line));
+    } else if (line.startsWith('  - ')) {
+      output.push(`  - ${colors.label(line.slice(4))}`);
+    } else {
+      output.push(line);
+    }
+  }
+
+  return output;
+}
+
+/**
+ * Print lines with optional max-lines truncation.
+ * If maxLines is set and the output exceeds it, truncates and appends an omission notice.
+ */
+function printWithTruncation(
+  lines: string[],
+  colors: ReturnType<typeof createColors>,
+  maxLines?: number,
+): void {
+  if (maxLines && lines.length > maxLines) {
+    const omitted = lines.length - maxLines;
+    for (const line of lines.slice(0, maxLines)) {
+      console.log(line);
+    }
+    console.log(colors.dim(`… [${omitted} line${omitted === 1 ? '' : 's'} omitted]`));
+  } else {
+    for (const line of lines) {
+      console.log(line);
+    }
+  }
 }
 
 class ShowHandler extends BaseCommand {
@@ -34,6 +101,19 @@ class ShowHandler extends BaseCommand {
       throw new NotFoundError('Issue', id);
     }
 
+    // Load parent issue if this is a child and --no-parent not specified
+    let parentIssue: Issue | undefined;
+    if (issue.parent_id && options.parent !== false) {
+      try {
+        parentIssue = await readIssue(ctx.dataSyncDir, issue.parent_id);
+      } catch {
+        // Parent referenced but missing - silently skip
+      }
+    }
+
+    // Parse --max-lines if provided
+    const maxLines = options.maxLines ? parseInt(options.maxLines, 10) : undefined;
+
     // Format display ID using helper (respects debug mode automatically)
     const displayId = ctx.displayId(issue.id);
 
@@ -41,40 +121,29 @@ class ShowHandler extends BaseCommand {
     const displayIssue = {
       ...issue,
       displayId,
+      ...(parentIssue
+        ? {
+            parent: {
+              ...parentIssue,
+              displayId: ctx.displayId(parentIssue.id),
+            },
+          }
+        : {}),
     };
 
     this.output.data(displayIssue, () => {
       const colors = this.output.getColors();
 
-      // Output as YAML+Markdown format (same as storage format)
-      const serialized = serializeIssue(issue);
+      // Render main issue first (what the user asked for)
+      const issueLines = renderIssueLines(issue, colors);
+      printWithTruncation(issueLines, colors, maxLines);
 
-      // Add some color highlighting for text output
-      const lines = serialized.split('\n');
-      for (const line of lines) {
-        if (line === '---') {
-          console.log(colors.dim(line));
-        } else if (line.startsWith('id:')) {
-          console.log(`${colors.dim('id:')} ${colors.id(line.slice(4))}`);
-        } else if (line.startsWith('status:')) {
-          const status = line.slice(8).trim() as IssueStatusType;
-          const statusColor = getStatusColor(status, colors);
-          console.log(`${colors.dim('status:')} ${statusColor(status)}`);
-        } else if (line.startsWith('priority:')) {
-          const priority = parseInt(line.slice(10).trim(), 10);
-          const priorityColor = getPriorityColor(priority, colors);
-          console.log(`${colors.dim('priority:')} ${priorityColor(formatPriority(priority))}`);
-        } else if (line.startsWith('title:')) {
-          console.log(`${colors.dim('title:')} ${colors.bold(line.slice(7))}`);
-        } else if (line.startsWith('spec_path:')) {
-          console.log(`${colors.dim('spec_path:')} ${colors.id(line.slice(11))}`);
-        } else if (line.startsWith('## Notes')) {
-          console.log(colors.bold(line));
-        } else if (line.startsWith('  - ')) {
-          console.log(`  - ${colors.label(line.slice(4))}`);
-        } else {
-          console.log(line);
-        }
+      // Show parent context below if this is a child issue
+      if (parentIssue) {
+        console.log('');
+        console.log(colors.dim('The parent of this bead is:'));
+        const parentLines = renderIssueLines(parentIssue, colors);
+        printWithTruncation(parentLines, colors, PARENT_CONTEXT_MAX_LINES);
       }
 
       // Show child_order_hints if --show-order is specified
@@ -98,6 +167,8 @@ export const showCommand = new Command('show')
   .description('Show issue details')
   .argument('<id>', 'Issue ID')
   .option('--show-order', 'Display children ordering hints')
+  .option('--no-parent', 'Suppress automatic parent context display')
+  .option('--max-lines <n>', 'Truncate output to N lines')
   .action(async (id, options, command) => {
     const handler = new ShowHandler(command);
     await handler.run(id, command, options);
