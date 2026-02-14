@@ -121,6 +121,9 @@ or want help → run `tbd shortcut welcome-user`
 | "Check out this library's source" | `tbd shortcut checkout-third-party-repo` |
 | *(your choice whenever appropriate)* | `tbd list`, `tbd dep add`, `tbd close`, `tbd sync`, etc. |
 
+**Note:** Never gitignore `.tbd/workspaces/` — the outbox must be committed to your
+working branch. See `tbd guidelines tbd-sync-troubleshooting` for details.
+
 ## CRITICAL: Session Closing Protocol
 
 **Before saying “done”, you MUST complete this checklist:**

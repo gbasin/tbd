@@ -64,6 +64,23 @@ auto-saving, since the issue is likely temporary.
 
 ## Workspace Issues
 
+### Don’t gitignore .tbd/workspaces/
+
+When `tbd sync` fails and auto-saves to `.tbd/workspaces/outbox/`, a new untracked
+directory appears. Do not add it to `.gitignore` — the outbox must be committed to your
+working branch so unsynced data survives across sessions.
+
+**What to do instead:**
+```bash
+git add .tbd/workspaces
+git commit -m "tbd: save outbox"
+git push
+```
+
+If `.tbd/workspaces/` is gitignored, unsynced issues are silently discarded on checkout
+and permanently lost.
+The `.tbd/.gitignore` file contains a `!workspaces/` negation pattern to prevent this.
+
 ### Workspace not showing in status
 
 **Symptoms:**

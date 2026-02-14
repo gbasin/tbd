@@ -282,12 +282,18 @@ the full specification.
 
 ```
 .tbd/                               # Config directory (on main branch)
-├── config.yml                      # Project configuration (tracked)
-├── state.yml                       # Local state (gitignored)
-├── .gitignore                      # Ignores worktree, docs, backups
-├── docs/                           # Installed documentation
-├── backups/                        # Local backups (corrupted worktrees, migrations)
-└── data-sync-worktree/             # Hidden worktree (gitignored)
+│
+│ Committed to the repo:
+├── config.yml                      # Project configuration
+├── .gitignore                      # Controls what's gitignored below
+├── workspaces/                     # Persistent state (outbox, named workspaces)
+│   └── outbox/                     # Sync failure recovery data
+│
+│ Gitignored (local only):
+├── state.yml                       # Local state
+├── docs/                           # Installed documentation (regenerated on setup)
+├── backups/                        # Local backups
+└── data-sync-worktree/             # Hidden worktree
     └── .tbd/
         └── data-sync/              # Actual issue storage (on tbd-sync branch)
             ├── issues/

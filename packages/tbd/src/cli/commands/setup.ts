@@ -1160,6 +1160,9 @@ class SetupDefaultHandler extends BaseCommand {
         '# Temporary files',
         '*.tmp',
         '*.temp',
+        '',
+        '# workspaces/ stores state (including outbox) committed to the working branch',
+        '!workspaces/',
       ],
     );
     if (tbdGitignoreResult.created) {
@@ -1415,6 +1418,9 @@ class SetupDefaultHandler extends BaseCommand {
       '# Temporary files',
       '*.tmp',
       '*.temp',
+      '',
+      '# workspaces/ stores state (including outbox) committed to the working branch',
+      '!workspaces/',
     ]);
     if (tbdGitignoreResult.created) {
       console.log(`  ${colors.success('✓')} Created .tbd/.gitignore`);
