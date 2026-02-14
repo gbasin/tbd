@@ -848,7 +848,7 @@ backups/
 > 
 > **IMPORTANT:** `workspaces/` (including `workspaces/outbox/`) must NEVER be
 > gitignored. This directory stores issue data that could not be pushed to the tbd-sync
-> branch (e.g., due to HTTP 403 in restricted environments).
+> branch (e.g., due to HTTP 403 from git branch restrictions).
 > It must be committed to the working branch so the data can be recovered and synced
 > later. Gitignoring it causes data loss.
 
