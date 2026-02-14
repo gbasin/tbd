@@ -292,7 +292,7 @@ tbd show proj-a7k2 --no-parent                # Suppress parent context
 Output includes all fields: title, description, status, priority, labels, dependencies,
 timestamps, and working notes.
 For child issues, the parent’s details (ID, title, status, priority, description) are
-automatically displayed above the child for context.
+automatically displayed below the child for context.
 
 ### update
 
