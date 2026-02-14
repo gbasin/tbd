@@ -304,7 +304,7 @@ vi.mock('../src/lib/compiler/acceptance.js', () => ({
       }
     }
     verify() {
-      // no-op
+      if (acceptanceVerifyError) throw acceptanceVerifyError;
     }
   },
   acceptanceCacheDir: () => '/tmp/stub-acceptance',
@@ -355,6 +355,8 @@ let gitStatusOverride = '';
 let worktreeCreateBranchError: Error | null = null;
 let worktreeAgentError: Error | null = null;
 let acceptanceShouldCallCallback = false;
+let acceptanceVerifyError: Error | null = null;
+let ghCreateError = false;
 
 vi.mock('node:child_process', () => {
   return {
@@ -384,6 +386,10 @@ vi.mock('node:child_process', () => {
       }
 
       if (cmd === 'gh') {
+        if (ghCreateError) {
+          if (cb) cb(new Error('gh: not authenticated'), { stdout: '', stderr: '' });
+          return;
+        }
         // Stub gh pr create
         if (cb) cb(null, { stdout: 'https://github.com/test/pr/1', stderr: '' });
         return;
@@ -522,6 +528,8 @@ describe('Orchestrator', () => {
     worktreeCreateBranchError = null;
     worktreeAgentError = null;
     acceptanceShouldCallCallback = false;
+    acceptanceVerifyError = null;
+    ghCreateError = false;
     tempDir = await setupTempDir();
   });
 
@@ -2106,6 +2114,910 @@ describe('Orchestrator', () => {
       const cp = await readCheckpoint(tempDir);
       expect(cp).not.toBeNull();
       expect(cp!.acceptancePath).toBe('/custom/acceptance.md');
+    });
+  });
+
+  // ===========================================================================
+  // Cycle detection
+  // ===========================================================================
+
+  describe('cycle detection', () => {
+    it('throws E_GRAPH_CYCLE when beads have circular dependencies', async () => {
+      const specPath = await createSpecFile(tempDir);
+
+      // A depends on B, B depends on A — cycle
+      tbdSim.addBead({
+        id: 'is-00000000000000000000000001',
+        title: 'A: First',
+        kind: 'task',
+        status: 'open',
+        labels: ['cycle-test'],
+        dependsOn: ['is-00000000000000000000000002'],
+      });
+      tbdSim.addBead({
+        id: 'is-00000000000000000000000002',
+        title: 'B: Second',
+        kind: 'task',
+        status: 'open',
+        labels: ['cycle-test'],
+        dependsOn: ['is-00000000000000000000000001'],
+      });
+
+      const config = defaultConfig({
+        phases: {
+          decompose: { auto: false, existing_selector: 'cycle-test' },
+          implement: { guidelines: [] },
+          maintain: { trigger: 'never' },
+          judge: { enabled: false, on_complete: 'none' },
+        },
+      });
+
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+      });
+
+      try {
+        await orchestrator.run();
+        expect.fail('Expected CompilerError to be thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(CompilerError);
+        expect((err as CompilerError).code).toBe('E_GRAPH_CYCLE');
+      }
+    });
+  });
+
+  // ===========================================================================
+  // External blocker detection
+  // ===========================================================================
+
+  describe('external blocker detection', () => {
+    it('throws E_EXTERNAL_BLOCKED when a run bead is blocked by an external open bead', async () => {
+      const specPath = await createSpecFile(tempDir);
+
+      // External bead (not in the run) that is open
+      tbdSim.addBead({
+        id: 'is-external-00000000000000001',
+        title: 'External prerequisite',
+        kind: 'task',
+        status: 'open',
+        labels: [],
+        dependsOn: [],
+      });
+
+      // Run bead depends on external bead
+      tbdSim.addBead({
+        id: 'is-00000000000000000000000001',
+        title: 'Feature A',
+        kind: 'task',
+        status: 'open',
+        labels: ['ext-test'],
+        dependsOn: ['is-external-00000000000000001'],
+      });
+
+      const config = defaultConfig({
+        phases: {
+          decompose: { auto: false, existing_selector: 'ext-test' },
+          implement: { guidelines: [] },
+          maintain: { trigger: 'never' },
+          judge: { enabled: false, on_complete: 'none' },
+        },
+      });
+
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+      });
+
+      try {
+        await orchestrator.run();
+        expect.fail('Expected CompilerError to be thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(CompilerError);
+        expect((err as CompilerError).code).toBe('E_EXTERNAL_BLOCKED');
+      }
+    });
+  });
+
+  // ===========================================================================
+  // Worktree reuse on incomplete retry
+  // ===========================================================================
+
+  describe('worktree reuse on incomplete retry', () => {
+    it('emits bead_retry with worktree_reuse: true when agent exits 0 but bead stays open', async () => {
+      const specPath = await createSpecFile(tempDir);
+
+      tbdSim.addBead({
+        id: 'is-00000000000000000000000001',
+        title: 'Reuse worktree bead',
+        kind: 'task',
+        status: 'open',
+        labels: ['reuse-wt-test'],
+        dependsOn: [],
+      });
+
+      const config = defaultConfig({
+        agent: { backend: 'claude-code', max_concurrency: 1, max_retries_per_bead: 3 },
+        phases: {
+          decompose: { auto: false, existing_selector: 'reuse-wt-test' },
+          implement: { guidelines: [] },
+          maintain: { trigger: 'never' },
+          judge: { enabled: false, on_complete: 'none' },
+        },
+      });
+
+      let spawnCount = 0;
+      mockAgentBackend.onSpawn = () => {
+        spawnCount++;
+        if (spawnCount >= 3) {
+          // Close the bead on 3rd attempt
+          for (const [, bead] of tbdSim.beads) {
+            if (bead.status === 'in_progress') bead.status = 'closed';
+          }
+        }
+        // First 2 attempts: agent exits 0 but bead stays open → should reuse worktree
+      };
+
+      // 3 attempts needed: first 2 exit success but bead stays open, 3rd closes it
+      mockAgentBackend.results.push(
+        { status: 'success', exitCode: 0, lastLines: 'attempt 1', duration: 100 },
+        { status: 'success', exitCode: 0, lastLines: 'attempt 2', duration: 100 },
+        { status: 'success', exitCode: 0, lastLines: 'attempt 3', duration: 100 },
+      );
+
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+      });
+
+      const result = await orchestrator.run();
+      expect(result.status).toBe('completed');
+      expect(spawnCount).toBe(3);
+
+      // Verify retry events with worktree_reuse: true
+      const events = await readEvents(tempDir);
+      const retryEvents = events.filter((e) => e === 'bead_retry');
+      expect(retryEvents.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  // ===========================================================================
+  // Resume from judging state
+  // ===========================================================================
+
+  describe('resume from judging state', () => {
+    it('skips implement and goes directly to judge when checkpoint state is judging', async () => {
+      const beadId = 'is-00000000000000000000000001';
+      const runId = 'run-2026-01-15-judge';
+      const runDir = join(tempDir, '.tbd', 'compiler', runId);
+      await mkdir(runDir, { recursive: true });
+
+      const specPath = await createSpecFile(tempDir);
+      const frozenContent = '# Frozen Spec\nBuild a widget.';
+      const frozenSpecRelPath = join('.tbd', 'compiler', runId, 'frozen-spec.md');
+      await writeFile(join(tempDir, frozenSpecRelPath), frozenContent);
+      const frozenHash = createHash('sha256').update(frozenContent).digest('hex');
+
+      // Register bead in simulator as closed (already implemented)
+      tbdSim.addBead({
+        id: beadId,
+        title: 'Already implemented',
+        kind: 'task',
+        status: 'closed',
+        labels: [`compiler-run:${runId}`],
+        dependsOn: [],
+      });
+
+      const checkpoint: Checkpoint = {
+        schemaVersion: 1,
+        runId,
+        specPath,
+        frozenSpecPath: frozenSpecRelPath,
+        frozenSpecSha256: frozenHash,
+        targetBranch: `tbd-compile/${runId}`,
+        baseBranch: 'main',
+        state: 'judging',
+        iteration: 1,
+        beads: {
+          total: 1,
+          completed: [beadId],
+          inProgress: [],
+          blocked: [],
+          retryCounts: {},
+          claims: {},
+        },
+        agents: { maxConcurrency: 2, active: [] },
+        maintenance: { runCount: 0, runs: [] },
+        observations: { pending: [], promoted: [], dismissed: [] },
+      };
+
+      await writeFile(join(runDir, 'checkpoint.yml'), yamlStringify(checkpoint));
+      await writeFile(
+        join(runDir, 'events.jsonl'),
+        '{"v":1,"ts":"2026-01-15T00:00:00.000Z","event":"run_started"}\n',
+      );
+      await writeFile(
+        join(runDir, 'run-log.yml'),
+        yamlStringify({
+          runId,
+          spec: specPath,
+          status: 'in_progress',
+          targetBranch: `tbd-compile/${runId}`,
+          startedAt: '2026-01-15T00:00:00.000Z',
+          iterations: [
+            {
+              iteration: 1,
+              beadsCompleted: 1,
+              beadsTotal: 1,
+              agentsSpawned: 1,
+              maintenanceRuns: 0,
+            },
+          ],
+        }),
+      );
+
+      const config = defaultConfig({
+        phases: {
+          decompose: { auto: false },
+          implement: { guidelines: [] },
+          maintain: { trigger: 'never' },
+          judge: { enabled: true, on_complete: 'none', max_iterations: 3 },
+        },
+      });
+
+      // Judge passes
+      mockJudgeBackend.results.push({
+        status: 'success',
+        specDrift: { detected: false, issues: [] },
+        acceptance: {
+          passed: true,
+          results: [{ criterion: 'works', passed: true, evidence: 'yes' }],
+        },
+        observations: [],
+        newBeads: [],
+        lastLines: '',
+        duration: 100,
+      });
+
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+        resume: true,
+      });
+
+      const result = await orchestrator.run();
+      expect(result.status).toBe('completed');
+
+      // No agent spawns — implement was skipped
+      expect(mockAgentBackend.spawnCalls).toHaveLength(0);
+      // Judge was called
+      expect(mockJudgeBackend.evaluateCalls).toHaveLength(1);
+    });
+  });
+
+  // ===========================================================================
+  // Resume: acceptance missing (E_ACCEPTANCE_MISSING)
+  // ===========================================================================
+
+  describe('resume: acceptance missing', () => {
+    it('throws E_ACCEPTANCE_MISSING when acceptance cache is cleared mid-run', async () => {
+      const beadId = 'is-00000000000000000000000001';
+      const runId = 'run-2026-01-15-accpt';
+      const runDir = join(tempDir, '.tbd', 'compiler', runId);
+      await mkdir(runDir, { recursive: true });
+
+      const specPath = await createSpecFile(tempDir);
+      const frozenContent = '# Frozen Spec\nBuild a widget.';
+      const frozenSpecRelPath = join('.tbd', 'compiler', runId, 'frozen-spec.md');
+      await writeFile(join(tempDir, frozenSpecRelPath), frozenContent);
+      const frozenHash = createHash('sha256').update(frozenContent).digest('hex');
+
+      tbdSim.addBead({
+        id: beadId,
+        title: 'Acceptance bead',
+        kind: 'task',
+        status: 'open',
+        labels: [`compiler-run:${runId}`],
+        dependsOn: [],
+      });
+
+      const checkpoint: Checkpoint = {
+        schemaVersion: 1,
+        runId,
+        specPath,
+        frozenSpecPath: frozenSpecRelPath,
+        frozenSpecSha256: frozenHash,
+        targetBranch: `tbd-compile/${runId}`,
+        baseBranch: 'main',
+        state: 'implementing',
+        iteration: 1,
+        beads: {
+          total: 1,
+          completed: [],
+          inProgress: [],
+          blocked: [],
+          retryCounts: {},
+          claims: {},
+        },
+        agents: { maxConcurrency: 2, active: [] },
+        maintenance: { runCount: 0, runs: [] },
+        observations: { pending: [], promoted: [], dismissed: [] },
+        acceptancePath: '/tmp/stub-acceptance',
+      };
+
+      await writeFile(join(runDir, 'checkpoint.yml'), yamlStringify(checkpoint));
+      await writeFile(
+        join(runDir, 'events.jsonl'),
+        '{"v":1,"ts":"2026-01-15T00:00:00.000Z","event":"run_started"}\n',
+      );
+      await writeFile(
+        join(runDir, 'run-log.yml'),
+        yamlStringify({
+          runId,
+          spec: specPath,
+          status: 'in_progress',
+          targetBranch: `tbd-compile/${runId}`,
+          startedAt: '2026-01-15T00:00:00.000Z',
+          iterations: [
+            {
+              iteration: 1,
+              beadsCompleted: 0,
+              beadsTotal: 1,
+              agentsSpawned: 0,
+              maintenanceRuns: 0,
+            },
+          ],
+        }),
+      );
+
+      // Make acceptance verify throw
+      acceptanceVerifyError = new Error('Cache dir missing');
+
+      const config = defaultConfig();
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+        resume: true,
+      });
+
+      try {
+        await orchestrator.run();
+        expect.fail('Expected CompilerError to be thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(CompilerError);
+        expect((err as CompilerError).code).toBe('E_ACCEPTANCE_MISSING');
+      }
+    });
+  });
+
+  // ===========================================================================
+  // Resume: frozen spec hash mismatch (E_SPEC_HASH_MISMATCH)
+  // ===========================================================================
+
+  describe('resume: frozen spec hash mismatch', () => {
+    it('throws E_SPEC_HASH_MISMATCH when frozen spec has been tampered with', async () => {
+      const beadId = 'is-00000000000000000000000001';
+      const runId = 'run-2026-01-15-hashs';
+      const runDir = join(tempDir, '.tbd', 'compiler', runId);
+      await mkdir(runDir, { recursive: true });
+
+      const specPath = await createSpecFile(tempDir);
+
+      // Write frozen spec with different content than what hash expects
+      const frozenSpecRelPath = join('.tbd', 'compiler', runId, 'frozen-spec.md');
+      await writeFile(join(tempDir, frozenSpecRelPath), '# Modified Spec\nDifferent content.');
+      const wrongHash = createHash('sha256').update('original content').digest('hex');
+
+      tbdSim.addBead({
+        id: beadId,
+        title: 'Hash bead',
+        kind: 'task',
+        status: 'open',
+        labels: [`compiler-run:${runId}`],
+        dependsOn: [],
+      });
+
+      const checkpoint: Checkpoint = {
+        schemaVersion: 1,
+        runId,
+        specPath,
+        frozenSpecPath: frozenSpecRelPath,
+        frozenSpecSha256: wrongHash,
+        targetBranch: `tbd-compile/${runId}`,
+        baseBranch: 'main',
+        state: 'implementing',
+        iteration: 1,
+        beads: {
+          total: 1,
+          completed: [],
+          inProgress: [],
+          blocked: [],
+          retryCounts: {},
+          claims: {},
+        },
+        agents: { maxConcurrency: 2, active: [] },
+        maintenance: { runCount: 0, runs: [] },
+        observations: { pending: [], promoted: [], dismissed: [] },
+      };
+
+      await writeFile(join(runDir, 'checkpoint.yml'), yamlStringify(checkpoint));
+      await writeFile(
+        join(runDir, 'events.jsonl'),
+        '{"v":1,"ts":"2026-01-15T00:00:00.000Z","event":"run_started"}\n',
+      );
+      await writeFile(
+        join(runDir, 'run-log.yml'),
+        yamlStringify({
+          runId,
+          spec: specPath,
+          status: 'in_progress',
+          targetBranch: `tbd-compile/${runId}`,
+          startedAt: '2026-01-15T00:00:00.000Z',
+          iterations: [
+            {
+              iteration: 1,
+              beadsCompleted: 0,
+              beadsTotal: 1,
+              agentsSpawned: 0,
+              maintenanceRuns: 0,
+            },
+          ],
+        }),
+      );
+
+      const config = defaultConfig();
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+        resume: true,
+      });
+
+      try {
+        await orchestrator.run();
+        expect.fail('Expected CompilerError to be thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(CompilerError);
+        expect((err as CompilerError).code).toBe('E_SPEC_HASH_MISMATCH');
+      }
+    });
+  });
+
+  // ===========================================================================
+  // Custom target branch (non-auto)
+  // ===========================================================================
+
+  describe('custom target branch', () => {
+    it('uses config.target_branch directly when not "auto"', async () => {
+      const specPath = await createSpecFile(tempDir);
+
+      tbdSim.addBead({
+        id: 'is-00000000000000000000000001',
+        title: 'Custom branch bead',
+        kind: 'task',
+        status: 'open',
+        labels: ['custom-branch-test'],
+        dependsOn: [],
+      });
+
+      const config = defaultConfig({
+        target_branch: 'my-feature-branch',
+        phases: {
+          decompose: { auto: false, existing_selector: 'custom-branch-test' },
+          implement: { guidelines: [] },
+          maintain: { trigger: 'never' },
+          judge: { enabled: false, on_complete: 'none' },
+        },
+      });
+
+      mockAgentBackend.onSpawn = () => {
+        for (const [, bead] of tbdSim.beads) {
+          if (bead.status === 'in_progress') bead.status = 'closed';
+        }
+      };
+
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+      });
+
+      const result = await orchestrator.run();
+      expect(result.status).toBe('completed');
+
+      const cp = await readCheckpoint(tempDir);
+      expect(cp).not.toBeNull();
+      expect(cp!.targetBranch).toBe('my-feature-branch');
+    });
+  });
+
+  // ===========================================================================
+  // Spec drift detected (acceptance passes, drift detected → remediation)
+  // ===========================================================================
+
+  describe('spec drift prevents completion', () => {
+    it('creates remediation beads when acceptance passes but spec drift is detected', async () => {
+      const specPath = await createSpecFile(tempDir);
+
+      tbdSim.addBead({
+        id: 'is-00000000000000000000000001',
+        title: 'Drift bead',
+        kind: 'task',
+        status: 'open',
+        labels: ['drift-test'],
+        dependsOn: [],
+      });
+
+      const config = defaultConfig({
+        phases: {
+          decompose: { auto: false, existing_selector: 'drift-test' },
+          implement: { guidelines: [] },
+          maintain: { trigger: 'never' },
+          judge: { enabled: true, on_complete: 'none', max_iterations: 3 },
+        },
+      });
+
+      mockAgentBackend.onSpawn = () => {
+        for (const [, bead] of tbdSim.beads) {
+          if (bead.status === 'in_progress') bead.status = 'closed';
+        }
+      };
+
+      // Judge 1: acceptance passes BUT spec drift detected → should loop
+      mockJudgeBackend.results.push({
+        status: 'success',
+        specDrift: {
+          detected: true,
+          issues: [{ section: 'API', description: 'Endpoint naming differs', severity: 'minor' }],
+        },
+        acceptance: {
+          passed: true,
+          results: [{ criterion: 'works', passed: true, evidence: 'yes' }],
+        },
+        observations: [],
+        newBeads: [{ title: 'Fix API naming', description: 'Rename endpoints', type: 'bug' }],
+        lastLines: '',
+        duration: 100,
+      });
+
+      // Judge 2: everything passes → complete
+      mockJudgeBackend.results.push({
+        status: 'success',
+        specDrift: { detected: false, issues: [] },
+        acceptance: {
+          passed: true,
+          results: [{ criterion: 'works', passed: true, evidence: 'all good' }],
+        },
+        observations: [],
+        newBeads: [],
+        lastLines: '',
+        duration: 100,
+      });
+
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+      });
+
+      const result = await orchestrator.run();
+      expect(result.status).toBe('completed');
+      // Two judge calls: first iteration had drift, second passed
+      expect(mockJudgeBackend.evaluateCalls).toHaveLength(2);
+      expect(result.iterations).toBe(2);
+    });
+  });
+
+  // ===========================================================================
+  // Maintenance failure is recorded but not fatal
+  // ===========================================================================
+
+  describe('maintenance failure recording', () => {
+    it('records maintenance failure state but still completes the run', async () => {
+      const specPath = await createSpecFile(tempDir);
+
+      tbdSim.addBead({
+        id: 'is-00000000000000000000000001',
+        title: 'Maint fail bead',
+        kind: 'task',
+        status: 'open',
+        labels: ['maint-fail-test'],
+        dependsOn: [],
+      });
+
+      const config = defaultConfig({
+        phases: {
+          decompose: { auto: false, existing_selector: 'maint-fail-test' },
+          implement: { guidelines: [] },
+          maintain: { trigger: 'after_all' },
+          judge: { enabled: false, on_complete: 'none' },
+        },
+      });
+
+      mockAgentBackend.onSpawn = () => {
+        for (const [, bead] of tbdSim.beads) {
+          if (bead.status === 'in_progress') bead.status = 'closed';
+        }
+      };
+
+      // Implementation succeeds, maintenance fails
+      mockAgentBackend.results.push(
+        { status: 'success', exitCode: 0, lastLines: 'impl done', duration: 100 },
+        { status: 'timeout', exitCode: 1, lastLines: 'maintenance timed out', duration: 5000 },
+      );
+
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+      });
+
+      const result = await orchestrator.run();
+      expect(result.status).toBe('completed');
+
+      // Check that maintenance failure was recorded in checkpoint
+      const cp = await readCheckpoint(tempDir);
+      expect(cp).not.toBeNull();
+      const maintRun = cp!.maintenance.runs.find((r) => r.state === 'failure');
+      expect(maintRun).toBeDefined();
+    });
+  });
+
+  // ===========================================================================
+  // PR creation failure is non-fatal
+  // ===========================================================================
+
+  describe('PR creation failure is non-fatal', () => {
+    it('completes successfully even when gh pr create fails', async () => {
+      const specPath = await createSpecFile(tempDir);
+
+      tbdSim.addBead({
+        id: 'is-00000000000000000000000001',
+        title: 'PR fail bead',
+        kind: 'task',
+        status: 'open',
+        labels: ['pr-fail-test'],
+        dependsOn: [],
+      });
+
+      const config = defaultConfig({
+        phases: {
+          decompose: { auto: false, existing_selector: 'pr-fail-test' },
+          implement: { guidelines: [] },
+          maintain: { trigger: 'never' },
+          judge: { enabled: true, on_complete: 'pr', max_iterations: 3 },
+        },
+      });
+
+      mockAgentBackend.onSpawn = () => {
+        for (const [, bead] of tbdSim.beads) {
+          if (bead.status === 'in_progress') bead.status = 'closed';
+        }
+      };
+
+      mockJudgeBackend.results.push({
+        status: 'success',
+        specDrift: { detected: false, issues: [] },
+        acceptance: {
+          passed: true,
+          results: [{ criterion: 'works', passed: true, evidence: 'yes' }],
+        },
+        observations: [],
+        newBeads: [],
+        lastLines: '',
+        duration: 100,
+      });
+
+      // Make gh pr create fail
+      ghCreateError = true;
+
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+      });
+
+      const result = await orchestrator.run();
+      // Should still complete — PR failure is non-fatal
+      expect(result.status).toBe('completed');
+
+      // Check event log has pr_creation_failed
+      const events = await readEvents(tempDir);
+      expect(events).toContain('pr_creation_failed');
+    });
+  });
+
+  // ===========================================================================
+  // PR creation skipped when target_branch is not 'auto'
+  // ===========================================================================
+
+  describe('PR creation skipped for custom branch', () => {
+    it('does not create a PR when target_branch is not auto', async () => {
+      const specPath = await createSpecFile(tempDir);
+
+      tbdSim.addBead({
+        id: 'is-00000000000000000000000001',
+        title: 'Custom branch PR bead',
+        kind: 'task',
+        status: 'open',
+        labels: ['pr-skip-test'],
+        dependsOn: [],
+      });
+
+      const config = defaultConfig({
+        target_branch: 'my-custom-branch',
+        phases: {
+          decompose: { auto: false, existing_selector: 'pr-skip-test' },
+          implement: { guidelines: [] },
+          maintain: { trigger: 'never' },
+          judge: { enabled: true, on_complete: 'pr', max_iterations: 3 },
+        },
+      });
+
+      mockAgentBackend.onSpawn = () => {
+        for (const [, bead] of tbdSim.beads) {
+          if (bead.status === 'in_progress') bead.status = 'closed';
+        }
+      };
+
+      mockJudgeBackend.results.push({
+        status: 'success',
+        specDrift: { detected: false, issues: [] },
+        acceptance: {
+          passed: true,
+          results: [{ criterion: 'works', passed: true, evidence: 'yes' }],
+        },
+        observations: [],
+        newBeads: [],
+        lastLines: '',
+        duration: 100,
+      });
+
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+      });
+
+      const result = await orchestrator.run();
+      expect(result.status).toBe('completed');
+
+      // No PR-related events should be emitted
+      const events = await readEvents(tempDir);
+      expect(events).not.toContain('pr_created');
+      expect(events).not.toContain('pr_creation_failed');
+    });
+  });
+
+  // ===========================================================================
+  // Empty label selector with all beads closed
+  // ===========================================================================
+
+  describe('empty label selector (all beads closed)', () => {
+    it('throws E_BEAD_SCOPE_AMBIGUOUS when label matches only closed beads', async () => {
+      const specPath = await createSpecFile(tempDir);
+
+      // Add bead with the label but already closed
+      tbdSim.addBead({
+        id: 'is-00000000000000000000000001',
+        title: 'Already done',
+        kind: 'task',
+        status: 'closed',
+        labels: ['closed-label-test'],
+        dependsOn: [],
+      });
+
+      const config = defaultConfig({
+        phases: {
+          decompose: { auto: false, existing_selector: 'closed-label-test' },
+          implement: { guidelines: [] },
+          maintain: { trigger: 'never' },
+          judge: { enabled: false, on_complete: 'none' },
+        },
+      });
+
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+      });
+
+      // The selector filters --status=open, so closed beads won't match → empty result → E_BEAD_SCOPE_AMBIGUOUS
+      await expect(orchestrator.run()).rejects.toThrow(CompilerError);
+    });
+  });
+
+  // ===========================================================================
+  // Run-log records judge results
+  // ===========================================================================
+
+  describe('run-log records judge results', () => {
+    it('persists specDrift, acceptance, observation counts in run-log.yml', async () => {
+      const specPath = await createSpecFile(tempDir);
+
+      tbdSim.addBead({
+        id: 'is-00000000000000000000000001',
+        title: 'Run-log bead',
+        kind: 'task',
+        status: 'open',
+        labels: ['runlog-test'],
+        dependsOn: [],
+      });
+
+      const config = defaultConfig({
+        phases: {
+          decompose: { auto: false, existing_selector: 'runlog-test' },
+          implement: { guidelines: [] },
+          maintain: { trigger: 'never' },
+          judge: { enabled: true, on_complete: 'none', max_iterations: 3 },
+        },
+      });
+
+      mockAgentBackend.onSpawn = () => {
+        for (const [, bead] of tbdSim.beads) {
+          if (bead.status === 'in_progress') bead.status = 'closed';
+        }
+      };
+
+      mockJudgeBackend.results.push({
+        status: 'success',
+        specDrift: {
+          detected: true,
+          issues: [{ section: 'UI', description: 'Layout differs', severity: 'minor' }],
+        },
+        acceptance: {
+          passed: false,
+          results: [{ criterion: 'UI matches', passed: false, evidence: 'layout off' }],
+        },
+        observations: [
+          { beadId: 'obs-1', action: 'promote', reason: 'important finding' },
+          { beadId: 'obs-2', action: 'dismiss', reason: 'not relevant' },
+        ],
+        newBeads: [{ title: 'Fix layout', description: 'Fix UI layout', type: 'bug' }],
+        lastLines: '',
+        duration: 100,
+      });
+
+      // Second judge passes
+      mockJudgeBackend.results.push({
+        status: 'success',
+        specDrift: { detected: false, issues: [] },
+        acceptance: {
+          passed: true,
+          results: [{ criterion: 'UI matches', passed: true, evidence: 'all good' }],
+        },
+        observations: [],
+        newBeads: [],
+        lastLines: '',
+        duration: 100,
+      });
+
+      const orchestrator = new Orchestrator({
+        config,
+        tbdRoot: tempDir,
+        specPath,
+      });
+
+      const result = await orchestrator.run();
+      expect(result.status).toBe('completed');
+
+      // Read run-log and verify judge results are recorded
+      const runLog = await readRunLog(tempDir);
+      expect(runLog).not.toBeNull();
+
+      const firstIteration = runLog!.iterations[0];
+      expect(firstIteration).toBeDefined();
+      expect(firstIteration!.judgeResult).toBeDefined();
+      expect(firstIteration!.judgeResult!.specDrift).toBe('detected');
+      expect(firstIteration!.judgeResult!.acceptance).toBe('failed');
+      expect(firstIteration!.judgeResult!.observationsPromoted).toBe(1);
+      expect(firstIteration!.judgeResult!.observationsDismissed).toBe(1);
+      expect(firstIteration!.judgeResult!.newBeadsCreated).toBe(1);
     });
   });
 });
