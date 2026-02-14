@@ -1,5 +1,12 @@
 # get-tbd
 
+## 0.1.20
+
+### Patch Changes
+
+- 703f84f: Fix workspace gitignore handling, add parent context display for child beads,
+  and new documentation guidelines
+
 ## 0.1.19
 
 ### Patch Changes
