@@ -121,6 +121,9 @@ or want help → run `tbd shortcut welcome-user`
 | "Check out this library's source" | `tbd shortcut checkout-third-party-repo` |
 | *(your choice whenever appropriate)* | `tbd list`, `tbd dep add`, `tbd close`, `tbd sync`, etc. |
 
+**Note:** Never gitignore `.tbd/workspaces/` — the outbox must be committed to your
+working branch. See `tbd guidelines tbd-sync-troubleshooting` for details.
+
 ## CRITICAL: Session Closing Protocol
 
 **Before saying “done”, you MUST complete this checklist:**
@@ -222,6 +225,7 @@ Run `tbd shortcut <name>` to use any of these shortcuts:
 | new-architecture-doc | Create an architecture document for a system or component design |
 | new-guideline | Create a new coding guideline document for tbd |
 | new-plan-spec | Create a new feature planning specification document |
+| new-qa-playbook | Create a QA test playbook for manual validation workflows |
 | new-research-brief | Create a research document for investigating a topic or technology |
 | new-shortcut | Create a new shortcut (reusable instruction template) for tbd |
 | new-validation-plan | Create a validation/test plan showing what's tested and what remains |
@@ -270,6 +274,7 @@ Run `tbd guidelines <name>` to apply any of these guidelines:
 | typescript-rules | TypeScript coding rules and best practices |
 | typescript-sorting-patterns | Deterministic sorting patterns and comparison chains for TypeScript |
 | typescript-yaml-handling-rules | Best practices for parsing and serializing YAML in TypeScript |
+| writing-style-guidelines | Guidelines for clear, concise, and reader-friendly writing in documentation and code |
 
 <!-- END SHORTCUT DIRECTORY -->
 <!-- END TBD INTEGRATION -->
